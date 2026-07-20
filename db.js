@@ -144,4 +144,66 @@ function seed() {
 
 seed();
 
+// Stock photos (Wikimedia Commons, see ATTRIBUTIONS.md) backfilled into items
+// that have no image yet. Never overwrites images uploaded via the dashboard.
+const seedImages = {
+  "ทอดมัน": '/img/menu/tod-mun.jpg',
+  "เฟรนฟราย": '/img/menu/french-fries.jpg',
+  "BBQ": '/img/menu/bbq.jpg',
+  "ลูกชิ้นปลาลวกจิ้ม": '/img/menu/fish-balls.jpg',
+  "ลูกชิ้นทอดรวม": '/img/menu/fried-meatballs.jpg',
+  "ผัดไทย": '/img/menu/pad-thai.jpg',
+  "ผัดซีอิ๊ว": '/img/menu/pad-see-ew.jpg',
+  "เตี๋ยวคั่วไก่": '/img/menu/kua-gai.jpg',
+  "ข้าวผัด": '/img/menu/fried-rice.jpg',
+  "ผัดกะเพรา (เนื้อสด / เนื้อตุ๋น)": '/img/menu/pad-krapao.jpg',
+  "ผัดพริกแกงเนื้อตุ๋น": '/img/menu/pad-prik-gaeng.jpg',
+  "ผัดผักรวม": '/img/menu/mixed-veg.jpg',
+  "หอยลายผัดฉ่า": '/img/menu/clams-pad-cha.jpg',
+  "หอยลายพริกเผา": '/img/menu/clams-chili-jam.jpg',
+  "แกงเผ็ดเนื้อ": '/img/menu/red-curry.jpg',
+  "แกงเขียวไก่": '/img/menu/green-curry.jpg',
+  "แกงอ่อมเนื้อ": '/img/menu/gaeng-om.jpg',
+  "แกงฮังเล": '/img/menu/hang-le.jpg',
+  "ตำไทย": '/img/menu/som-tum.jpg',
+  "ตำปูปลาร้า": '/img/menu/tum-poo-plara.jpg',
+  "ยำคอหมูย่าง": '/img/menu/yum-kor-moo.jpg',
+  "ยำทะเลรวม": '/img/menu/yum-talay.jpg',
+  "ยำหมูยอ": '/img/menu/yum-moo-yor.jpg',
+  "ยำวุ้นเส้นทะเล": '/img/menu/yum-woon-sen.jpg',
+  "ปีกไก่ย่าง": '/img/menu/grilled-wings.jpg',
+  "คอหมูย่าง": '/img/menu/kor-moo-yang.jpg',
+  "เนื้อย่าง": '/img/menu/grilled-beef.jpg',
+  "ลิ้นวัวย่าง ไทยชิมิชูริ": '/img/menu/beef-tongue.jpg',
+  "ไก่ทอด ณ เชียงใหม่": '/img/menu/fried-chicken.jpg',
+  "หมูแดดเดียว": '/img/menu/moo-dad-diew.jpg',
+  "เนื้อแดดเดียว": '/img/menu/nuea-dad-diew.jpg',
+  "ต้มจืดสาหร่าย เต้าหู้ หมูสับ": '/img/menu/tom-jued.jpg',
+  "แกงเห็ด": '/img/menu/gaeng-hed.jpg',
+  "ต้มแซ่บเนื้อ": '/img/menu/tom-saab.jpg',
+  "ซุปเปอร์น้ำแดง": '/img/menu/super-nam-daeng.jpg',
+  "ก๋วยเตี๋ยวเนื้อน้ำใส": '/img/menu/beef-noodle.jpg',
+  "เหลาเนื้อหม้อไฟ": '/img/menu/beef-hotpot.jpg',
+  "แซลม่อนฟู": '/img/menu/salmon-foo.jpg',
+  "ตีนไก่ตุ๋นวอม": '/img/menu/chicken-feet.jpg',
+  "ออเดิร์ฟ ขันโตก": '/img/menu/khantoke.jpg',
+  "ไส้อั่ว": '/img/menu/sai-ua.jpg',
+  "น้ำพริกอ่อง": '/img/menu/nam-prik-ong.jpg',
+  "น้ำพริกมะเขือส้ม": '/img/menu/nam-prik-makhuea.jpg',
+  "น้ำพริกหนุ่ม": '/img/menu/nam-prik-noom.jpg',
+  "จิ้นนึ่ง น้ำพริกข่า": '/img/menu/jin-nueng.jpg',
+  "ต้มยำน้ำข้น Seafood": '/img/menu/tom-yum.jpg',
+  "กุ้งอบวุ้นเส้น": '/img/menu/goong-ob.jpg',
+};
+
+function backfillImages() {
+  const upd = db.prepare("UPDATE menu_items SET image = ? WHERE name_th = ? AND (image IS NULL OR image = '')");
+  const fill = db.transaction(() => {
+    for (const [nameTh, img] of Object.entries(seedImages)) upd.run(img, nameTh);
+  });
+  fill();
+}
+
+backfillImages();
+
 module.exports = db;

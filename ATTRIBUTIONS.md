@@ -1,0 +1,52 @@
+# Image Attributions
+
+รูปประกอบเมนูเป็นภาพ stock จาก [Wikimedia Commons](https://commons.wikimedia.org) ตาม license ด้านล่าง
+(ควรทยอยแทนที่ด้วยรูปถ่ายจริงของร้านผ่าน dashboard)
+
+- **bbq.jpg** (BBQ) — [DFC 5259- Grilled marinated pork skewers sizzling on the grill, garnished with fresh herbs and ready to eat..jpg](https://commons.wikimedia.org/wiki/File:DFC_5259-_Grilled_marinated_pork_skewers_sizzling_on_the_grill,_garnished_with_fresh_herbs_and_ready_to_eat..jpg) · CC BY-SA 4.0 · Pattaya Patrol
+- **beef-hotpot.jpg** (เหลาเนื้อหม้อไฟ) — [Beef hot pot.jpg](https://commons.wikimedia.org/wiki/File:Beef_hot_pot.jpg) · CC BY-SA 4.0 · Khanh Ha, Tran
+- **beef-noodle.jpg** (ก๋วยเตี๋ยวเนื้อน้ำใส) — [Kuai tiao nuea pueai.jpg](https://commons.wikimedia.org/wiki/File:Kuai_tiao_nuea_pueai.jpg) · CC BY 2.0 · lazy fri13th
+- **beef-tongue.jpg** (ลิ้นวัวย่าง ไทยชิมิชูริ) — [Grilled beef tongue (28240627827).jpg](https://commons.wikimedia.org/wiki/File:Grilled_beef_tongue_(28240627827).jpg) · CC BY 2.0 · Raita Futo from Tokyo, Japan
+- **chicken-feet.jpg** (ตีนไก่ตุ๋นวอม) — [Steamed Fung Zaau at Yunshan Café, Beijing Guangdong Hotel (20240128130536).jpg](https://commons.wikimedia.org/wiki/File:Steamed_Fung_Zaau_at_Yunshan_Caf%C3%A9,_Beijing_Guangdong_Hotel_(20240128130536).jpg) · CC BY-SA 4.0 · N509FZ
+- **clams-chili-jam.jpg** (หอยลายพริกเผา) — [Hoi Lai Pad Phrik Pao75.jpg](https://commons.wikimedia.org/wiki/File:Hoi_Lai_Pad_Phrik_Pao75.jpg) · CC BY-SA 3.0 · Xufanc
+- **clams-pad-cha.jpg** (หอยลายผัดฉ่า) — [Stired-fried Razor Clams with Black Beans and Pepper.jpg](https://commons.wikimedia.org/wiki/File:Stired-fried_Razor_Clams_with_Black_Beans_and_Pepper.jpg) · CC BY-SA 2.0 · Kent Wong
+- **fish-balls.jpg** (ลูกชิ้นปลาลวกจิ้ม) — [Tomyam fish ball and Chinese fried fish saugage noodle soup.jpg](https://commons.wikimedia.org/wiki/File:Tomyam_fish_ball_and_Chinese_fried_fish_saugage_noodle_soup.jpg) · CC BY-SA 4.0 · Vee Satayamas
+- **french-fries.jpg** (เฟรนฟราย) — [French Fries with Ketchup 02.jpg](https://commons.wikimedia.org/wiki/File:French_Fries_with_Ketchup_02.jpg) · CC BY-SA 4.0 · Kritzolina
+- **fried-chicken.jpg** (ไก่ทอด ณ เชียงใหม่) — [Kai thot takhrai.jpg](https://commons.wikimedia.org/wiki/File:Kai_thot_takhrai.jpg) · CC BY-SA 3.0 · Takeaway
+- **fried-meatballs.jpg** (ลูกชิ้นทอดรวม) — [Fish balls and Chinese fried fish sausages with sauce.jpg](https://commons.wikimedia.org/wiki/File:Fish_balls_and_Chinese_fried_fish_sausages_with_sauce.jpg) · CC BY-SA 4.0 · Vee Satayamas
+- **fried-rice.jpg** (ข้าวผัด) — [Khao phat nam phrik narok.jpg](https://commons.wikimedia.org/wiki/File:Khao_phat_nam_phrik_narok.jpg) · CC BY-SA 3.0 · Takeaway
+- **gaeng-hed.jpg** (แกงเห็ด) — [Kaeng het.jpg](https://commons.wikimedia.org/wiki/File:Kaeng_het.jpg) · CC BY-SA 3.0 · Takeaway
+- **gaeng-om.jpg** (แกงอ่อมเนื้อ) — [2016 0919 Lunch at Long Koi Lap Khom 05.jpg](https://commons.wikimedia.org/wiki/File:2016_0919_Lunch_at_Long_Koi_Lap_Khom_05.jpg) · CC BY-SA 4.0 · Takeaway
+- **goong-ob.jpg** (กุ้งอบวุ้นเส้น) — [DFC 1491 Zesty Thai glass noodle salad topped with plump shrimp fresh tomatoes cucumber slices and cilantro.jpg](https://commons.wikimedia.org/wiki/File:DFC_1491_Zesty_Thai_glass_noodle_salad_topped_with_plump_shrimp_fresh_tomatoes_cucumber_slices_and_cilantro.jpg) · CC BY-SA 4.0 · PattayaPatrol
+- **green-curry.jpg** (แกงเขียวไก่) — [Thai green chicken curry and roti.jpg](https://commons.wikimedia.org/wiki/File:Thai_green_chicken_curry_and_roti.jpg) · CC BY-SA 3.0 · Takeaway
+- **grilled-beef.jpg** (เนื้อย่าง) — [Suea rong hai.jpg](https://commons.wikimedia.org/wiki/File:Suea_rong_hai.jpg) · CC BY-SA 3.0 · Takeaway
+- **grilled-wings.jpg** (ปีกไก่ย่าง) — [Grilled chicken wings, Turkish style.jpg](https://commons.wikimedia.org/wiki/File:Grilled_chicken_wings,_Turkish_style.jpg) · CC BY-SA 4.0 · E4024
+- **hang-le.jpg** (แกงฮังเล) — [แกงฮังเล ที่ หลู้ลำ.jpg](https://commons.wikimedia.org/wiki/File:%E0%B9%81%E0%B8%81%E0%B8%87%E0%B8%AE%E0%B8%B1%E0%B8%87%E0%B9%80%E0%B8%A5_%E0%B8%97%E0%B8%B5%E0%B9%88_%E0%B8%AB%E0%B8%A5%E0%B8%B9%E0%B9%89%E0%B8%A5%E0%B8%B3.jpg) · CC BY-SA 4.0 · Chainwit.
+- **jin-nueng.jpg** (จิ้นนึ่ง น้ำพริกข่า) — [Nam phrik kha.JPG](https://commons.wikimedia.org/wiki/File:Nam_phrik_kha.JPG) · CC BY-SA 3.0 · Takeaway
+- **khantoke.jpg** (ออเดิร์ฟ ขันโตก) — [Lanna cuisine starters.JPG](https://commons.wikimedia.org/wiki/File:Lanna_cuisine_starters.JPG) · CC BY-SA 3.0 · Takeaway
+- **kor-moo-yang.jpg** (คอหมูย่าง) — [Kho mu yang kratha ron.jpg](https://commons.wikimedia.org/wiki/File:Kho_mu_yang_kratha_ron.jpg) · CC BY-SA 3.0 · Takeaway
+- **kua-gai.jpg** (เตี๋ยวคั่วไก่) — [Kuai-tiao khua kai (noodles fried with chicken), Bangkok, 2018-11-14.jpg](https://commons.wikimedia.org/wiki/File:Kuai-tiao_khua_kai_(noodles_fried_with_chicken),_Bangkok,_2018-11-14.jpg) · CC0 · Bitterschoko
+- **mixed-veg.jpg** (ผัดผักรวม) — [Stir fried mixed vegetables.jpg](https://commons.wikimedia.org/wiki/File:Stir_fried_mixed_vegetables.jpg) · CC BY-SA 4.0 · CNEcija12345
+- **moo-dad-diew.jpg** (หมูแดดเดียว) — [Mu daet diao.jpg](https://commons.wikimedia.org/wiki/File:Mu_daet_diao.jpg) · CC BY-SA 3.0 · Takeaway
+- **nam-prik-makhuea.jpg** (น้ำพริกมะเขือส้ม) — [Nam phrik kapi 2.jpg](https://commons.wikimedia.org/wiki/File:Nam_phrik_kapi_2.jpg) · CC BY-SA 3.0 · Takeaway
+- **nam-prik-noom.jpg** (น้ำพริกหนุ่ม) — [Nam phrik num.jpg](https://commons.wikimedia.org/wiki/File:Nam_phrik_num.jpg) · CC BY-SA 3.0 · Takeaway
+- **nam-prik-ong.jpg** (น้ำพริกอ่อง) — [Nam phrik ong 02.jpg](https://commons.wikimedia.org/wiki/File:Nam_phrik_ong_02.jpg) · CC BY-SA 3.0 · Takeaway
+- **nuea-dad-diew.jpg** (เนื้อแดดเดียว) — [Nuea daet diao kraphao thot.jpg](https://commons.wikimedia.org/wiki/File:Nuea_daet_diao_kraphao_thot.jpg) · CC BY-SA 3.0 · Takeaway
+- **pad-krapao.jpg** (ผัดกะเพรา (เนื้อสด / เนื้อตุ๋น)) — [Siam Garden Phat kaphrao ac.jpg](https://commons.wikimedia.org/wiki/File:Siam_Garden_Phat_kaphrao_ac.jpg) · CC BY-SA 4.0 · Asturio Cantabrio
+- **pad-prik-gaeng.jpg** (ผัดพริกแกงเนื้อตุ๋น) — [Stir-fried red curry paste with pork (16576413891).jpg](https://commons.wikimedia.org/wiki/File:Stir-fried_red_curry_paste_with_pork_(16576413891).jpg) · CC BY 2.0 · Vee Satayamas from Bangkok, Thailand
+- **pad-see-ew.jpg** (ผัดซีอิ๊ว) — [Pad See Ew - Bangkok.jpg](https://commons.wikimedia.org/wiki/File:Pad_See_Ew_-_Bangkok.jpg) · CC BY-SA 4.0 · Vee Satayamas
+- **pad-thai.jpg** (ผัดไทย) — [Thai-Pad-Thai 2023-06-04.jpg](https://commons.wikimedia.org/wiki/File:Thai-Pad-Thai_2023-06-04.jpg) · CC0 · Andy Li
+- **red-curry.jpg** (แกงเผ็ดเนื้อ) — [Kaeng phet mu.jpg](https://commons.wikimedia.org/wiki/File:Kaeng_phet_mu.jpg) · CC BY-SA 3.0 · Takeaway
+- **sai-ua.jpg** (ไส้อั่ว) — [Sai ua.JPG](https://commons.wikimedia.org/wiki/File:Sai_ua.JPG) · CC BY-SA 3.0 · Takeaway
+- **salmon-foo.jpg** (แซลม่อนฟู) — [DFC 1189 Pan-seared salmon fillet served with creamy mashed potatoes a lime wedge and a side of sauce.jpg](https://commons.wikimedia.org/wiki/File:DFC_1189_Pan-seared_salmon_fillet_served_with_creamy_mashed_potatoes_a_lime_wedge_and_a_side_of_sauce.jpg) · CC BY-SA 4.0 · PattayaPatrol
+- **som-tum.jpg** (ตำไทย) — [Som Tam green papaya salad, Bangkok, Thailand.jpg](https://commons.wikimedia.org/wiki/File:Som_Tam_green_papaya_salad,_Bangkok,_Thailand.jpg) · CC BY 4.0 · Vyacheslav Argenberg
+- **super-nam-daeng.jpg** (ซุปเปอร์น้ำแดง) — [Tom saep.JPG](https://commons.wikimedia.org/wiki/File:Tom_saep.JPG) · CC BY-SA 3.0 · Takeaway
+- **tod-mun.jpg** (ทอดมัน) — [Thot Man 2018-04-13.jpg](https://commons.wikimedia.org/wiki/File:Thot_Man_2018-04-13.jpg) · CC0 · Index Librorum Permissorum
+- **tom-jued.jpg** (ต้มจืดสาหร่าย เต้าหู้ หมูสับ) — [Tom chuet taohu.jpg](https://commons.wikimedia.org/wiki/File:Tom_chuet_taohu.jpg) · CC BY-SA 3.0 · Takeaway
+- **tom-saab.jpg** (ต้มแซ่บเนื้อ) — [Leng saep.jpg](https://commons.wikimedia.org/wiki/File:Leng_saep.jpg) · CC BY-SA 2.0 kr · 안리나나
+- **tom-yum.jpg** (ต้มยำน้ำข้น Seafood) — [Tom yam kung 1.jpg](https://commons.wikimedia.org/wiki/File:Tom_yam_kung_1.jpg) · CC BY 2.0 · Vee Satayamas
+- **tum-poo-plara.jpg** (ตำปูปลาร้า) — [Som tam pu.jpg](https://commons.wikimedia.org/wiki/File:Som_tam_pu.jpg) · CC BY-SA 3.0 · Takeaway
+- **yum-kor-moo.jpg** (ยำคอหมูย่าง) — [Lao mu nam tok.jpg](https://commons.wikimedia.org/wiki/File:Lao_mu_nam_tok.jpg) · CC BY-SA 4.0 · Bounthy
+- **yum-moo-yor.jpg** (ยำหมูยอ) — [Yam mu yo.jpg](https://commons.wikimedia.org/wiki/File:Yam_mu_yo.jpg) · CC BY-SA 3.0 · Takeaway
+- **yum-talay.jpg** (ยำทะเลรวม) — [Yam thale.jpg](https://commons.wikimedia.org/wiki/File:Yam_thale.jpg) · CC BY-SA 3.0 · Takeaway
+- **yum-woon-sen.jpg** (ยำวุ้นเส้นทะเล) — [Yam wun sen 20171028 154834750.jpg](https://commons.wikimedia.org/wiki/File:Yam_wun_sen_20171028_154834750.jpg) · CC BY-SA 4.0 · Haam819
