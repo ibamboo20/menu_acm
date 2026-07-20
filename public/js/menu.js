@@ -12,10 +12,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
 
 async function init() {
   categories = await fetch('/api/categories').then((r) => r.json());
-  $tabs.innerHTML = categories.map((c) => {
-    const label = c.slug === 'pinto' ? c.name_th : c.name_en;
-    return `<button class="tab" data-slug="${c.slug}">${esc(label)}</button>`;
-  }).join('');
+  $tabs.innerHTML = categories.map((c) =>
+    `<button class="tab" data-slug="${c.slug}">${esc(c.name_en)}</button>`
+  ).join('');
   $tabs.addEventListener('click', (e) => {
     const btn = e.target.closest('.tab');
     if (btn) selectTab(btn.dataset.slug);
@@ -38,8 +37,8 @@ async function selectTab(slug) {
 
   $menu.innerHTML = `
     <div class="cat-heading">
-      <h2>${esc(cat.slug === 'pinto' ? cat.name_th : cat.name_en)}</h2>
-      <span class="cat-th">${esc(cat.slug === 'pinto' ? cat.name_en : cat.name_th)}</span>
+      <h2>${esc(cat.name_en)}</h2>
+      <span class="cat-th">${esc(cat.name_th)}</span>
     </div>
     ${cat.note ? `<div class="cat-note">${esc(cat.note)}</div>` : ''}
     ${items.length === 0

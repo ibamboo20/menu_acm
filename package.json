@@ -8,7 +8,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "@ChiangMai restaurant menu web app",
+  "description": "@Chiang Mai restaurant menu web app",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
     "express": "^5.2.1",

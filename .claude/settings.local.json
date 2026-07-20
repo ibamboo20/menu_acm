@@ -9,7 +9,20 @@
       "Bash(cp /Users/ibamhrk/Downloads/placeholder.png \"/Users/ibamhrk/Desktop/Claude-workspace/AtChiangMai/public/img/placeholder.png\" && echo ok)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(brew install *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(curl -sS -m 15 https://menuacm-production.up.railway.app/api/health)",
+      "Bash(curl -sS -m 15 https://menuacm-production.up.railway.app/api/categories)",
+      "Bash(curl -sS -m 20 https://menuacm-production.up.railway.app/api/health)",
+      "Bash(curl -sS -m 20 https://menuacm-production.up.railway.app/api/menu)",
+      "Bash(curl -sS -m 20 -o /dev/null -w '%{http_code}\\\\n' https://menuacm-production.up.railway.app/)",
+      "Bash(python3 -c \"import json,sys; [print\\(' ', i['name_th']\\) for i in json.load\\(sys.stdin\\)]\")",
+      "Bash(curl -sS -m 30 -o /dev/null -w '%{http_code}\\\\n' https://menuacm-production.up.railway.app/)",
+      "Bash(curl -sS -m 30 https://menuacm-production.up.railway.app/api/menu)"
     ]
   }
 }

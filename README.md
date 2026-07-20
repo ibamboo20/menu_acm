@@ -1,6 +1,6 @@
-# @ChiangMai — Menu Web App
+# @Chiang Mai — Menu Web App
 
-เว็บแอพแสดงเมนูร้าน @ChiangMai (ณ เชียงใหม่) พร้อม dashboard จัดการเมนู
+เว็บแอพแสดงเมนูร้าน @Chiang Mai (ณ เชียงใหม่) พร้อม dashboard จัดการเมนู
 
 ## วิธีรัน
 

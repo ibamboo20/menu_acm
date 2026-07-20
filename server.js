@@ -22,7 +22,7 @@ function requireAuth(req, res, next) {
   const decoded = Buffer.from(token, 'base64').toString();
   const pass = decoded.slice(decoded.indexOf(':') + 1);
   if (pass === pw) return next();
-  res.set('WWW-Authenticate', 'Basic realm="@ChiangMai Dashboard"');
+  res.set('WWW-Authenticate', 'Basic realm="@Chiang Mai Dashboard"');
   res.status(401).send('Authentication required');
 }
 
@@ -134,5 +134,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`@ChiangMai menu app running at http://localhost:${PORT}`);
+  console.log(`@Chiang Mai menu app running at http://localhost:${PORT}`);
 });

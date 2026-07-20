@@ -1,4 +1,4 @@
-# คู่มือ Deploy — @ChiangMai Menu
+# คู่มือ Deploy — @Chiang Mai Menu
 
 แอพนี้เป็น Node.js (Express + SQLite) ต้องการ host ที่มี **persistent disk/volume**
 เพื่อเก็บไฟล์ database และรูปที่อัพโหลด (ถ้าไม่มี volume ข้อมูลจะหายทุกครั้งที่ redeploy)
