@@ -77,6 +77,9 @@ body {
   transition: .2s;
 }
 .header-links a:hover { background: var(--orange); border-color: var(--orange); color: var(--turquoise-deep); }
+@media (max-width: 640px) {
+  .site-header { padding-top: 62px; }
+}
 
 /* ---------- Tabs ---------- */
 .tabs-wrap {
@@ -442,6 +445,18 @@ body {
 }
 .item-row .r-price { font-family: var(--serif); color: var(--turquoise); white-space: nowrap; }
 .item-row .r-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.item-row .r-side { display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+.r-shadow-mobile { display: none; }
+@media (max-width: 640px) {
+  .r-shadow-desktop { display: none; }
+  .r-shadow-mobile { display: inline-block; }
+  .r-shadow-mobile .r-shadow { margin-left: 0; }
+  .item-row .r-side {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+}
 
 /* edit modal */
 .modal-bg {

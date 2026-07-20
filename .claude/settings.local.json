@@ -32,7 +32,10 @@
       "Bash(python3 -c \"import json,sys; print\\('is_shadow =', json.load\\(sys.stdin\\)['is_shadow']\\)\")",
       "Bash(curl -s -X PUT http://localhost:3456/api/menu/53 -F \"price=13\")",
       "Bash(curl -s -X PUT http://localhost:3456/api/menu/53 -F \"is_shadow=1\")",
-      "Bash(curl -s -X DELETE http://localhost:3456/api/menu/53)"
+      "Bash(curl -s -X DELETE http://localhost:3456/api/menu/53)",
+      "Bash(curl -s -X POST http://localhost:3456/api/menu -F \"category_id=1\" -F \"name_th=เมนูเงาทดสอบ\" -F \"name_en=Shadow Test\" -F \"is_shadow=1\")",
+      "Bash(python3 -c \"import json,sys; print\\('id', json.load\\(sys.stdin\\)['id']\\)\")",
+      "Bash(curl -s -X DELETE http://localhost:3456/api/menu/54)"
     ]
   }
 }

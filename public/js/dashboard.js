@@ -71,18 +71,22 @@ function renderList() {
     ? '<div class="empty-note">ไม่มีรายการ</div>'
     : items.map((it) => {
       const cat = categories.find((c) => c.id === it.category_id);
+      const badge = '<span class="r-shadow">🌙 เมนูเงา</span>';
       return `
         <div class="item-row" data-id="${it.id}">
           <img src="${esc(it.image || PLACEHOLDER)}" alt="" onerror="this.src='${PLACEHOLDER}'">
           <div class="r-names">
-            <div class="r-cat">${esc(cat ? cat.name_en : '')}${it.is_shadow ? ' <span class="r-shadow">🌙 เมนูเงา</span>' : ''}</div>
+            <div class="r-cat">${esc(cat ? cat.name_en : '')}${it.is_shadow ? ` <span class="r-shadow-desktop">${badge}</span>` : ''}</div>
             <div class="r-th">${esc(it.name_th)}</div>
             <div class="r-en">${esc(it.name_en)}</div>
           </div>
-          <div class="r-price">${fmtPrice(it.price)}</div>
-          <div class="r-actions">
-            <button class="btn btn-ghost" data-act="edit">แก้ไข</button>
-            <button class="btn btn-danger" data-act="del">ลบ</button>
+          <div class="r-side">
+            ${it.is_shadow ? `<span class="r-shadow-mobile">${badge}</span>` : ''}
+            <div class="r-price">${fmtPrice(it.price)}</div>
+            <div class="r-actions">
+              <button class="btn btn-ghost" data-act="edit">แก้ไข</button>
+              <button class="btn btn-danger" data-act="del">ลบ</button>
+            </div>
           </div>
         </div>`;
     }).join('');
