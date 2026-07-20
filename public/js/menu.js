@@ -1,6 +1,7 @@
 const PLACEHOLDER = '/img/placeholder.png';
 let categories = [];
 let activeSlug = null;
+let showShadow = localStorage.getItem('showShadow') !== '0';
 
 const $tabs = document.getElementById('tabs');
 const $menu = document.getElementById('menu');
@@ -11,6 +12,14 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
 }[c]));
 
 async function init() {
+  const $toggle = document.getElementById('shadow-toggle-input');
+  $toggle.checked = showShadow;
+  $toggle.addEventListener('change', () => {
+    showShadow = $toggle.checked;
+    localStorage.setItem('showShadow', showShadow ? '1' : '0');
+    if (activeSlug) selectTab(activeSlug);
+  });
+
   categories = await fetch('/api/categories').then((r) => r.json());
   $tabs.innerHTML = categories.map((c) =>
     `<button class="tab" data-slug="${c.slug}">${esc(c.name_en)}</button>`
@@ -30,11 +39,12 @@ async function selectTab(slug) {
   $tabs.querySelector('.active')?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
   const cat = categories.find((c) => c.slug === slug);
-  const items = await fetch(`/api/menu?category=${encodeURIComponent(slug)}`).then((r) => r.json());
+  const allItems = await fetch(`/api/menu?category=${encodeURIComponent(slug)}`).then((r) => r.json());
   if (slug !== activeSlug) return;
 
   window.scrollTo(0, 0);
 
+  const items = showShadow ? allItems : allItems.filter((it) => !it.is_shadow);
   $menu.innerHTML = `
     <div class="cat-heading">
       <h2>${esc(cat.name_en)}</h2>
@@ -49,7 +59,8 @@ async function selectTab(slug) {
 
 function cardHTML(it) {
   return `
-    <article class="card">
+    <article class="card${it.is_shadow ? ' shadow-item' : ''}">
+      ${it.is_shadow ? '<span class="shadow-badge">🌙 เมนูเงา · Shadow</span>' : ''}
       <img class="photo" src="${esc(it.image || PLACEHOLDER)}" alt="${esc(it.name_en)}"
            loading="lazy" onerror="this.src='${PLACEHOLDER}'">
       <div class="info">

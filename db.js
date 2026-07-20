@@ -31,6 +31,11 @@ CREATE TABLE IF NOT EXISTS menu_items (
 );
 `);
 
+// Migration for databases created before the shadow-menu feature
+if (!db.prepare('PRAGMA table_info(menu_items)').all().some((c) => c.name === 'is_shadow')) {
+  db.exec('ALTER TABLE menu_items ADD COLUMN is_shadow INTEGER NOT NULL DEFAULT 0');
+}
+
 function seed() {
   const count = db.prepare('SELECT COUNT(*) AS c FROM categories').get().c;
   if (count > 0) return;

@@ -83,11 +83,12 @@ app.post('/api/menu', requireAuth, upload.single('image'), (req, res) => {
   if (!cat) return res.status(400).json({ error: 'Unknown category' });
 
   const image = req.file ? `/uploads/${req.file.filename}` : null;
+  const isShadow = req.body.is_shadow === '1' || req.body.is_shadow === 'on' ? 1 : 0;
   const maxOrder = db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM menu_items WHERE category_id = ?').get(category_id).m;
   const info = db.prepare(`
-    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(category_id, name_th.trim(), name_en.trim(), parseFloat(price) || 0, image, description || null, maxOrder + 1);
+    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order, is_shadow)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(category_id, name_th.trim(), name_en.trim(), parseFloat(price) || 0, image, description || null, maxOrder + 1, isShadow);
   res.status(201).json(db.prepare('SELECT * FROM menu_items WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -103,9 +104,12 @@ app.put('/api/menu/:id', requireAuth, upload.single('image'), (req, res) => {
     }
     image = `/uploads/${req.file.filename}`;
   }
+  const isShadow = req.body.is_shadow !== undefined
+    ? (req.body.is_shadow === '1' || req.body.is_shadow === 'on' ? 1 : 0)
+    : item.is_shadow;
   db.prepare(`
     UPDATE menu_items SET
-      category_id = ?, name_th = ?, name_en = ?, price = ?, image = ?, description = ?
+      category_id = ?, name_th = ?, name_en = ?, price = ?, image = ?, description = ?, is_shadow = ?
     WHERE id = ?`)
     .run(
       category_id || item.category_id,
@@ -114,6 +118,7 @@ app.put('/api/menu/:id', requireAuth, upload.single('image'), (req, res) => {
       price !== undefined && price !== '' ? parseFloat(price) || 0 : item.price,
       image,
       description !== undefined ? (description || null) : item.description,
+      isShadow,
       item.id
     );
   res.json(db.prepare('SELECT * FROM menu_items WHERE id = ?').get(item.id));

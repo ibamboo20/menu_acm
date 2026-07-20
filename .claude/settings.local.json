@@ -24,7 +24,15 @@
       "Bash(curl -sS -m 30 -o /dev/null -w '%{http_code}\\\\n' https://menuacm-production.up.railway.app/)",
       "Bash(curl -sS -m 30 https://menuacm-production.up.railway.app/api/menu)",
       "Bash(curl -sS -m 15 https://menuacm-production.up.railway.app/js/menu.js)",
-      "Bash(python3 /private/tmp/claude-501/-Users-ibamhrk-Desktop-Claude-workspace-AtChiangMai/b430c489-a13b-4bdf-a3ff-de30159c804b/scratchpad/fetch_retry.py)"
+      "Bash(python3 /private/tmp/claude-501/-Users-ibamhrk-Desktop-Claude-workspace-AtChiangMai/b430c489-a13b-4bdf-a3ff-de30159c804b/scratchpad/fetch_retry.py)",
+      "Bash(curl -sS -m 15 https://menuacm-production.up.railway.app/api/menu)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -sS -m 15 -o /dev/null -w \"sample image http: %{http_code}\\\\n\" https://menuacm-production.up.railway.app/img/menu/pad-thai.jpg)",
+      "Bash(curl -s -X PUT http://localhost:3456/api/menu/53 -F \"is_shadow=0\")",
+      "Bash(python3 -c \"import json,sys; print\\('is_shadow =', json.load\\(sys.stdin\\)['is_shadow']\\)\")",
+      "Bash(curl -s -X PUT http://localhost:3456/api/menu/53 -F \"price=13\")",
+      "Bash(curl -s -X PUT http://localhost:3456/api/menu/53 -F \"is_shadow=1\")",
+      "Bash(curl -s -X DELETE http://localhost:3456/api/menu/53)"
     ]
   }
 }

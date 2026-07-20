@@ -75,7 +75,7 @@ function renderList() {
         <div class="item-row" data-id="${it.id}">
           <img src="${esc(it.image || PLACEHOLDER)}" alt="" onerror="this.src='${PLACEHOLDER}'">
           <div class="r-names">
-            <div class="r-cat">${esc(cat ? cat.name_en : '')}</div>
+            <div class="r-cat">${esc(cat ? cat.name_en : '')}${it.is_shadow ? ' <span class="r-shadow">🌙 เมนูเงา</span>' : ''}</div>
             <div class="r-th">${esc(it.name_th)}</div>
             <div class="r-en">${esc(it.name_en)}</div>
           </div>
@@ -97,6 +97,7 @@ $('add-form').addEventListener('submit', async (e) => {
   btn.disabled = true;
   try {
     const fd = new FormData(e.target);
+    fd.set('is_shadow', e.target.elements.is_shadow.checked ? '1' : '0');
     const res = await fetch('/api/menu', { method: 'POST', body: fd });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     e.target.reset();
@@ -134,6 +135,7 @@ $('item-list').addEventListener('click', async (e) => {
   f.elements.name_en.value = item.name_en;
   f.elements.price.value = item.price;
   f.elements.description.value = item.description || '';
+  f.elements.is_shadow.checked = !!item.is_shadow;
   editDrop.reset('คลิกเลือกรูปใหม่ (ถ้าต้องการเปลี่ยน)');
   if (item.image) {
     $('edit-drop').innerHTML = `<img src="${esc(item.image)}" alt=""><span>รูปปัจจุบัน — คลิกเพื่อเปลี่ยน</span>`;
@@ -149,6 +151,7 @@ $('edit-modal').addEventListener('click', (e) => {
 $('edit-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  fd.set('is_shadow', e.target.elements.is_shadow.checked ? '1' : '0');
   const id = fd.get('id');
   fd.delete('id');
   try {
