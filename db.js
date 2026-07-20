@@ -149,6 +149,53 @@ function seed() {
 
 seed();
 
+// One-time data seeds, recorded in meta so items deleted later via the
+// dashboard are never re-added on restart.
+db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)');
+
+function runOnce(key, fn) {
+  if (db.prepare('SELECT 1 FROM meta WHERE key = ?').get(key)) return;
+  fn();
+  db.prepare('INSERT INTO meta (key) VALUES (?)').run(key);
+}
+
+runOnce('shadow-items-v1', () => {
+  const shadowItems = [
+    ['entree', 'ทอดมันกุ้ง', 'Shrimp Cakes (Tod Mun Goong)'],
+    ['entree', 'หมูยอทอด/ลวก', 'Moo Yor Sausage — Fried or Boiled'],
+    ['entree', 'ไก่สเตะ', 'Chicken Satay'],
+    ['entree', 'หมึกชุบแป้งทอด', 'Crispy Battered Squid'],
+    ['entree', 'แฮกึน', 'Hae Kuen — Deep-fried Shrimp Rolls'],
+    ['entree', 'ขลุ่ยกุ้ง', 'Crispy Shrimp Spring Rolls'],
+    ['entree', 'กุ้ยช่ายทอด', 'Fried Garlic Chive Cakes'],
+    ['stir-fry', 'หมูทอดกระเทียม', 'Garlic Fried Pork'],
+    ['stir-fry', 'หมึกทอดกระเทียม', 'Garlic Fried Squid'],
+    ['stir-fry', 'กุ้งทอดซอสมะขาม', 'Fried Prawns in Tamarind Sauce'],
+    ['salad', 'ตำเส้นเล็ก', 'Som Tum with Rice Noodles (Tum Sen Lek)'],
+    ['grilled', 'ปลาหมึกย่าง', 'Grilled Squid'],
+    ['deep-fried', 'ปีกไก่ทอดผัดพริกเกลือ', 'Fried Chicken Wings with Chili & Salt'],
+    ['noodle', 'ก๋วยเตี๋ยวไก่มะระ', 'Chicken & Bitter Gourd Noodle Soup'],
+    ['special', 'ปลากะพงทอดน้ำปลา', 'Deep-fried Sea Bass with Fish Sauce'],
+    ['special', 'ปลากะพง 3 รส', 'Three-Flavour Sea Bass'],
+    ['special', 'ปลานึ่งมะนาว', 'Steamed Fish with Lime, Garlic & Chili'],
+    ['special', 'ปลานึ่งซิอื้ว', 'Steamed Fish with Soy Sauce'],
+  ];
+  const bySlug = {};
+  for (const c of db.prepare('SELECT id, slug FROM categories').all()) bySlug[c.slug] = c.id;
+  const ins = db.prepare(`
+    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order, is_shadow)
+    SELECT ?, ?, ?, 0, NULL, NULL,
+      COALESCE((SELECT MAX(sort_order) FROM menu_items WHERE category_id = ?), -1) + 1, 1
+    WHERE NOT EXISTS (SELECT 1 FROM menu_items WHERE name_th = ?)`);
+  const tx = db.transaction(() => {
+    for (const [slug, th, en] of shadowItems) {
+      const cid = bySlug[slug];
+      if (cid) ins.run(cid, th, en, cid, th);
+    }
+  });
+  tx();
+});
+
 // Stock photos (Wikimedia Commons, see ATTRIBUTIONS.md) backfilled into items
 // that have no image yet. Never overwrites images uploaded via the dashboard.
 const seedImages = {
@@ -191,6 +238,24 @@ const seedImages = {
   "เหลาเนื้อหม้อไฟ": '/img/menu/beef-hotpot.jpg',
   "แซลม่อนฟู": '/img/menu/salmon-foo.jpg',
   "ตีนไก่ตุ๋นวอม": '/img/menu/chicken-feet.jpg',
+  "ทอดมันกุ้ง": '/img/menu/shrimp-cakes.jpg',
+  "หมูยอทอด/ลวก": '/img/menu/moo-yor-fried.jpg',
+  "ไก่สเตะ": '/img/menu/chicken-satay.jpg',
+  "หมึกชุบแป้งทอด": '/img/menu/fried-calamari.jpg',
+  "แฮกึน": '/img/menu/hae-kuen.jpg',
+  "ขลุ่ยกุ้ง": '/img/menu/shrimp-flutes.jpg',
+  "กุ้ยช่ายทอด": '/img/menu/chive-cakes.jpg',
+  "หมูทอดกระเทียม": '/img/menu/garlic-pork.jpg',
+  "หมึกทอดกระเทียม": '/img/menu/garlic-squid.jpg',
+  "กุ้งทอดซอสมะขาม": '/img/menu/tamarind-prawns.jpg',
+  "ตำเส้นเล็ก": '/img/menu/tum-sen-lek.jpg',
+  "ปลาหมึกย่าง": '/img/menu/grilled-squid.jpg',
+  "ปีกไก่ทอดผัดพริกเกลือ": '/img/menu/salt-chili-wings.jpg',
+  "ก๋วยเตี๋ยวไก่มะระ": '/img/menu/chicken-noodle-mara.jpg',
+  "ปลากะพงทอดน้ำปลา": '/img/menu/seabass-fish-sauce.jpg',
+  "ปลากะพง 3 รส": '/img/menu/seabass-3-flavour.jpg',
+  "ปลานึ่งมะนาว": '/img/menu/steamed-fish-lime.jpg',
+  "ปลานึ่งซิอื้ว": '/img/menu/steamed-fish-soy.jpg',
   "ออเดิร์ฟ ขันโตก": '/img/menu/khantoke.jpg',
   "ไส้อั่ว": '/img/menu/sai-ua.jpg',
   "น้ำพริกอ่อง": '/img/menu/nam-prik-ong.jpg',
