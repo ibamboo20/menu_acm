@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@ChiangMai — Dashboard</title>
+  <link rel="icon" href="/img/placeholder.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prata&family=Poppins:wght@300;400;500;600&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-links"><a href="/">← VIEW MENU</a></div>
+    <h1 class="logo" style="margin:0"><img class="logo-img small" src="/img/logo.png" alt="@ChiangMai"></h1>
+    <div class="tagline">MENU DASHBOARD</div>
+  </header>
+
+  <div class="page-scroll">
+  <main class="dash-main">
+    <div class="dash-grid">
+      <section class="panel">
+        <h2>เพิ่มเมนูใหม่ · Add Menu</h2>
+        <form id="add-form">
+          <div class="field">
+            <label>หมวดหมู่ · Category *</label>
+            <select name="category_id" id="add-category" required></select>
+          </div>
+          <div class="field">
+            <label>ชื่อเมนูภาษาไทย · Thai Name *</label>
+            <input type="text" name="name_th" required placeholder="เช่น ข้าวซอยไก่">
+          </div>
+          <div class="field">
+            <label>ชื่อภาษาอังกฤษ · English Name *</label>
+            <input type="text" name="name_en" required placeholder="e.g. Khao Soi Gai">
+          </div>
+          <div class="field">
+            <label>ราคา ($) · Price</label>
+            <input type="number" name="price" min="0" step="0.01" placeholder="0.00">
+            <div class="hint">ไม่กรอก = $0.00 (อัพเดทภายหลังได้)</div>
+          </div>
+          <div class="field">
+            <label>คำอธิบาย · Description</label>
+            <textarea name="description" rows="2" placeholder="(ไม่บังคับ)"></textarea>
+          </div>
+          <div class="field">
+            <label>รูปเมนู · Photo</label>
+            <div class="drop-zone" id="add-drop">
+              <span id="add-drop-text">คลิกเลือกรูป หรือลากรูปมาวางที่นี่</span>
+            </div>
+            <input type="file" name="image" id="add-file" accept="image/*" hidden>
+          </div>
+          <button type="submit" class="btn btn-primary" id="add-btn">+ เพิ่มเมนู</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>เมนูทั้งหมด · All Items</h2>
+        <div class="dash-filter">
+          <select id="filter-category"><option value="">ทุกหมวดหมู่ · All categories</option></select>
+          <span class="hint" id="count-label" style="font-family:var(--thai);font-weight:300;font-size:.78rem;color:#a3937f"></span>
+        </div>
+        <div id="item-list"></div>
+      </section>
+    </div>
+  </main>
+  </div>
+
+  <div class="modal-bg" id="edit-modal">
+    <div class="modal">
+      <h3>แก้ไขเมนู · Edit Item</h3>
+      <form id="edit-form">
+        <input type="hidden" name="id">
+        <div class="field">
+          <label>หมวดหมู่ · Category</label>
+          <select name="category_id" id="edit-category"></select>
+        </div>
+        <div class="field">
+          <label>ชื่อเมนูภาษาไทย · Thai Name</label>
+          <input type="text" name="name_th" required>
+        </div>
+        <div class="field">
+          <label>ชื่อภาษาอังกฤษ · English Name</label>
+          <input type="text" name="name_en" required>
+        </div>
+        <div class="field">
+          <label>ราคา ($) · Price</label>
+          <input type="number" name="price" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>คำอธิบาย · Description</label>
+          <textarea name="description" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label>รูปเมนู · Photo</label>
+          <div class="drop-zone" id="edit-drop">
+            <span id="edit-drop-text">คลิกเลือกรูปใหม่ (ถ้าต้องการเปลี่ยน)</span>
+          </div>
+          <input type="file" name="image" id="edit-file" accept="image/*" hidden>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="edit-cancel">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

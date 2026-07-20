@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(python3 -)",
+      "Bash(ls -lt ~/Downloads/*.png ~/Downloads/*.jpg 2>/dev/null | head -6)",
+      "Bash(cp /Users/ibamhrk/Downloads/placeholder.png \"/Users/ibamhrk/Desktop/Claude-workspace/AtChiangMai/public/img/placeholder.png\" && echo ok)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)"
+    ]
+  }
+}

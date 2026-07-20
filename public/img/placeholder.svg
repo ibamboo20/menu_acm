@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#3c271d"/>
+  <circle cx="200" cy="175" r="92" fill="none" stroke="#FF873C" stroke-width="3"/>
+  <circle cx="200" cy="175" r="70" fill="none" stroke="#FF873C" stroke-width="1.5" stroke-dasharray="4 6"/>
+  <g stroke="#FF873C" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M150 150 v40 M143 150 v14 M157 150 v14 M143 164 q7 8 7 12 M157 164 q-7 8 -7 12"/>
+    <path d="M250 148 v44 M250 148 q-12 4 -12 20 q0 8 12 8 M250 148 q12 4 12 20 q0 8 -12 8"/>
+  </g>
+  <text x="200" y="305" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#FF873C">@ChiangMai</text>
+  <text x="200" y="335" text-anchor="middle" font-family="Georgia, serif" font-size="15" letter-spacing="4" fill="#f5efe6">ณ เชียงใหม่ · 在清迈</text>
+</svg>

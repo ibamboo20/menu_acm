@@ -1,0 +1,6 @@
+node_modules/
+atchiangmai.db
+atchiangmai.db-shm
+atchiangmai.db-wal
+public/uploads/
+.DS_Store

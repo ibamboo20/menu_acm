@@ -1,0 +1,8 @@
+node_modules
+atchiangmai.db
+atchiangmai.db-shm
+atchiangmai.db-wal
+public/uploads
+.claude
+.git
+*.md

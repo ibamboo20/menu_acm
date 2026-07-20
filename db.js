@@ -1,0 +1,147 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+
+// In production set DATA_DIR to a persistent volume (e.g. /data)
+const dataDir = process.env.DATA_DIR || __dirname;
+fs.mkdirSync(dataDir, { recursive: true });
+
+const db = new Database(path.join(dataDir, 'atchiangmai.db'));
+db.pragma('journal_mode = WAL');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,
+  name_en TEXT NOT NULL,
+  name_th TEXT NOT NULL,
+  note TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS menu_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  name_th TEXT NOT NULL,
+  name_en TEXT NOT NULL,
+  price REAL NOT NULL DEFAULT 0,
+  image TEXT,
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`);
+
+function seed() {
+  const count = db.prepare('SELECT COUNT(*) AS c FROM categories').get().c;
+  if (count > 0) return;
+
+  const categories = [
+    ['entree', 'Entree', 'ออเดิร์ฟ', null],
+    ['stir-fry', 'Stir Fry', 'เมนูผัด', 'เลือกเนื้อสัตว์ได้ · Meat options: Pork / Beef / Chicken / Prawn / Tofu or Veg'],
+    ['curry', 'Curry', 'เมนูแกง', null],
+    ['salad', 'Salad', 'ยำ · ตำ', null],
+    ['grilled', 'Grilled', 'เมนูย่าง', null],
+    ['deep-fried', 'Deep Fried', 'เมนูทอด', null],
+    ['soup', 'Soup', 'เมนูต้ม · ซุป', null],
+    ['noodle', 'Noodle', 'ก๋วยเตี๋ยว', null],
+    ['special', 'Special', 'เมนูพิเศษ', null],
+    ['special-lanna', 'Special Lanna', 'เมนูพิเศษล้านนา', null],
+    ['pinto', "Mom's Pinto", 'ปิ่นโตคุณแม่', 'ปิ่นโต 3 ชั้น · 1 แกง + 1 ผัด + 1 น้ำพริก + ข้าว 2 ที่'],
+  ];
+
+  const insCat = db.prepare('INSERT INTO categories (slug, name_en, name_th, note, sort_order) VALUES (?, ?, ?, ?, ?)');
+  const catId = {};
+  categories.forEach((c, i) => {
+    const info = insCat.run(c[0], c[1], c[2], c[3], i);
+    catId[c[0]] = info.lastInsertRowid;
+  });
+
+  const items = {
+    'entree': [
+      ['ทอดมัน', 'Thai Fish Cakes (Tod Mun)'],
+      ['เฟรนฟราย', 'French Fries'],
+      ['BBQ', 'Thai BBQ Skewers'],
+      ['ลูกชิ้นปลาลวกจิ้ม', 'Boiled Fish Balls with Spicy Dipping Sauce'],
+      ['ลูกชิ้นทอดรวม', 'Mixed Fried Meatballs'],
+    ],
+    'stir-fry': [
+      ['ผัดไทย', 'Pad Thai'],
+      ['ผัดซีอิ๊ว', 'Pad See Ew'],
+      ['เตี๋ยวคั่วไก่', 'Kua Gai — Stir-fried Noodles with Chicken'],
+      ['ข้าวผัด', 'Fried Rice'],
+      ['ผัดกะเพรา (เนื้อสด / เนื้อตุ๋น)', 'Pad Krapao — Holy Basil Stir Fry (Fresh or Braised Beef)'],
+      ['ผัดพริกแกงเนื้อตุ๋น', 'Braised Beef Stir-fried with Red Curry Paste'],
+      ['ผัดผักรวม', 'Stir-fried Mixed Vegetables'],
+      ['หอยลายผัดฉ่า', 'Spicy Stir-fried Clams (Pad Cha)'],
+      ['หอยลายพริกเผา', 'Stir-fried Clams with Chili Jam'],
+    ],
+    'curry': [
+      ['แกงเผ็ดเนื้อ', 'Beef Red Curry'],
+      ['แกงเขียวไก่', 'Chicken Green Curry'],
+      ['แกงอ่อมเนื้อ', 'Gaeng Om — Northern Herbal Beef Curry'],
+      ['แกงฮังเล', 'Gaeng Hung Lay — Northern Pork Belly Curry'],
+    ],
+    'salad': [
+      ['ตำไทย', 'Som Tum Thai — Papaya Salad'],
+      ['ตำปูปลาร้า', 'Papaya Salad with Salted Crab & Fermented Fish'],
+      ['ยำคอหมูย่าง', 'Grilled Pork Neck Spicy Salad'],
+      ['ยำทะเลรวม', 'Mixed Seafood Spicy Salad'],
+      ['ยำหมูยอ', 'Moo Yor Sausage Spicy Salad'],
+      ['ยำวุ้นเส้นทะเล', 'Seafood Glass Noodle Salad'],
+    ],
+    'grilled': [
+      ['ปีกไก่ย่าง', 'Grilled Chicken Wings'],
+      ['คอหมูย่าง', 'Grilled Pork Neck'],
+      ['เนื้อย่าง', 'Grilled Beef'],
+      ['ลิ้นวัวย่าง ไทยชิมิชูริ', 'Grilled Beef Tongue with Thai Chimichurri'],
+    ],
+    'deep-fried': [
+      ['ไก่ทอด ณ เชียงใหม่', 'Chiang Mai Fried Chicken'],
+      ['หมูแดดเดียว', 'Sun-dried Pork'],
+      ['เนื้อแดดเดียว', 'Sun-dried Beef'],
+    ],
+    'soup': [
+      ['ต้มจืดสาหร่าย เต้าหู้ หมูสับ', 'Clear Soup with Seaweed, Tofu & Minced Pork'],
+      ['แกงเห็ด', 'Northern Mushroom Curry Soup'],
+      ['ต้มแซ่บเนื้อ', 'Tom Saab — Spicy Beef Soup'],
+      ['ต้มยำน้ำข้น Seafood', 'Creamy Tom Yum with Seafood'],
+      ['ซุปเปอร์น้ำแดง', 'Super Spicy Red Broth Soup'],
+    ],
+    'noodle': [
+      ['ก๋วยเตี๋ยวเนื้อน้ำใส', 'Clear Broth Beef Noodle Soup'],
+      ['เหลาเนื้อหม้อไฟ', 'Beef Hot Pot Noodles'],
+    ],
+    'special': [
+      ['กุ้งอบวุ้นเส้น', 'Baked Prawns with Glass Noodles'],
+      ['แซลม่อนฟู', 'Crispy Salmon Fluff'],
+      ['ตีนไก่ตุ๋นวอม', 'Slow-braised Chicken Feet Soup'],
+    ],
+    'special-lanna': [
+      ['ออเดิร์ฟ ขันโตก', 'Khantoke Hors d’oeuvres Platter'],
+      ['ไส้อั่ว', 'Sai Ua — Northern Thai Herb Sausage'],
+      ['แกงฮังเล', 'Gaeng Hung Lay — Northern Pork Belly Curry'],
+      ['อุ๊บไก่', 'Oop Gai — Lanna Spiced Chicken'],
+      ['น้ำพริกอ่อง', 'Nam Prik Ong — Tomato & Minced Pork Chili Dip'],
+      ['น้ำพริกมะเขือส้ม', 'Nam Prik Makhuea Som — Sour Tomato Chili Dip'],
+      ['น้ำพริกหนุ่ม', 'Nam Prik Noom — Roasted Green Chili Dip'],
+      ['แกงอ่อมเนื้อ', 'Gaeng Om — Northern Herbal Beef Curry'],
+      ['จิ้นนึ่ง น้ำพริกข่า', 'Steamed Beef with Galangal Chili Dip'],
+    ],
+    'pinto': [
+      ['ปิ่นโต 3 ชั้น', "Mom's 3-Tier Pinto Set",
+        'เลือก 1 แกง + 1 ผัด + 1 น้ำพริก + ข้าว 2 ที่ · แกง: แกงเผ็ดเนื้อ / แกงเขียวไก่ / แกงอ่อมเนื้อ · ผัด: แตงกวาผัดไข่ / หน่อไม้ผัดไข่ / ฟักทองผัดไข่ · น้ำพริก: น้ำพริกอ่อง / น้ำพริกกะปิ / น้ำพริกมะเขือส้ม / จิ้นนึ่ง น้ำพริกข่า'],
+    ],
+  };
+
+  const insItem = db.prepare('INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order) VALUES (?, ?, ?, 0, NULL, ?, ?)');
+  const seedAll = db.transaction(() => {
+    for (const [slug, list] of Object.entries(items)) {
+      list.forEach((it, i) => insItem.run(catId[slug], it[0], it[1], it[2] || null, i));
+    }
+  });
+  seedAll();
+}
+
+seed();
+
+module.exports = db;
