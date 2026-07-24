@@ -3,6 +3,7 @@
 รูปประกอบเมนูเป็นภาพ stock จาก [Wikimedia Commons](https://commons.wikimedia.org) ตาม license ด้านล่าง
 (ควรทยอยแทนที่ด้วยรูปถ่ายจริงของร้านผ่าน dashboard)
 
+- **apple-sparkling.jpg** (แอปเปิ้ลสปาร์คกลิ้ง) — [Apple juice glass.jpg](https://commons.wikimedia.org/wiki/File:Apple_juice_glass.jpg) · CC BY 4.0 · JeanBono
 - **bbq.jpg** (BBQ) — [DFC 5259- Grilled marinated pork skewers sizzling on the grill, garnished with fresh herbs and ready to eat..jpg](https://commons.wikimedia.org/wiki/File:DFC_5259-_Grilled_marinated_pork_skewers_sizzling_on_the_grill,_garnished_with_fresh_herbs_and_ready_to_eat..jpg) · CC BY-SA 4.0 · Pattaya Patrol
 - **beef-hotpot.jpg** (เหลาเนื้อหม้อไฟ) — [Beef hot pot.jpg](https://commons.wikimedia.org/wiki/File:Beef_hot_pot.jpg) · CC BY-SA 4.0 · Khanh Ha, Tran
 - **beef-noodle.jpg** (ก๋วยเตี๋ยวเนื้อน้ำใส) — [Kuai tiao nuea pueai.jpg](https://commons.wikimedia.org/wiki/File:Kuai_tiao_nuea_pueai.jpg) · CC BY 2.0 · lazy fri13th
@@ -13,6 +14,7 @@
 - **chive-cakes.jpg** (กุ้ยช่ายทอด) — [Cambodian deep-fried chive cakes.jpg](https://commons.wikimedia.org/wiki/File:Cambodian_deep-fried_chive_cakes.jpg) · CC BY 2.0 · Jason Eppink from New York City, USA
 - **clams-chili-jam.jpg** (หอยลายพริกเผา) — [Hoi Lai Pad Phrik Pao75.jpg](https://commons.wikimedia.org/wiki/File:Hoi_Lai_Pad_Phrik_Pao75.jpg) · CC BY-SA 3.0 · Xufanc
 - **clams-pad-cha.jpg** (หอยลายผัดฉ่า) — [Stired-fried Razor Clams with Black Beans and Pepper.jpg](https://commons.wikimedia.org/wiki/File:Stired-fried_Razor_Clams_with_Black_Beans_and_Pepper.jpg) · CC BY-SA 2.0 · Kent Wong
+- **coconut-smoothie.jpg** (มะพร้าวปั่น) — [Piña Colada.jpg](https://commons.wikimedia.org/wiki/File:Pi%C3%B1a_Colada.jpg) · Public domain · User Barmix on de.wikipedia
 - **fish-balls.jpg** (ลูกชิ้นปลาลวกจิ้ม) — [Tomyam fish ball and Chinese fried fish saugage noodle soup.jpg](https://commons.wikimedia.org/wiki/File:Tomyam_fish_ball_and_Chinese_fried_fish_saugage_noodle_soup.jpg) · CC BY-SA 4.0 · Vee Satayamas
 - **french-fries.jpg** (เฟรนฟราย) — [French Fries with Ketchup 02.jpg](https://commons.wikimedia.org/wiki/File:French_Fries_with_Ketchup_02.jpg) · CC BY-SA 4.0 · Kritzolina
 - **fried-calamari.jpg** (หมึกชุบแป้งทอด) — [Ojingeotwigim 오징어 squid tempura textues8.jpg](https://commons.wikimedia.org/wiki/File:Ojingeotwigim_%EC%98%A4%EC%A7%95%EC%96%B4_squid_tempura_textues8.jpg) · CC BY-SA 4.0 · unknown
@@ -34,6 +36,14 @@
 - **khantoke.jpg** (ออเดิร์ฟ ขันโตก) — [Lanna cuisine starters.JPG](https://commons.wikimedia.org/wiki/File:Lanna_cuisine_starters.JPG) · CC BY-SA 3.0 · Takeaway
 - **kor-moo-yang.jpg** (คอหมูย่าง) — [Kho mu yang kratha ron.jpg](https://commons.wikimedia.org/wiki/File:Kho_mu_yang_kratha_ron.jpg) · CC BY-SA 3.0 · Takeaway
 - **kua-gai.jpg** (เตี๋ยวคั่วไก่) — [Kuai-tiao khua kai (noodles fried with chicken), Bangkok, 2018-11-14.jpg](https://commons.wikimedia.org/wiki/File:Kuai-tiao_khua_kai_(noodles_fried_with_chicken),_Bangkok,_2018-11-14.jpg) · CC0 · Bitterschoko
+- **lemon-butterfly-pea.jpg** (น้ำอัญชันมะนาว) — [Butterfly pea tea with lemon juice.jpg](https://commons.wikimedia.org/wiki/File:Butterfly_pea_tea_with_lemon_juice.jpg) · CC BY-SA 4.0 · Libera_knabino
+- **lemon-tea.jpg** (ชามะนาว) — [Iced lemon tea - Rawlab Juice & Tea.jpg](https://commons.wikimedia.org/wiki/File:Iced_lemon_tea_-_Rawlab_Juice_%26_Tea.jpg) · CC0 · Andy Li
+- **lime-bitter.jpg** (ไลม์บิทเทอร์) — [Limeade.jpg](https://commons.wikimedia.org/wiki/File:Limeade.jpg) · CC BY 2.0 · Michael Fludkov
+- **lychee-blush.jpg** (ลิ้นจี่บลัชอินพิงก์) — [Raspberryade.jpg](https://commons.wikimedia.org/wiki/File:Raspberryade.jpg) · CC BY-SA 3.0 · Ubcule
+- **lychee-sparkling.jpg** (ลิ้นจี่สปาร์คกลิ้ง) — [Spring rolls and lychee juice at restaurant Nam Nam in Munich.jpg](https://commons.wikimedia.org/wiki/File:Spring_rolls_and_lychee_juice_at_restaurant_Nam_Nam_in_Munich.jpg) · CC BY-SA 3.0 · JIP
+- **mango-cocokiss.jpg** (มะม่วงมะพร้าว) — [Mango Chia Smoothie.jpg](https://commons.wikimedia.org/wiki/File:Mango_Chia_Smoothie.jpg) · CC BY-SA 4.0 · RekhaY07
+- **mango-tango.jpg** (สมูทตี้มะม่วง) — [Fresh-mango-smoothie 01.jpg](https://commons.wikimedia.org/wiki/File:Fresh-mango-smoothie_01.jpg) · CC BY-SA 4.0 · Vivekpat30
+- **matcha-milk-tea.jpg** (ชานมมัทฉะ) — [Iced Hojicha Latte and Iced Matcha Latte - Rawlab Juice & Tea 2025-07-12.jpg](https://commons.wikimedia.org/wiki/File:Iced_Hojicha_Latte_and_Iced_Matcha_Latte_-_Rawlab_Juice_%26_Tea_2025-07-12.jpg) · CC0 · Andy Li
 - **mixed-veg.jpg** (ผัดผักรวม) — [Stir fried mixed vegetables.jpg](https://commons.wikimedia.org/wiki/File:Stir_fried_mixed_vegetables.jpg) · CC BY-SA 4.0 · CNEcija12345
 - **moo-dad-diew.jpg** (หมูแดดเดียว) — [Mu daet diao.jpg](https://commons.wikimedia.org/wiki/File:Mu_daet_diao.jpg) · CC BY-SA 3.0 · Takeaway
 - **moo-yor-fried.jpg** (หมูยอทอด/ลวก) — [Giò lụa 2.jpg](https://commons.wikimedia.org/wiki/File:Gi%C3%B2_l%E1%BB%A5a_2.jpg) · CC BY-SA 4.0 · Viethavvh
@@ -45,6 +55,9 @@
 - **pad-prik-gaeng.jpg** (ผัดพริกแกงเนื้อตุ๋น) — [Stir-fried red curry paste with pork (16576413891).jpg](https://commons.wikimedia.org/wiki/File:Stir-fried_red_curry_paste_with_pork_(16576413891).jpg) · CC BY 2.0 · Vee Satayamas from Bangkok, Thailand
 - **pad-see-ew.jpg** (ผัดซีอิ๊ว) — [Pad See Ew - Bangkok.jpg](https://commons.wikimedia.org/wiki/File:Pad_See_Ew_-_Bangkok.jpg) · CC BY-SA 4.0 · Vee Satayamas
 - **pad-thai.jpg** (ผัดไทย) — [Thai-Pad-Thai 2023-06-04.jpg](https://commons.wikimedia.org/wiki/File:Thai-Pad-Thai_2023-06-04.jpg) · CC0 · Andy Li
+- **pine-pop.jpg** (สับปะรดป๊อป) — [Pineapple Milkshake.JPG](https://commons.wikimedia.org/wiki/File:Pineapple_Milkshake.JPG) · CC BY-SA 3.0 · User:Mattes
+- **pink-milk.jpg** (นมเย็น) — [Strawberry Milk in a glass cup..jpg](https://commons.wikimedia.org/wiki/File:Strawberry_Milk_in_a_glass_cup..jpg) · CC BY-SA 4.0 · Swarde11
+- **punchy-pine.jpg** (พันช์ชี่ไพน์) — [Pineapple Juice in Glass Jar.jpg](https://commons.wikimedia.org/wiki/File:Pineapple_Juice_in_Glass_Jar.jpg) · CC BY-SA 4.0 · Srini297
 - **red-curry.jpg** (แกงเผ็ดเนื้อ) — [Kaeng phet mu.jpg](https://commons.wikimedia.org/wiki/File:Kaeng_phet_mu.jpg) · CC BY-SA 3.0 · Takeaway
 - **sai-ua.jpg** (ไส้อั่ว) — [Sai ua.JPG](https://commons.wikimedia.org/wiki/File:Sai_ua.JPG) · CC BY-SA 3.0 · Takeaway
 - **salmon-foo.jpg** (แซลม่อนฟู) — [DFC 1189 Pan-seared salmon fillet served with creamy mashed potatoes a lime wedge and a side of sauce.jpg](https://commons.wikimedia.org/wiki/File:DFC_1189_Pan-seared_salmon_fillet_served_with_creamy_mashed_potatoes_a_lime_wedge_and_a_side_of_sauce.jpg) · CC BY-SA 4.0 · PattayaPatrol
@@ -53,17 +66,25 @@
 - **seabass-fish-sauce.jpg** (ปลากะพงทอดน้ำปลา) — [Deep fried catfish.jpg](https://commons.wikimedia.org/wiki/File:Deep_fried_catfish.jpg) · CC BY-SA 2.0 · pelican
 - **shrimp-cakes.jpg** (ทอดมันกุ้ง) — [Thot man kung.jpg](https://commons.wikimedia.org/wiki/File:Thot_man_kung.jpg) · CC BY 2.0 · chomjong
 - **shrimp-flutes.jpg** (ขลุ่ยกุ้ง) — [Fried shrimp rolls (48393592001).jpg](https://commons.wikimedia.org/wiki/File:Fried_shrimp_rolls_(48393592001).jpg) · CC BY 2.0 · Raita Futo from Tokyo, Japan
+- **soft-drinks.jpg** (โค้ก / โค้กซีโร่ / แฟนต้า / สไปรท์) — [Glass cola.jpg](https://commons.wikimedia.org/wiki/File:Glass_cola.jpg) · Public domain · pic_p_ter
 - **som-tum.jpg** (ตำไทย) — [Som Tam green papaya salad, Bangkok, Thailand.jpg](https://commons.wikimedia.org/wiki/File:Som_Tam_green_papaya_salad,_Bangkok,_Thailand.jpg) · CC BY 4.0 · Vyacheslav Argenberg
+- **spicy-tamarind.jpg** (มะขามซ่าส์) — [Es Asem Jawa (Javanese Tamarind Juice).jpg](https://commons.wikimedia.org/wiki/File:Es_Asem_Jawa_(Javanese_Tamarind_Juice).jpg) · CC BY-SA 4.0 · Gunawan Kartapranata
 - **steamed-fish-lime.jpg** (ปลานึ่งมะนาว) — [Pla thapthim nueng manao.jpg](https://commons.wikimedia.org/wiki/File:Pla_thapthim_nueng_manao.jpg) · CC BY-SA 3.0 · Takeaway
 - **steamed-fish-soy.jpg** (ปลานึ่งซิอื้ว) — [Steamed fish with soy sauce.jpg](https://commons.wikimedia.org/wiki/File:Steamed_fish_with_soy_sauce.jpg) · CC BY-SA 4.0 · Geoffreyrabbit
+- **strawberry-sparkling.jpg** (สตรอว์เบอร์รีสปาร์คกลิ้ง) — [A strawberry soda.jpg](https://commons.wikimedia.org/wiki/File:A_strawberry_soda.jpg) · CC BY-SA 4.0 · Pauloleong2002
 - **super-nam-daeng.jpg** (ซุปเปอร์น้ำแดง) — [Tom saep.JPG](https://commons.wikimedia.org/wiki/File:Tom_saep.JPG) · CC BY-SA 3.0 · Takeaway
 - **tamarind-prawns.jpg** (กุ้งทอดซอสมะขาม) — [Deep fried prawns with shells, garlic sauce, ground black pepper.jpg](https://commons.wikimedia.org/wiki/File:Deep_fried_prawns_with_shells,_garlic_sauce,_ground_black_pepper.jpg) · CC BY 2.0 · T.Tseng
+- **tang-you-later.jpg** (ส้มแทงยูเลเทอร์) — [Juice smoothie compote 20250430 073919.jpg](https://commons.wikimedia.org/wiki/File:Juice_smoothie_compote_20250430_073919.jpg) · CC BY 4.0 · Ka23 13
+- **tap-sparkling.jpg** (โซดา) — [Sparkling Water with Mint in Glass Cup.jpg](https://commons.wikimedia.org/wiki/File:Sparkling_Water_with_Mint_in_Glass_Cup.jpg) · CC BY 2.0 · Tony Webster
+- **thai-milk-coffee.jpg** (กาแฟนมไทย) — [Oliang โอเลี้ยง oleang olieng Thai iced coffee at Ayutthaya.jpg](https://commons.wikimedia.org/wiki/File:Oliang_%E0%B9%82%E0%B8%AD%E0%B9%80%E0%B8%A5%E0%B8%B5%E0%B9%89%E0%B8%A2%E0%B8%87_oleang_olieng_Thai_iced_coffee_at_Ayutthaya.jpg) · CC BY-SA 4.0 · Chainwit.
+- **thai-milk-tea.jpg** (ชานมไทย) — [Thai Iced Bubble Tea - Sonoma Pho - Stierch - 2019.jpg](https://commons.wikimedia.org/wiki/File:Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg) · CC BY 4.0 · Missvain
 - **tod-mun.jpg** (ทอดมัน) — [Thot Man 2018-04-13.jpg](https://commons.wikimedia.org/wiki/File:Thot_Man_2018-04-13.jpg) · CC0 · Index Librorum Permissorum
 - **tom-jued.jpg** (ต้มจืดสาหร่าย เต้าหู้ หมูสับ) — [Tom chuet taohu.jpg](https://commons.wikimedia.org/wiki/File:Tom_chuet_taohu.jpg) · CC BY-SA 3.0 · Takeaway
 - **tom-saab.jpg** (ต้มแซ่บเนื้อ) — [Leng saep.jpg](https://commons.wikimedia.org/wiki/File:Leng_saep.jpg) · CC BY-SA 2.0 kr · 안리나나
 - **tom-yum.jpg** (ต้มยำน้ำข้น Seafood) — [Tom yam kung 1.jpg](https://commons.wikimedia.org/wiki/File:Tom_yam_kung_1.jpg) · CC BY 2.0 · Vee Satayamas
 - **tum-poo-plara.jpg** (ตำปูปลาร้า) — [Som tam pu.jpg](https://commons.wikimedia.org/wiki/File:Som_tam_pu.jpg) · CC BY-SA 3.0 · Takeaway
 - **tum-sen-lek.jpg** (ตำเส้นเล็ก) — [Tam maphrao on sen mi krop 02.jpg](https://commons.wikimedia.org/wiki/File:Tam_maphrao_on_sen_mi_krop_02.jpg) · CC BY-SA 3.0 · Takeaway
+- **watermelon-smoothie.jpg** (แตงโมปั่น) — [2009-365-146 Water Melon Smoothie (3570991499).jpg](https://commons.wikimedia.org/wiki/File:2009-365-146_Water_Melon_Smoothie_(3570991499).jpg) · CC BY 2.0 · cogdogblog
 - **yum-kor-moo.jpg** (ยำคอหมูย่าง) — [Lao mu nam tok.jpg](https://commons.wikimedia.org/wiki/File:Lao_mu_nam_tok.jpg) · CC BY-SA 4.0 · Bounthy
 - **yum-moo-yor.jpg** (ยำหมูยอ) — [Yam mu yo.jpg](https://commons.wikimedia.org/wiki/File:Yam_mu_yo.jpg) · CC BY-SA 3.0 · Takeaway
 - **yum-talay.jpg** (ยำทะเลรวม) — [Yam thale.jpg](https://commons.wikimedia.org/wiki/File:Yam_thale.jpg) · CC BY-SA 3.0 · Takeaway

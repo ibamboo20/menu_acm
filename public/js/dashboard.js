@@ -60,6 +60,9 @@ async function loadCategories() {
 
 async function loadItems() {
   allItems = await fetch('/api/menu').then((r) => r.json());
+  const subs = [...new Set(allItems.map((i) => i.subcategory).filter(Boolean))];
+  document.getElementById('subcat-list').innerHTML =
+    subs.map((s) => `<option value="${esc(s)}"></option>`).join('');
   renderList();
 }
 
@@ -76,7 +79,7 @@ function renderList() {
         <div class="item-row" data-id="${it.id}">
           <img src="${esc(it.image || PLACEHOLDER)}" alt="" onerror="this.src='${PLACEHOLDER}'">
           <div class="r-names">
-            <div class="r-cat">${esc(cat ? cat.name_en : '')}${it.is_shadow ? ` <span class="r-shadow-desktop">${badge}</span>` : ''}</div>
+            <div class="r-cat">${esc(cat ? cat.name_en : '')}${it.subcategory ? ` · ${esc(it.subcategory)}` : ''}${it.is_shadow ? ` <span class="r-shadow-desktop">${badge}</span>` : ''}</div>
             <div class="r-th">${esc(it.name_th)}</div>
             <div class="r-en">${esc(it.name_en)}</div>
           </div>
@@ -140,6 +143,7 @@ $('item-list').addEventListener('click', async (e) => {
   f.elements.price.value = item.price;
   f.elements.description.value = item.description || '';
   f.elements.is_shadow.checked = !!item.is_shadow;
+  f.elements.subcategory.value = item.subcategory || '';
   editDrop.reset('คลิกเลือกรูปใหม่ (ถ้าต้องการเปลี่ยน)');
   if (item.image) {
     $('edit-drop').innerHTML = `<img src="${esc(item.image)}" alt=""><span>รูปปัจจุบัน — คลิกเพื่อเปลี่ยน</span>`;

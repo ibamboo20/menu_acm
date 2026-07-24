@@ -31,9 +31,13 @@ CREATE TABLE IF NOT EXISTS menu_items (
 );
 `);
 
-// Migration for databases created before the shadow-menu feature
-if (!db.prepare('PRAGMA table_info(menu_items)').all().some((c) => c.name === 'is_shadow')) {
+// Migrations for databases created before newer features
+const itemCols = db.prepare('PRAGMA table_info(menu_items)').all().map((c) => c.name);
+if (!itemCols.includes('is_shadow')) {
   db.exec('ALTER TABLE menu_items ADD COLUMN is_shadow INTEGER NOT NULL DEFAULT 0');
+}
+if (!itemCols.includes('subcategory')) {
+  db.exec('ALTER TABLE menu_items ADD COLUMN subcategory TEXT');
 }
 
 function seed() {
@@ -196,6 +200,52 @@ runOnce('shadow-items-v1', () => {
   tx();
 });
 
+runOnce('drinks-v1', () => {
+  const info = db.prepare(`
+    INSERT INTO categories (slug, name_en, name_th, note, sort_order)
+    SELECT 'drinks', 'Drinks', 'เครื่องดื่ม', NULL,
+      COALESCE((SELECT MAX(sort_order) FROM categories), -1) + 1
+    WHERE NOT EXISTS (SELECT 1 FROM categories WHERE slug = 'drinks')`).run();
+  const cat = db.prepare("SELECT id FROM categories WHERE slug = 'drinks'").get();
+  if (!cat) return;
+
+  // [subcategory, name_th, name_en, price]
+  const drinks = [
+    ['Refreshment', 'ชานมไทย', 'Thai Milk Tea', 7],
+    ['Refreshment', 'กาแฟนมไทย', 'Thai Milk Coffee', 7],
+    ['Refreshment', 'นมเย็น', 'Pink Milk', 7],
+    ['Refreshment', 'ชานมมัทฉะ', 'Matcha Milk Tea', 7],
+    ['Refreshment', 'ชามะนาว', 'Lemon Tea', 7],
+    ['Refreshment', 'น้ำอัญชันมะนาว', 'Lemon Butterfly Pea', 7],
+    ['Refreshment', 'ไลม์บิทเทอร์', 'Lime Bitter', 7],
+    ['Refreshment', 'ลิ้นจี่สปาร์คกลิ้ง', 'Lychee Sparkling', 7],
+    ['Refreshment', 'แอปเปิ้ลสปาร์คกลิ้ง', 'Apple Sparkling', 7],
+    ['Refreshment', 'สตรอว์เบอร์รีสปาร์คกลิ้ง', 'Strawberry Sparkling', 7],
+    ['Smoothie', 'สมูทตี้มะม่วง', 'Mango Tango', 9.5],
+    ['Smoothie', 'มะม่วงมะพร้าว', 'Mango Cocokiss', 10],
+    ['Smoothie', 'ลิ้นจี่บลัชอินพิงก์', 'Lychee Blush in Pink', 9.5],
+    ['Smoothie', 'สับปะรดป๊อป', 'Pine Pop', 9.5],
+    ['Smoothie', 'พันช์ชี่ไพน์', 'Punchy Pine', 10],
+    ['Smoothie', 'ส้มแทงยูเลเทอร์', 'Tang You Later', 9.5],
+    ['Smoothie', 'มะขามซ่าส์', 'Spicy Tamarind Rush', 10],
+    ['Smoothie', 'แตงโมปั่น', 'Watermeloooon', 9.5],
+    ['Smoothie', 'มะพร้าวปั่น', 'Cocoo-nut', 9.5],
+    ['Soft Drink', 'โค้ก / โค้กซีโร่ / แฟนต้า / สไปรท์', 'Coke // Coke Zero // Fanta // Sprite', 4.5],
+    ['Soft Drink', 'โซดา', 'Tap Sparkling', 5],
+  ];
+  const ins = db.prepare(`
+    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order, is_shadow, subcategory)
+    SELECT ?, ?, ?, ?, NULL, NULL,
+      COALESCE((SELECT MAX(sort_order) FROM menu_items WHERE category_id = ?), -1) + 1, 0, ?
+    WHERE NOT EXISTS (SELECT 1 FROM menu_items WHERE name_th = ? AND category_id = ?)`);
+  const tx = db.transaction(() => {
+    for (const [sub, th, en, price] of drinks) {
+      ins.run(cat.id, th, en, price, cat.id, sub, th, cat.id);
+    }
+  });
+  tx();
+});
+
 // Stock photos (Wikimedia Commons, see ATTRIBUTIONS.md) backfilled into items
 // that have no image yet. Never overwrites images uploaded via the dashboard.
 const seedImages = {
@@ -256,6 +306,27 @@ const seedImages = {
   "ปลากะพง 3 รส": '/img/menu/seabass-3-flavour.jpg',
   "ปลานึ่งมะนาว": '/img/menu/steamed-fish-lime.jpg',
   "ปลานึ่งซิอื้ว": '/img/menu/steamed-fish-soy.jpg',
+  "ชานมไทย": '/img/menu/thai-milk-tea.jpg',
+  "กาแฟนมไทย": '/img/menu/thai-milk-coffee.jpg',
+  "นมเย็น": '/img/menu/pink-milk.jpg',
+  "ชานมมัทฉะ": '/img/menu/matcha-milk-tea.jpg',
+  "ชามะนาว": '/img/menu/lemon-tea.jpg',
+  "น้ำอัญชันมะนาว": '/img/menu/lemon-butterfly-pea.jpg',
+  "ไลม์บิทเทอร์": '/img/menu/lime-bitter.jpg',
+  "ลิ้นจี่สปาร์คกลิ้ง": '/img/menu/lychee-sparkling.jpg',
+  "แอปเปิ้ลสปาร์คกลิ้ง": '/img/menu/apple-sparkling.jpg',
+  "สตรอว์เบอร์รีสปาร์คกลิ้ง": '/img/menu/strawberry-sparkling.jpg',
+  "สมูทตี้มะม่วง": '/img/menu/mango-tango.jpg',
+  "มะม่วงมะพร้าว": '/img/menu/mango-cocokiss.jpg',
+  "ลิ้นจี่บลัชอินพิงก์": '/img/menu/lychee-blush.jpg',
+  "สับปะรดป๊อป": '/img/menu/pine-pop.jpg',
+  "พันช์ชี่ไพน์": '/img/menu/punchy-pine.jpg',
+  "ส้มแทงยูเลเทอร์": '/img/menu/tang-you-later.jpg',
+  "มะขามซ่าส์": '/img/menu/spicy-tamarind.jpg',
+  "แตงโมปั่น": '/img/menu/watermelon-smoothie.jpg',
+  "มะพร้าวปั่น": '/img/menu/coconut-smoothie.jpg',
+  "โค้ก / โค้กซีโร่ / แฟนต้า / สไปรท์": '/img/menu/soft-drinks.jpg',
+  "โซดา": '/img/menu/tap-sparkling.jpg',
   "ออเดิร์ฟ ขันโตก": '/img/menu/khantoke.jpg',
   "ไส้อั่ว": '/img/menu/sai-ua.jpg',
   "น้ำพริกอ่อง": '/img/menu/nam-prik-ong.jpg',

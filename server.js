@@ -75,7 +75,7 @@ app.get('/api/menu', (req, res) => {
 });
 
 app.post('/api/menu', requireAuth, upload.single('image'), (req, res) => {
-  const { category_id, name_th, name_en, price, description } = req.body;
+  const { category_id, name_th, name_en, price, description, subcategory } = req.body;
   if (!category_id || !name_th || !name_en) {
     return res.status(400).json({ error: 'category_id, name_th and name_en are required' });
   }
@@ -86,9 +86,9 @@ app.post('/api/menu', requireAuth, upload.single('image'), (req, res) => {
   const isShadow = req.body.is_shadow === '1' || req.body.is_shadow === 'on' ? 1 : 0;
   const maxOrder = db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM menu_items WHERE category_id = ?').get(category_id).m;
   const info = db.prepare(`
-    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order, is_shadow)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(category_id, name_th.trim(), name_en.trim(), parseFloat(price) || 0, image, description || null, maxOrder + 1, isShadow);
+    INSERT INTO menu_items (category_id, name_th, name_en, price, image, description, sort_order, is_shadow, subcategory)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(category_id, name_th.trim(), name_en.trim(), parseFloat(price) || 0, image, description || null, maxOrder + 1, isShadow, (subcategory || '').trim() || null);
   res.status(201).json(db.prepare('SELECT * FROM menu_items WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -96,7 +96,7 @@ app.put('/api/menu/:id', requireAuth, upload.single('image'), (req, res) => {
   const item = db.prepare('SELECT * FROM menu_items WHERE id = ?').get(req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
 
-  const { category_id, name_th, name_en, price, description } = req.body;
+  const { category_id, name_th, name_en, price, description, subcategory } = req.body;
   let image = item.image;
   if (req.file) {
     if (item.image && item.image.startsWith('/uploads/')) {
@@ -109,7 +109,7 @@ app.put('/api/menu/:id', requireAuth, upload.single('image'), (req, res) => {
     : item.is_shadow;
   db.prepare(`
     UPDATE menu_items SET
-      category_id = ?, name_th = ?, name_en = ?, price = ?, image = ?, description = ?, is_shadow = ?
+      category_id = ?, name_th = ?, name_en = ?, price = ?, image = ?, description = ?, is_shadow = ?, subcategory = ?
     WHERE id = ?`)
     .run(
       category_id || item.category_id,
@@ -119,6 +119,7 @@ app.put('/api/menu/:id', requireAuth, upload.single('image'), (req, res) => {
       image,
       description !== undefined ? (description || null) : item.description,
       isShadow,
+      subcategory !== undefined ? (subcategory.trim() || null) : item.subcategory,
       item.id
     );
   res.json(db.prepare('SELECT * FROM menu_items WHERE id = ?').get(item.id));

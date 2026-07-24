@@ -518,5 +518,173 @@
   "page": "https://commons.wikimedia.org/wiki/File:Fried_shrimp_rolls_(48393592001).jpg",
   "license": "CC BY 2.0",
   "artist": "Raita Futo from Tokyo, Japan"
+ },
+ "ชานมไทย": {
+  "slug": "thai-milk-tea",
+  "title": "File:Thai Iced Bubble Tea - Sonoma Pho - Stierch - 2019.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg/960px-Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Thai_Iced_Bubble_Tea_-_Sonoma_Pho_-_Stierch_-_2019.jpg",
+  "license": "CC BY 4.0",
+  "artist": "Missvain"
+ },
+ "กาแฟนมไทย": {
+  "slug": "thai-milk-coffee",
+  "title": "File:Oliang โอเลี้ยง oleang olieng Thai iced coffee at Ayutthaya.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Oliang_%E0%B9%82%E0%B8%AD%E0%B9%80%E0%B8%A5%E0%B8%B5%E0%B9%89%E0%B8%A2%E0%B8%87_oleang_olieng_Thai_iced_coffee_at_Ayutthaya.jpg/960px-Oliang_%E0%B9%82%E0%B8%AD%E0%B9%80%E0%B8%A5%E0%B8%B5%E0%B9%89%E0%B8%A2%E0%B8%87_oleang_olieng_Thai_iced_coffee_at_Ayutthaya.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Oliang_%E0%B9%82%E0%B8%AD%E0%B9%80%E0%B8%A5%E0%B8%B5%E0%B9%89%E0%B8%A2%E0%B8%87_oleang_olieng_Thai_iced_coffee_at_Ayutthaya.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Chainwit."
+ },
+ "ชานมมัทฉะ": {
+  "slug": "matcha-milk-tea",
+  "title": "File:Iced Hojicha Latte and Iced Matcha Latte - Rawlab Juice & Tea 2025-07-12.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Iced_Hojicha_Latte_and_Iced_Matcha_Latte_-_Rawlab_Juice_%26_Tea_2025-07-12.jpg/960px-Iced_Hojicha_Latte_and_Iced_Matcha_Latte_-_Rawlab_Juice_%26_Tea_2025-07-12.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Iced_Hojicha_Latte_and_Iced_Matcha_Latte_-_Rawlab_Juice_%26_Tea_2025-07-12.jpg",
+  "license": "CC0",
+  "artist": "Andy Li"
+ },
+ "ชามะนาว": {
+  "slug": "lemon-tea",
+  "title": "File:Iced lemon tea - Rawlab Juice & Tea.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Iced_lemon_tea_-_Rawlab_Juice_%26_Tea.jpg/960px-Iced_lemon_tea_-_Rawlab_Juice_%26_Tea.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Iced_lemon_tea_-_Rawlab_Juice_%26_Tea.jpg",
+  "license": "CC0",
+  "artist": "Andy Li"
+ },
+ "น้ำอัญชันมะนาว": {
+  "slug": "lemon-butterfly-pea",
+  "title": "File:Butterfly pea tea with lemon juice.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Butterfly_pea_tea_with_lemon_juice.jpg/960px-Butterfly_pea_tea_with_lemon_juice.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Butterfly_pea_tea_with_lemon_juice.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Libera_knabino"
+ },
+ "ไลม์บิทเทอร์": {
+  "slug": "lime-bitter",
+  "title": "File:Limeade.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Limeade.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Limeade.jpg",
+  "license": "CC BY 2.0",
+  "artist": "Michael Fludkov"
+ },
+ "ลิ้นจี่สปาร์คกลิ้ง": {
+  "slug": "lychee-sparkling",
+  "title": "File:Spring rolls and lychee juice at restaurant Nam Nam in Munich.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Spring_rolls_and_lychee_juice_at_restaurant_Nam_Nam_in_Munich.jpg/960px-Spring_rolls_and_lychee_juice_at_restaurant_Nam_Nam_in_Munich.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Spring_rolls_and_lychee_juice_at_restaurant_Nam_Nam_in_Munich.jpg",
+  "license": "CC BY-SA 3.0",
+  "artist": "JIP"
+ },
+ "แอปเปิ้ลสปาร์คกลิ้ง": {
+  "slug": "apple-sparkling",
+  "title": "File:Apple juice glass.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Apple_juice_glass.jpg/960px-Apple_juice_glass.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Apple_juice_glass.jpg",
+  "license": "CC BY 4.0",
+  "artist": "JeanBono"
+ },
+ "สตรอว์เบอร์รีสปาร์คกลิ้ง": {
+  "slug": "strawberry-sparkling",
+  "title": "File:A strawberry soda.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/A_strawberry_soda.jpg/960px-A_strawberry_soda.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:A_strawberry_soda.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Pauloleong2002"
+ },
+ "สมูทตี้มะม่วง": {
+  "slug": "mango-tango",
+  "title": "File:Fresh-mango-smoothie 01.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Fresh-mango-smoothie_01.jpg/960px-Fresh-mango-smoothie_01.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Fresh-mango-smoothie_01.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Vivekpat30"
+ },
+ "มะม่วงมะพร้าว": {
+  "slug": "mango-cocokiss",
+  "title": "File:Mango Chia Smoothie.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Mango_Chia_Smoothie.jpg/960px-Mango_Chia_Smoothie.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Mango_Chia_Smoothie.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "RekhaY07"
+ },
+ "ลิ้นจี่บลัชอินพิงก์": {
+  "slug": "lychee-blush",
+  "title": "File:Raspberryade.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Raspberryade.jpg/960px-Raspberryade.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Raspberryade.jpg",
+  "license": "CC BY-SA 3.0",
+  "artist": "Ubcule"
+ },
+ "สับปะรดป๊อป": {
+  "slug": "pine-pop",
+  "title": "File:Pineapple Milkshake.JPG",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Pineapple_Milkshake.JPG/960px-Pineapple_Milkshake.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Pineapple_Milkshake.JPG",
+  "license": "CC BY-SA 3.0",
+  "artist": "User:Mattes"
+ },
+ "พันช์ชี่ไพน์": {
+  "slug": "punchy-pine",
+  "title": "File:Pineapple Juice in Glass Jar.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Pineapple_Juice_in_Glass_Jar.jpg/960px-Pineapple_Juice_in_Glass_Jar.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Pineapple_Juice_in_Glass_Jar.jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Srini297"
+ },
+ "ส้มแทงยูเลเทอร์": {
+  "slug": "tang-you-later",
+  "title": "File:Juice smoothie compote 20250430 073919.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Juice_smoothie_compote_20250430_073919.jpg/960px-Juice_smoothie_compote_20250430_073919.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Juice_smoothie_compote_20250430_073919.jpg",
+  "license": "CC BY 4.0",
+  "artist": "Ka23 13"
+ },
+ "มะขามซ่าส์": {
+  "slug": "spicy-tamarind",
+  "title": "File:Es Asem Jawa (Javanese Tamarind Juice).jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Es_Asem_Jawa_%28Javanese_Tamarind_Juice%29.jpg/960px-Es_Asem_Jawa_%28Javanese_Tamarind_Juice%29.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Es_Asem_Jawa_(Javanese_Tamarind_Juice).jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Gunawan Kartapranata"
+ },
+ "แตงโมปั่น": {
+  "slug": "watermelon-smoothie",
+  "title": "File:2009-365-146 Water Melon Smoothie (3570991499).jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/2009-365-146_Water_Melon_Smoothie_%283570991499%29.jpg/960px-2009-365-146_Water_Melon_Smoothie_%283570991499%29.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:2009-365-146_Water_Melon_Smoothie_(3570991499).jpg",
+  "license": "CC BY 2.0",
+  "artist": "cogdogblog"
+ },
+ "มะพร้าวปั่น": {
+  "slug": "coconut-smoothie",
+  "title": "File:Piña Colada.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/b2/Pi%C3%B1a_Colada.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Pi%C3%B1a_Colada.jpg",
+  "license": "Public domain",
+  "artist": "User Barmix on de.wikipedia"
+ },
+ "โค้ก / โค้กซีโร่ / แฟนต้า / สไปรท์": {
+  "slug": "soft-drinks",
+  "title": "File:Glass cola.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Glass_cola.jpg/960px-Glass_cola.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Glass_cola.jpg",
+  "license": "Public domain",
+  "artist": "pic_p_ter"
+ },
+ "โซดา": {
+  "slug": "tap-sparkling",
+  "title": "File:Sparkling Water with Mint in Glass Cup.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Sparkling_Water_with_Mint_in_Glass_Cup.jpg/960px-Sparkling_Water_with_Mint_in_Glass_Cup.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Sparkling_Water_with_Mint_in_Glass_Cup.jpg",
+  "license": "CC BY 2.0",
+  "artist": "Tony Webster"
+ },
+ "นมเย็น": {
+  "slug": "pink-milk",
+  "title": "File:Strawberry Milk in a glass cup..jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Strawberry_Milk_in_a_glass_cup..jpg/960px-Strawberry_Milk_in_a_glass_cup..jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Strawberry_Milk_in_a_glass_cup..jpg",
+  "license": "CC BY-SA 4.0",
+  "artist": "Swarde11"
  }
 }

@@ -38,7 +38,12 @@
       "Bash(curl -s -X DELETE http://localhost:3456/api/menu/54)",
       "Bash(curl -sS -m 15 https://menuacm-production.up.railway.app/css/style.css)",
       "Bash(python3 /private/tmp/claude-501/-Users-ibamhrk-Desktop-Claude-workspace-AtChiangMai/b430c489-a13b-4bdf-a3ff-de30159c804b/scratchpad/fetch_shadow.py)",
-      "Bash(curl -s http://localhost:3456/api/menu)"
+      "Bash(curl -s http://localhost:3456/api/menu)",
+      "Bash(pdfinfo \"Drink Menu.pdf\")",
+      "Bash(pdftotext \"Drink Menu.pdf\" -)",
+      "Bash(curl -s \"http://localhost:3456/api/menu?category=drinks\")",
+      "Bash(curl -s http://localhost:3456/api/categories)",
+      "Bash(python3 -c \"import json,sys; print\\('categories:', ', '.join\\(c['name_en'] for c in json.load\\(sys.stdin\\)\\)\\)\")"
     ]
   }
 }

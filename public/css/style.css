@@ -149,6 +149,21 @@ body {
   margin-bottom: 16px;
 }
 
+.subcat-heading {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  color: var(--orange);
+  margin-top: 34px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.subcat-heading::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dashed rgba(60, 39, 29, .3);
+}
+
 .grid {
   margin-top: 18px;
   display: grid;

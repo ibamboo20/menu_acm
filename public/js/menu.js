@@ -53,8 +53,27 @@ async function selectTab(slug) {
     ${cat.note ? `<div class="cat-note">${esc(cat.note)}</div>` : ''}
     ${items.length === 0
       ? '<div class="empty-note">ยังไม่มีเมนูในหมวดนี้ — เพิ่มได้จาก Dashboard</div>'
-      : `<div class="grid">${items.map(cardHTML).join('')}</div>`}
+      : sectionsHTML(items)}
   `;
+}
+
+// Group items by subcategory (insertion order); ungrouped items come first.
+function sectionsHTML(items) {
+  const hasSub = items.some((it) => it.subcategory);
+  if (!hasSub) return `<div class="grid">${items.map(cardHTML).join('')}</div>`;
+
+  const groups = new Map();
+  for (const it of items) {
+    const key = it.subcategory || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  }
+  let html = '';
+  for (const [sub, list] of groups) {
+    if (sub) html += `<h3 class="subcat-heading">${esc(sub)}</h3>`;
+    html += `<div class="grid">${list.map(cardHTML).join('')}</div>`;
+  }
+  return html;
 }
 
 function cardHTML(it) {
