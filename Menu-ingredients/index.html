@@ -349,28 +349,74 @@
 <script>
 "use strict";
 
-/* ---------- state & storage ---------- */
-const STORE_KEY = "menu-ingredients-v1";
-let state = load();
-
+/* ---------- state & storage (shared server database) ---------- */
+const LEGACY_STORE_KEY = "menu-ingredients-v1";
 const LEGACY_CATS = {
   "ต้ม": "Soup", "ผัด": "Stir Fry", "แกง": "Curry", "ทอด": "Deep Fried",
   "ยำ": "Salad", "ย่าง": "Grilled", "ก๋วยเตี๋ยว": "Noodle"
 };
-function load() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      (data.menus || []).forEach(m => {
-        if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
-      });
-      return data;
-    }
-  } catch (e) { /* corrupted storage -> start fresh */ }
-  return { menus: [], ingredients: [] };
+let state = { menus: [], ingredients: [] };
+let version = 0;
+
+function migrate(s) {
+  if (!s || typeof s !== "object") s = {};
+  s.menus = Array.isArray(s.menus) ? s.menus : [];
+  s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
+  s.menus.forEach(m => {
+    if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
+  });
+  return s;
 }
-function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+async function fetchState() {
+  const res = await fetch("/api/state");
+  if (!res.ok) throw new Error("fetch failed");
+  const data = await res.json();
+  version = data.version;
+  state = migrate(data.state);
+}
+
+async function save() {
+  try {
+    const res = await fetch("/api/state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version, state })
+    });
+    if (res.status === 409) {
+      // someone else saved first -> take their data
+      const data = await res.json();
+      version = data.version;
+      state = migrate(data.state);
+      renderAll();
+      toast("มีการแก้ไขจากเครื่องอื่น โหลดข้อมูลล่าสุดแล้ว กรุณาทำรายการอีกครั้ง • Updated from another device — please retry");
+      return;
+    }
+    if (!res.ok) throw new Error("save failed");
+    const data = await res.json();
+    version = data.version;
+  } catch (e) {
+    toast("⚠️ บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต • Save failed — check connection");
+  }
+}
+
+/* refresh from server every 10s so every device sees the same data
+   (skipped while the user is typing in a form field) */
+setInterval(async () => {
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && ae.id !== "menu-search" && ae.id !== "ing-search") return;
+  try {
+    const res = await fetch("/api/state");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.version !== version) {
+      version = data.version;
+      state = migrate(data.state);
+      renderAll();
+    }
+  } catch (e) { /* offline -> retry next tick */ }
+}, 10000);
+
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 /* ---------- helpers ---------- */
@@ -803,7 +849,28 @@ document.getElementById("menu-category").innerHTML =
   `<option value="">— เลือกประเภท • Select type —</option>` +
   MENU_TYPES.map(t => `<option value="${esc(t.value)}">${esc(t.value)} • ${esc(t.th)}</option>`).join("");
 
-renderAll();
+/* ---------- init: load shared data from server ---------- */
+(async () => {
+  try {
+    await fetchState();
+    // one-time import: move data saved by the old localStorage version
+    // into the shared database (only if the shared database is still empty)
+    if (state.menus.length === 0 && state.ingredients.length === 0) {
+      try {
+        const old = JSON.parse(localStorage.getItem(LEGACY_STORE_KEY) || "null");
+        if (old && ((old.menus || []).length || (old.ingredients || []).length)) {
+          state = migrate(old);
+          await save();
+          localStorage.removeItem(LEGACY_STORE_KEY);
+          toast("ย้ายข้อมูลเดิมในเครื่องขึ้นฐานข้อมูลกลางแล้ว • Imported local data to shared database");
+        }
+      } catch (e) { /* no legacy data */ }
+    }
+  } catch (e) {
+    toast("⚠️ โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้า • Failed to load data — try refreshing");
+  }
+  renderAll();
+})();
 </script>
 </body>
 </html>

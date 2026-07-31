@@ -1,12 +1,12 @@
 {
   "name": "menu-ingredients",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Menu Ingredients Manager - bilingual TH/EN restaurant menu & ingredients app",
+  "description": "Menu Ingredients Manager - bilingual TH/EN restaurant menu & ingredients app with shared database",
   "scripts": {
-    "start": "serve . -l tcp://0.0.0.0:${PORT:-3000}"
+    "start": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.4"
+    "express": "^4.19.2"
   }
 }
