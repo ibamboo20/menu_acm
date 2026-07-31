@@ -221,6 +221,38 @@
     100% { box-shadow: var(--shadow); }
   }
 
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(42,26,17,.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 40; padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    width: 100%; max-width: 520px; max-height: 82vh;
+    display: flex; flex-direction: column;
+  }
+  .modal-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 8px; padding: 16px 18px 10px; border-bottom: 1px solid var(--line);
+  }
+  .modal-head h3 { font-size: 1.02rem; }
+  .modal-head .modal-sub { color: var(--muted); font-size: .85rem; font-weight: 400; margin-top: 2px; }
+  .modal-body { padding: 8px 18px; overflow-y: auto; }
+  .modal-body table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .modal-body th {
+    text-align: left; font-size: .75rem; color: var(--muted); font-weight: 600;
+    padding: 8px 6px; border-bottom: 2px solid var(--line);
+  }
+  .modal-body td { padding: 9px 6px; border-bottom: 1px dashed var(--line); vertical-align: top; }
+  .modal-body tr:last-child td { border-bottom: none; }
+  .modal-en { color: var(--muted); font-size: .8rem; }
+  .modal-foot {
+    padding: 12px 18px 16px; border-top: 1px solid var(--line);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
   .toast {
     position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 999px;
@@ -347,6 +379,22 @@
   <option value="ถ้วย (cup)"><option value="ฟอง"><option value="ลูก"><option value="หัว">
   <option value="กลีบ"><option value="ใบ"><option value="ต้น"><option value="ชิ้น"><option value="แผ่น">
 </datalist>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🔗 ส่วนผสมที่ใช้ร่วมกัน <span class="modal-en">• Shared ingredients</span>
+        <div class="modal-sub" id="modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeModal()">ปิด • Close</button>
+      <button class="btn small" id="modal-goto"></button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -557,7 +605,7 @@ function menuCardHtml(menu) {
            <div class="rel-title">🔗 ใช้ส่วนผสมร่วมกับ • Shares ingredients with:</div>
            ${rels.map(r => {
              const names = r.shared.map(id => { const g = findIngredient(id); return g ? g.nameTh : ""; }).filter(Boolean).join(", ");
-             return `<span class="chip" title="${esc(names)}" onclick="jumpToMenu('${r.menu.id}')">${esc(r.menu.nameTh)} • ${r.shared.length} อย่าง</span>`;
+             return `<span class="chip" title="${esc(names)}" onclick="showShared('${menu.id}','${r.menu.id}')">${esc(r.menu.nameTh)} • ${r.shared.length} อย่าง</span>`;
            }).join("")}
          </div>`
       : "";
@@ -702,7 +750,7 @@ function jumpToMenu(menuId) {
   switchTab("menus");
   document.getElementById("menu-search").value = "";
   renderMenus();
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     const el = document.getElementById("menu-" + menuId);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -710,8 +758,58 @@ function jumpToMenu(menuId) {
       void el.offsetWidth;
       el.classList.add("highlight-flash");
     }
-  });
+  }, 0);
 }
+
+/* ---------- shared-ingredients popup ---------- */
+function showShared(aId, bId) {
+  const a = state.menus.find(m => m.id === aId);
+  const b = state.menus.find(m => m.id === bId);
+  if (!a || !b) return;
+  const bMap = new Map(b.items.map(it => [it.ingredientId, it]));
+  const shared = a.items.filter(it => bMap.has(it.ingredientId));
+
+  document.getElementById("modal-sub").textContent =
+    `${a.nameTh} ↔ ${b.nameTh} • ${shared.length} อย่าง`;
+
+  const rows = shared.map(it => {
+    const ing = findIngredient(it.ingredientId);
+    const bIt = bMap.get(it.ingredientId);
+    const qa = [it.qty, it.unit].filter(Boolean).join(" ") || "–";
+    const qb = [bIt.qty, bIt.unit].filter(Boolean).join(" ") || "–";
+    return `<tr>
+      <td><b>${esc(ing ? ing.nameTh : "(ถูกลบ)")}</b>${ing && ing.nameEn ? `<br><span class="modal-en">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td>${esc(qa)}</td>
+      <td>${esc(qb)}</td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("modal-body").innerHTML = `
+    <table>
+      <thead><tr>
+        <th>ส่วนผสม<br>Ingredient</th>
+        <th>${esc(a.nameTh)}</th>
+        <th>${esc(b.nameTh)}</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  const goto = document.getElementById("modal-goto");
+  goto.textContent = `ไปที่เมนู ${b.nameTh} →`;
+  goto.onclick = () => { closeModal(); jumpToMenu(bId); };
+
+  document.getElementById("modal-overlay").classList.add("show");
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("show");
+}
+document.getElementById("modal-overlay").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeModal();
+});
 
 /* ---------- actions: ingredients ---------- */
 let editingId = null;
