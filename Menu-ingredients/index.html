@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Ingredients • ส่วนผสมเมนูอาหาร</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --ink: #3c271d;
+    --muted: #94806f;
+    --line: #eadfd7;
+    --accent: #ff873c;
+    --accent-soft: #fff1e6;
+    --green: #3c271d;
+    --green-soft: #f5eee9;
+    --blue: #e06a17;
+    --blue-soft: #fff1e6;
+    --danger: #b23a3a;
+    --radius: 14px;
+    --shadow: 0 1px 3px rgba(60,39,29,.08), 0 4px 16px rgba(60,39,29,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", "Sarabun", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    padding-bottom: 80px;
+  }
+  header {
+    background: linear-gradient(135deg, #2a1a11, #3c271d);
+    color: #fff;
+    padding: 28px 20px 22px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; }
+  header p { opacity: .85; font-size: .9rem; margin-top: 2px; }
+
+  nav.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #2a1a11, #3c271d);
+    padding: 0 16px 18px;
+  }
+  .tab-btn {
+    border: 1px solid rgba(255,255,255,.4);
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    padding: 9px 20px;
+    border-radius: 999px;
+    font-size: .95rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,.22); }
+  .tab-btn.active { background: var(--accent); color: #fff; font-weight: 600; border-color: var(--accent); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 16px; }
+  section.panel { display: none; }
+  section.panel.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+  .card h2 .en { color: var(--muted); font-weight: 400; font-size: .85rem; }
+  .hint { color: var(--muted); font-size: .82rem; margin-bottom: 12px; }
+
+  .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 160px; }
+  .field label { font-size: .8rem; color: var(--muted); }
+  .field label b { color: var(--ink); font-weight: 600; }
+  input, select {
+    font-family: inherit;
+    font-size: .95rem;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .btn {
+    font-family: inherit;
+    font-size: .95rem;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: var(--green); }
+  .btn.ghost { background: transparent; color: var(--blue); border: 1px dashed var(--accent); font-weight: 500; }
+  .btn.small { padding: 6px 12px; font-size: .85rem; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 1rem; padding: 4px 6px; border-radius: 6px;
+  }
+  .icon-btn:hover { color: var(--danger); background: #fbeaea; }
+
+  .search-bar { position: relative; margin-bottom: 16px; }
+  .search-bar input { padding-left: 38px; }
+  .search-bar::before {
+    content: "🔍"; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: .9rem; opacity: .6;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+
+  .group-header {
+    display: flex; align-items: baseline; gap: 10px;
+    margin: 26px 2px 12px;
+  }
+  .group-header:first-child { margin-top: 4px; }
+  .group-header h2 { font-size: 1.15rem; color: var(--blue); }
+  .group-header .count {
+    background: var(--accent-soft); color: var(--blue);
+    font-size: .78rem; padding: 2px 10px; border-radius: 999px; font-weight: 600;
+  }
+  .group-header .rule { flex: 1; height: 1px; background: var(--line); }
+  .menu-cat-badge {
+    display: inline-block;
+    background: var(--accent-soft); color: var(--blue);
+    font-size: .75rem; padding: 2px 9px; border-radius: 999px; font-weight: 600;
+    margin-top: 4px;
+  }
+  select.menu-cat-badge {
+    font-family: inherit; border: 1px solid transparent; cursor: pointer;
+    width: auto; max-width: 100%;
+  }
+  select.menu-cat-badge:hover { border-color: var(--accent); }
+
+  .menu-card { display: flex; flex-direction: column; }
+  .menu-card .menu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .menu-card h3 { font-size: 1.1rem; }
+  .menu-card .name-en { color: var(--muted); font-size: .88rem; font-weight: 400; }
+
+  ul.ing-list { list-style: none; margin: 12px 0 4px; }
+  ul.ing-list li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 2px;
+    border-bottom: 1px dashed var(--line);
+    font-size: .92rem;
+  }
+  ul.ing-list li:last-child { border-bottom: none; }
+  .ing-name { flex: 1; }
+  .ing-name .en { color: var(--muted); font-size: .8rem; }
+  .qty-badge {
+    background: var(--accent-soft); color: var(--blue);
+    font-size: .8rem; padding: 2px 10px; border-radius: 999px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .empty-ing { color: var(--muted); font-size: .85rem; font-style: italic; padding: 8px 0; }
+
+  .add-ing-form {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .add-ing-form input.ing-input { flex: 2 1 130px; }
+  .add-ing-form input.qty-input { flex: 1 1 60px; min-width: 60px; }
+  .add-ing-form input.unit-input { flex: 1 1 70px; min-width: 70px; }
+
+  .related {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .related .rel-title { font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
+  .chip {
+    display: inline-block;
+    background: var(--green-soft); color: var(--green);
+    border: 1px solid #e7dbd1;
+    font-size: .8rem; padding: 3px 10px; border-radius: 999px;
+    margin: 0 4px 4px 0; cursor: pointer;
+  }
+  .chip:hover { filter: brightness(.96); }
+  .chip.blue { background: var(--blue-soft); color: var(--blue); border-color: #ffd9bd; }
+  .chip.plain { cursor: default; background: #f3f0ea; color: var(--muted); border-color: var(--line); }
+
+  table.ing-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  table.ing-table th {
+    text-align: left; font-size: .78rem; color: var(--muted); font-weight: 600;
+    padding: 8px 10px; border-bottom: 2px solid var(--line);
+  }
+  table.ing-table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.ing-table tr:last-child td { border-bottom: none; }
+  table.ing-table tr:hover td { background: #fdfaf5; }
+  .cat-badge {
+    background: var(--blue-soft); color: var(--blue);
+    font-size: .78rem; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .brand-txt { color: var(--muted); font-size: .85rem; }
+  .table-wrap { overflow-x: auto; }
+
+  .empty-state {
+    text-align: center; padding: 48px 16px; color: var(--muted);
+  }
+  .empty-state .big { font-size: 2.4rem; margin-bottom: 8px; }
+  .empty-state p { margin-bottom: 14px; }
+
+  .highlight-flash { animation: flash 1.6s ease; }
+  @keyframes flash {
+    0%, 40% { box-shadow: 0 0 0 3px var(--accent); }
+    100% { box-shadow: var(--shadow); }
+  }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 999px;
+    font-size: .9rem; opacity: 0; pointer-events: none; transition: opacity .25s;
+    z-index: 50; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: .95; }
+
+  @media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍜 ส่วนผสมเมนูอาหาร</h1>
+  <p>Menu Ingredients Manager</p>
+</header>
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
+  <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
+</nav>
+
+<main>
+
+  <!-- ================= MENUS TAB ================= -->
+  <section class="panel active" id="panel-menus">
+
+    <div class="card">
+      <h2>เพิ่มเมนูใหม่ <span class="en">• Add New Menu</span></h2>
+      <p class="hint">ใส่ชื่อเมนูภาษาไทย และภาษาอังกฤษ (ถ้ามี) • Enter menu name in Thai and English (optional)</p>
+      <form class="form-row" id="add-menu-form">
+        <div class="field">
+          <label><b>ชื่อเมนู (ไทย)</b> • Menu name (Thai) *</label>
+          <input type="text" id="menu-name-th" placeholder="เช่น ผัดซีอิ๊ว" required>
+        </div>
+        <div class="field">
+          <label><b>ชื่อเมนู (อังกฤษ)</b> • Menu name (English)</label>
+          <input type="text" id="menu-name-en" placeholder="e.g. Pad See Ew">
+        </div>
+        <div class="field" style="flex:0 1 240px">
+          <label><b>ประเภทเมนู</b> • Menu type</label>
+          <select id="menu-category"></select>
+        </div>
+        <button type="submit" class="btn">+ เพิ่มเมนู • Add</button>
+      </form>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="menu-search" placeholder="ค้นหาเมนู หรือส่วนผสมในเมนู… • Search menus or their ingredients…">
+    </div>
+
+    <div id="menu-groups"></div>
+    <div id="menu-empty" class="empty-state" style="display:none">
+      <div class="big">🍲</div>
+      <p>ยังไม่มีเมนู เริ่มเพิ่มเมนูแรกได้เลย<br>No menus yet — add your first menu above</p>
+      <button class="btn ghost" id="load-sample">โหลดข้อมูลตัวอย่าง • Load sample data</button>
+    </div>
+
+  </section>
+
+  <!-- ================= INGREDIENTS TAB ================= -->
+  <section class="panel" id="panel-ingredients">
+
+    <div class="card">
+      <h2 id="ing-form-title">เพิ่มข้อมูลส่วนผสม <span class="en">• Add Ingredient</span></h2>
+      <p class="hint">ชื่อส่วนผสมจำเป็นต้องใส่ ส่วนประเภทและแบรนด์ใส่หรือไม่ก็ได้ • Name is required; category &amp; brand are optional</p>
+      <form class="form-row" id="add-ing-form">
+        <div class="field">
+          <label><b>ชื่อส่วนผสม (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="ing-name-th" placeholder="เช่น กะทิ" required>
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="ing-name-en" placeholder="e.g. Coconut milk">
+        </div>
+        <div class="field">
+          <label><b>ประเภท</b> • Category <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="ing-category" list="category-list" placeholder="เช่น ของสด, เครื่องปรุง">
+          <datalist id="category-list"></datalist>
+        </div>
+        <div class="field">
+          <label><b>แบรนด์</b> • Brand <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="ing-brand" placeholder="เช่น อร่อยดี">
+        </div>
+        <button type="submit" class="btn secondary" id="ing-submit-btn">+ เพิ่มส่วนผสม • Add</button>
+        <button type="button" class="btn ghost" id="ing-cancel-edit" style="display:none">ยกเลิก • Cancel</button>
+      </form>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="ing-search" placeholder="ค้นหาส่วนผสม แล้วดูว่ามีอยู่ในเมนูไหนบ้าง… • Search an ingredient to see which menus use it…">
+    </div>
+
+    <div class="card table-wrap">
+      <table class="ing-table">
+        <thead>
+          <tr>
+            <th>ส่วนผสม<br>Ingredient</th>
+            <th>ประเภท<br>Category</th>
+            <th>แบรนด์<br>Brand</th>
+            <th>มีในเมนู • Used in menus</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ing-tbody"></tbody>
+      </table>
+      <div id="ing-empty" class="empty-state" style="display:none">
+        <div class="big">🥬</div>
+        <p>ยังไม่มีข้อมูลส่วนผสม<br>No ingredients yet</p>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<datalist id="ingredient-list"></datalist>
+<datalist id="unit-list">
+  <option value="กรัม (g)"><option value="กิโลกรัม (kg)"><option value="มล. (ml)">
+  <option value="ลิตร (L)"><option value="ช้อนชา (tsp)"><option value="ช้อนโต๊ะ (tbsp)">
+  <option value="ถ้วย (cup)"><option value="ฟอง"><option value="ลูก"><option value="หัว">
+  <option value="กลีบ"><option value="ใบ"><option value="ต้น"><option value="ชิ้น"><option value="แผ่น">
+</datalist>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- state & storage ---------- */
+const STORE_KEY = "menu-ingredients-v1";
+let state = load();
+
+const LEGACY_CATS = {
+  "ต้ม": "Soup", "ผัด": "Stir Fry", "แกง": "Curry", "ทอด": "Deep Fried",
+  "ยำ": "Salad", "ย่าง": "Grilled", "ก๋วยเตี๋ยว": "Noodle"
+};
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      (data.menus || []).forEach(m => {
+        if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
+      });
+      return data;
+    }
+  } catch (e) { /* corrupted storage -> start fresh */ }
+  return { menus: [], ingredients: [] };
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* ---------- helpers ---------- */
+function findIngredient(id) { return state.ingredients.find(i => i.id === id); }
+function ingDisplay(ing) {
+  if (!ing) return "(ถูกลบ • deleted)";
+  return ing.nameEn ? `${ing.nameTh} (${ing.nameEn})` : ing.nameTh;
+}
+function menusUsing(ingId) {
+  return state.menus.filter(m => m.items.some(it => it.ingredientId === ingId));
+}
+function matchIngredientByName(text) {
+  const t = text.trim().toLowerCase();
+  return state.ingredients.find(i =>
+    i.nameTh.toLowerCase() === t ||
+    (i.nameEn && i.nameEn.toLowerCase() === t) ||
+    ingDisplay(i).toLowerCase() === t
+  );
+}
+function relatedMenus(menu) {
+  const myIds = new Set(menu.items.map(it => it.ingredientId));
+  return state.menus
+    .filter(m => m.id !== menu.id)
+    .map(m => {
+      const shared = m.items.filter(it => myIds.has(it.ingredientId)).map(it => it.ingredientId);
+      return { menu: m, shared };
+    })
+    .filter(r => r.shared.length > 0)
+    .sort((a, b) => b.shared.length - a.shared.length);
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+  });
+});
+function switchTab(name) { document.querySelector(`.tab-btn[data-tab="${name}"]`).click(); }
+
+/* ---------- render: menus ---------- */
+const MENU_TYPES = [
+  { value: "Entree",        th: "ออเดิร์ฟ" },
+  { value: "Stir Fry",      th: "เมนูผัด" },
+  { value: "Curry",         th: "เมนูแกง" },
+  { value: "Salad",         th: "ยำ · ตำ" },
+  { value: "Grilled",       th: "เมนูย่าง" },
+  { value: "Deep Fried",    th: "เมนูทอด" },
+  { value: "Soup",          th: "เมนูต้ม · ซุป" },
+  { value: "Noodle",        th: "ก๋วยเตี๋ยว" },
+  { value: "Special",       th: "เมนูพิเศษ" },
+  { value: "Special Lanna", th: "เมนูพิเศษล้านนา" },
+  { value: "Mom's Pinto",   th: "ปิ่นโตคุณแม่" },
+];
+function menuCatLabel(cat) {
+  if (!cat) return "ไม่ระบุประเภท • Uncategorized";
+  const t = MENU_TYPES.find(t => t.value === cat);
+  return t ? `${t.value} • ${t.th}` : cat;
+}
+function catOrder(key) {
+  if (key === "") return MENU_TYPES.length + 1;
+  const i = MENU_TYPES.findIndex(t => t.value === key);
+  return i === -1 ? MENU_TYPES.length : i;
+}
+
+function renderMenus() {
+  const container = document.getElementById("menu-groups");
+  const q = document.getElementById("menu-search").value.trim().toLowerCase();
+
+  const menus = state.menus.filter(m => {
+    if (!q) return true;
+    if (m.nameTh.toLowerCase().includes(q) || (m.nameEn || "").toLowerCase().includes(q)) return true;
+    if ((m.category || "").toLowerCase().includes(q)) return true;
+    return m.items.some(it => {
+      const ing = findIngredient(it.ingredientId);
+      return ing && (ing.nameTh.toLowerCase().includes(q) || (ing.nameEn || "").toLowerCase().includes(q));
+    });
+  });
+
+  document.getElementById("menu-empty").style.display =
+    state.menus.length === 0 ? "" : "none";
+
+  // group by category, preserving first-seen order; uncategorized last
+  const groups = new Map();
+  menus.forEach(m => {
+    const key = (m.category || "").trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  });
+  const keys = [...groups.keys()].sort((a, b) =>
+    catOrder(a) - catOrder(b) || a.localeCompare(b, "th"));
+
+  container.innerHTML = keys.map(key => {
+    const list = groups.get(key);
+    return `
+      <div class="group-header">
+        <h2>${esc(menuCatLabel(key))}</h2>
+        <span class="count">${list.length} เมนู</span>
+        <div class="rule"></div>
+      </div>
+      <div class="grid">${list.map(menuCardHtml).join("")}</div>`;
+  }).join("");
+}
+
+function menuCardHtml(menu) {
+    const itemsHtml = menu.items.length
+      ? `<ul class="ing-list">` + menu.items.map(it => {
+          const ing = findIngredient(it.ingredientId);
+          const qty = [it.qty, it.unit].filter(Boolean).join(" ");
+          return `<li>
+            <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
+            ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
+            <button class="icon-btn" title="ลบส่วนผสมออกจากเมนู • Remove" onclick="removeItem('${menu.id}','${it.ingredientId}')">✕</button>
+          </li>`;
+        }).join("") + `</ul>`
+      : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
+
+    const rels = relatedMenus(menu);
+    const relHtml = rels.length
+      ? `<div class="related">
+           <div class="rel-title">🔗 ใช้ส่วนผสมร่วมกับ • Shares ingredients with:</div>
+           ${rels.map(r => {
+             const names = r.shared.map(id => { const g = findIngredient(id); return g ? g.nameTh : ""; }).filter(Boolean).join(", ");
+             return `<span class="chip" title="${esc(names)}" onclick="jumpToMenu('${r.menu.id}')">${esc(r.menu.nameTh)} • ${r.shared.length} อย่าง</span>`;
+           }).join("")}
+         </div>`
+      : "";
+
+    return `<div class="card menu-card" id="menu-${menu.id}">
+      <div class="menu-head">
+        <h3>${esc(menu.nameTh)}${menu.nameEn ? `<div class="name-en">${esc(menu.nameEn)}</div>` : ""}
+          <select class="menu-cat-badge" title="เปลี่ยนประเภทเมนู • Change menu type" onchange="changeMenuCategory('${menu.id}', this.value)">
+            <option value="">ไม่ระบุประเภท • Uncategorized</option>
+            ${MENU_TYPES.map(t => `<option value="${esc(t.value)}"${menu.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("")}
+          </select>
+        </h3>
+        <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
+      </div>
+      ${itemsHtml}
+      <form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}')">
+        <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
+        <input class="qty-input" placeholder="ปริมาณ • Qty">
+        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+        <button type="submit" class="btn small secondary">+ ใส่</button>
+      </form>
+      ${relHtml}
+    </div>`;
+}
+
+/* ---------- render: ingredients dashboard ---------- */
+function renderIngredients() {
+  const tbody = document.getElementById("ing-tbody");
+  const q = document.getElementById("ing-search").value.trim().toLowerCase();
+
+  const list = state.ingredients.filter(i => {
+    if (!q) return true;
+    return i.nameTh.toLowerCase().includes(q) ||
+      (i.nameEn || "").toLowerCase().includes(q) ||
+      (i.category || "").toLowerCase().includes(q) ||
+      (i.brand || "").toLowerCase().includes(q);
+  }).sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"));
+
+  document.getElementById("ing-empty").style.display =
+    state.ingredients.length === 0 ? "" : "none";
+
+  tbody.innerHTML = list.map(ing => {
+    const used = menusUsing(ing.id);
+    const usedHtml = used.length
+      ? used.map(m => `<span class="chip blue" onclick="jumpToMenu('${m.id}')">${esc(m.nameTh)}${m.nameEn ? ` • ${esc(m.nameEn)}` : ""}</span>`).join("")
+      : `<span class="chip plain">ยังไม่มีเมนูที่ใช้ • Not used yet</span>`;
+    return `<tr>
+      <td><b>${esc(ing.nameTh)}</b>${ing.nameEn ? `<br><span class="brand-txt">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td>${ing.category ? `<span class="cat-badge">${esc(ing.category)}</span>` : `<span class="brand-txt">–</span>`}</td>
+      <td>${ing.brand ? `<span class="brand-txt">${esc(ing.brand)}</span>` : `<span class="brand-txt">–</span>`}</td>
+      <td>${usedHtml}</td>
+      <td style="white-space:nowrap">
+        <button class="icon-btn" title="แก้ไข • Edit" style="color:var(--blue)" onclick="editIngredient('${ing.id}')">✏️</button>
+        <button class="icon-btn" title="ลบ • Delete" onclick="deleteIngredient('${ing.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- render: shared datalists ---------- */
+function renderDatalists() {
+  document.getElementById("ingredient-list").innerHTML =
+    state.ingredients.map(i => `<option value="${esc(ingDisplay(i))}">`).join("");
+  const cats = [...new Set(state.ingredients.map(i => i.category).filter(Boolean))];
+  document.getElementById("category-list").innerHTML =
+    cats.map(c => `<option value="${esc(c)}">`).join("");
+}
+
+function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); }
+
+/* ---------- actions: menus ---------- */
+document.getElementById("add-menu-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const th = document.getElementById("menu-name-th").value.trim();
+  const en = document.getElementById("menu-name-en").value.trim();
+  const cat = document.getElementById("menu-category").value.trim();
+  if (!th) return;
+  state.menus.unshift({ id: uid(), nameTh: th, nameEn: en, category: cat, items: [] });
+  save(); renderAll();
+  e.target.reset();
+  document.getElementById("menu-name-th").focus();
+  toast(`เพิ่มเมนู "${th}" แล้ว • Menu added`);
+});
+
+function changeMenuCategory(menuId, val) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  m.category = val;
+  save(); renderAll();
+  toast(`เปลี่ยนประเภทเมนูแล้ว • Menu type updated`);
+}
+
+function deleteMenu(menuId) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  if (!confirm(`ลบเมนู "${m.nameTh}" ?\nDelete menu "${m.nameEn || m.nameTh}"?`)) return;
+  state.menus = state.menus.filter(x => x.id !== menuId);
+  save(); renderAll();
+  toast(`ลบเมนูแล้ว • Menu deleted`);
+}
+
+function addItem(e, menuId) {
+  e.preventDefault();
+  const form = e.target;
+  const nameInput = form.querySelector(".ing-input");
+  const name = nameInput.value.trim();
+  const qty = form.querySelector(".qty-input").value.trim();
+  const unit = form.querySelector(".unit-input").value.trim();
+  if (!name) return false;
+
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu) return false;
+
+  let ing = matchIngredientByName(name);
+  if (!ing) {
+    ing = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "" };
+    state.ingredients.push(ing);
+    toast(`สร้างส่วนผสมใหม่ "${name}" — เพิ่มประเภท/แบรนด์ได้ในแท็บส่วนผสม • New ingredient created`);
+  }
+
+  const existing = menu.items.find(it => it.ingredientId === ing.id);
+  if (existing) {
+    existing.qty = qty; existing.unit = unit;
+    toast(`อัปเดตปริมาณ "${ing.nameTh}" แล้ว • Quantity updated`);
+  } else {
+    menu.items.push({ ingredientId: ing.id, qty, unit });
+  }
+  save(); renderAll();
+  const newForm = document.querySelector(`#menu-${menuId} .ing-input`);
+  if (newForm) newForm.focus();
+  return false;
+}
+
+function removeItem(menuId, ingredientId) {
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu) return;
+  menu.items = menu.items.filter(it => it.ingredientId !== ingredientId);
+  save(); renderAll();
+}
+
+function jumpToMenu(menuId) {
+  switchTab("menus");
+  document.getElementById("menu-search").value = "";
+  renderMenus();
+  requestAnimationFrame(() => {
+    const el = document.getElementById("menu-" + menuId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("highlight-flash");
+      void el.offsetWidth;
+      el.classList.add("highlight-flash");
+    }
+  });
+}
+
+/* ---------- actions: ingredients ---------- */
+let editingId = null;
+
+document.getElementById("add-ing-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const th = document.getElementById("ing-name-th").value.trim();
+  const en = document.getElementById("ing-name-en").value.trim();
+  const cat = document.getElementById("ing-category").value.trim();
+  const brand = document.getElementById("ing-brand").value.trim();
+  if (!th) return;
+
+  if (editingId) {
+    const ing = findIngredient(editingId);
+    if (ing) { ing.nameTh = th; ing.nameEn = en; ing.category = cat; ing.brand = brand; }
+    toast(`บันทึกการแก้ไข "${th}" แล้ว • Ingredient updated`);
+    cancelEdit();
+  } else {
+    const dup = matchIngredientByName(th);
+    if (dup) {
+      toast(`"${th}" มีอยู่แล้ว • Already exists`);
+      return;
+    }
+    state.ingredients.push({ id: uid(), nameTh: th, nameEn: en, category: cat, brand });
+    toast(`เพิ่มส่วนผสม "${th}" แล้ว • Ingredient added`);
+    e.target.reset();
+    document.getElementById("ing-name-th").focus();
+  }
+  save(); renderAll();
+});
+
+function editIngredient(id) {
+  const ing = findIngredient(id);
+  if (!ing) return;
+  editingId = id;
+  document.getElementById("ing-name-th").value = ing.nameTh;
+  document.getElementById("ing-name-en").value = ing.nameEn || "";
+  document.getElementById("ing-category").value = ing.category || "";
+  document.getElementById("ing-brand").value = ing.brand || "";
+  document.getElementById("ing-form-title").innerHTML =
+    `แก้ไขส่วนผสม <span class="en">• Edit Ingredient</span>`;
+  document.getElementById("ing-submit-btn").textContent = "💾 บันทึก • Save";
+  document.getElementById("ing-cancel-edit").style.display = "";
+  document.getElementById("ing-name-th").focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById("add-ing-form").reset();
+  document.getElementById("ing-form-title").innerHTML =
+    `เพิ่มข้อมูลส่วนผสม <span class="en">• Add Ingredient</span>`;
+  document.getElementById("ing-submit-btn").textContent = "+ เพิ่มส่วนผสม • Add";
+  document.getElementById("ing-cancel-edit").style.display = "none";
+}
+document.getElementById("ing-cancel-edit").addEventListener("click", cancelEdit);
+
+function deleteIngredient(id) {
+  const ing = findIngredient(id);
+  if (!ing) return;
+  const used = menusUsing(id);
+  const warn = used.length
+    ? `\n⚠️ ส่วนผสมนี้ถูกใช้ใน ${used.length} เมนู จะถูกลบออกจากเมนูด้วย\nUsed in ${used.length} menu(s) — it will be removed from them too.`
+    : "";
+  if (!confirm(`ลบส่วนผสม "${ing.nameTh}" ?${warn}`)) return;
+  state.ingredients = state.ingredients.filter(i => i.id !== id);
+  state.menus.forEach(m => { m.items = m.items.filter(it => it.ingredientId !== id); });
+  if (editingId === id) cancelEdit();
+  save(); renderAll();
+  toast(`ลบส่วนผสมแล้ว • Ingredient deleted`);
+}
+
+/* ---------- search ---------- */
+document.getElementById("menu-search").addEventListener("input", renderMenus);
+document.getElementById("ing-search").addEventListener("input", renderIngredients);
+
+/* ---------- sample data ---------- */
+document.getElementById("load-sample").addEventListener("click", () => {
+  const I = (nameTh, nameEn, category = "", brand = "") => ({ id: uid(), nameTh, nameEn, category, brand });
+  const ings = {
+    coconut: I("กะทิ", "Coconut milk", "เครื่องปรุง", "อร่อยดี"),
+    chicken: I("ไก่", "Chicken", "ของสด"),
+    senYai: I("เส้นใหญ่", "Wide rice noodles", "ของแห้ง"),
+    darkSoy: I("ซีอิ๊วดำ", "Dark soy sauce", "เครื่องปรุง"),
+    kana: I("คะน้า", "Chinese broccoli", "ผัก"),
+    shallot: I("หอมแดง", "Shallot", "ผัก"),
+    garlic: I("กระเทียม", "Garlic", "ผัก"),
+    lime: I("มะนาว", "Lime", "ผัก"),
+    fishSauce: I("น้ำปลา", "Fish sauce", "เครื่องปรุง", "ทิพรส"),
+    rice: I("ข้าวสวย", "Steamed rice", "ของแห้ง"),
+    basil: I("ใบกะเพรา", "Holy basil", "ผัก"),
+    chili: I("พริกขี้หนู", "Bird's eye chili", "ผัก"),
+    egg: I("ไข่ไก่", "Egg", "ของสด"),
+    pork: I("หมูสับ", "Minced pork", "ของสด"),
+    oyster: I("ซอสหอยนางรม", "Oyster sauce", "เครื่องปรุง"),
+  };
+  state.ingredients.push(...Object.values(ings));
+  state.menus.unshift(
+    {
+      id: uid(), nameTh: "ผัดซีอิ๊ว", nameEn: "Pad See Ew", category: "Noodle", items: [
+        { ingredientId: ings.senYai.id, qty: "200", unit: "กรัม (g)" },
+        { ingredientId: ings.chicken.id, qty: "200", unit: "กรัม (g)" },
+        { ingredientId: ings.kana.id, qty: "100", unit: "กรัม (g)" },
+        { ingredientId: ings.egg.id, qty: "2", unit: "ฟอง" },
+        { ingredientId: ings.garlic.id, qty: "3", unit: "กลีบ" },
+        { ingredientId: ings.darkSoy.id, qty: "1", unit: "ช้อนโต๊ะ (tbsp)" },
+        { ingredientId: ings.oyster.id, qty: "1", unit: "ช้อนโต๊ะ (tbsp)" },
+      ]
+    },
+    {
+      id: uid(), nameTh: "ผัดกะเพราหมูสับ", nameEn: "Pad Krapow Moo", category: "Stir Fry", items: [
+        { ingredientId: ings.pork.id, qty: "250", unit: "กรัม (g)" },
+        { ingredientId: ings.basil.id, qty: "1", unit: "ถ้วย (cup)" },
+        { ingredientId: ings.garlic.id, qty: "5", unit: "กลีบ" },
+        { ingredientId: ings.chili.id, qty: "8", unit: "เม็ด" },
+        { ingredientId: ings.fishSauce.id, qty: "1", unit: "ช้อนโต๊ะ (tbsp)" },
+        { ingredientId: ings.oyster.id, qty: "1", unit: "ช้อนโต๊ะ (tbsp)" },
+        { ingredientId: ings.rice.id, qty: "1", unit: "จาน" },
+        { ingredientId: ings.egg.id, qty: "1", unit: "ฟอง" },
+      ]
+    },
+    {
+      id: uid(), nameTh: "ต้มข่าไก่", nameEn: "Tom Kha Gai", category: "Soup", items: [
+        { ingredientId: ings.coconut.id, qty: "500", unit: "มล. (ml)" },
+        { ingredientId: ings.chicken.id, qty: "250", unit: "กรัม (g)" },
+        { ingredientId: ings.shallot.id, qty: "4", unit: "หัว" },
+        { ingredientId: ings.lime.id, qty: "2", unit: "ลูก" },
+        { ingredientId: ings.fishSauce.id, qty: "2", unit: "ช้อนโต๊ะ (tbsp)" },
+        { ingredientId: ings.chili.id, qty: "5", unit: "เม็ด" },
+      ]
+    }
+  );
+  save(); renderAll();
+  toast("โหลดข้อมูลตัวอย่างแล้ว • Sample data loaded");
+});
+
+/* populate menu-type dropdown in the add-menu form */
+document.getElementById("menu-category").innerHTML =
+  `<option value="">— เลือกประเภท • Select type —</option>` +
+  MENU_TYPES.map(t => `<option value="${esc(t.value)}">${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+
+renderAll();
+</script>
+</body>
+</html>
