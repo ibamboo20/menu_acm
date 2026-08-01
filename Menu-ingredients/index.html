@@ -150,6 +150,24 @@
   .menu-card h3 { font-size: 1.1rem; }
   .menu-card .name-en { color: var(--muted); font-size: .88rem; font-weight: 400; }
 
+  .chk-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: .92rem; cursor: pointer; font-weight: 600; margin-top: 4px;
+  }
+  .chk-row input { width: auto; accent-color: var(--accent); transform: scale(1.2); }
+  .chk-row .en { color: var(--muted); font-weight: 400; font-size: .85rem; }
+  .opt-choice {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 14px 5px 10px; margin: 0 6px 6px 0;
+    cursor: pointer; font-size: .87rem; background: var(--card);
+  }
+  .opt-choice input { width: auto; accent-color: var(--accent); }
+  .opt-choice.on { border-color: var(--accent); background: var(--accent-soft); color: var(--blue); font-weight: 600; }
+  .opt-choice .cnt { font-size: .75rem; color: var(--muted); }
+  .add-custom-opt { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .add-custom-opt input { flex: 1 1 180px; }
+
   .opt-tabs {
     display: flex; flex-wrap: wrap; gap: 6px;
     margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
@@ -313,6 +331,21 @@
           <label><b>ประเภทเมนู</b> • Menu type</label>
           <select id="menu-category"></select>
         </div>
+        <div style="flex-basis:100%">
+          <label class="chk-row">
+            <input type="checkbox" id="menu-has-opts">
+            🥩 มี Meat options <span class="en">• Has meat options</span>
+          </label>
+          <div id="opts-builder" style="display:none">
+            <div class="opt-label" style="margin:10px 0 6px">ติ๊กเลือก options ที่ต้องการ • Tick the options to include:</div>
+            <div id="opts-choices"></div>
+            <div class="add-custom-opt">
+              <input type="text" id="custom-opt-th" placeholder="เพิ่ม option เอง (ไทย) เช่น ปลาหมึก">
+              <input type="text" id="custom-opt-en" placeholder="Custom option (English) e.g. Squid">
+              <button type="button" class="btn small secondary" id="add-custom-opt-btn">+ เพิ่ม option</button>
+            </div>
+          </div>
+        </div>
         <button type="submit" class="btn">+ เพิ่มเมนู • Add</button>
       </form>
     </div>
@@ -406,6 +439,36 @@
     <div class="modal-foot">
       <button class="btn small ghost" onclick="closeModal()">ปิด • Close</button>
       <button class="btn small" id="modal-goto"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="opts-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🥩 Meat options
+        <div class="modal-sub" id="opts-modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeOptsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="chk-row" style="margin:10px 0">
+        <input type="checkbox" id="editor-has-opts" onchange="toggleEditorHasOpts(this.checked)">
+        มี Meat options <span class="en">• Has meat options</span>
+      </label>
+      <div id="editor-opts-panel" style="display:none">
+        <div class="opt-label" style="margin:4px 0 6px">ติ๊กเลือก options ที่ต้องการ • Tick the options to include:</div>
+        <div id="editor-opts-choices"></div>
+        <div class="add-custom-opt" style="margin-bottom:10px">
+          <input type="text" id="editor-custom-th" placeholder="เพิ่ม option เอง (ไทย)">
+          <input type="text" id="editor-custom-en" placeholder="Custom option (English)">
+          <button type="button" class="btn small secondary" onclick="addEditorCustom()">+ เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeOptsModal()">ยกเลิก • Cancel</button>
+      <button class="btn small" onclick="saveOptsModal()">💾 บันทึก • Save</button>
     </div>
   </div>
 </div>
@@ -674,7 +737,10 @@ function menuCardHtml(menu) {
             ${MENU_TYPES.map(t => `<option value="${esc(t.value)}"${menu.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("")}
           </select>
         </h3>
-        <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
+        <span style="white-space:nowrap">
+          <button class="icon-btn" title="เพิ่ม/แก้ไข meat options • Edit meat options" onclick="openOptsEditor('${menu.id}')">🥩</button>
+          <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
+        </span>
       </div>
       ${optsHtml}
       ${itemsHtml}
@@ -740,11 +806,19 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
   const en = document.getElementById("menu-name-en").value.trim();
   const cat = document.getElementById("menu-category").value.trim();
   if (!th) return;
-  state.menus.unshift({ id: uid(), nameTh: th, nameEn: en, category: cat, items: [] });
+  const menu = { id: uid(), nameTh: th, nameEn: en, category: cat, items: [] };
+  if (document.getElementById("menu-has-opts").checked) {
+    const chosen = builderOpts.filter(o => o.checked);
+    if (chosen.length) {
+      menu.options = chosen.map(o => ({ id: uid(), nameTh: o.th, nameEn: o.en, items: [] }));
+    }
+  }
+  state.menus.unshift(menu);
   save(); renderAll();
   e.target.reset();
+  resetBuilder();
   document.getElementById("menu-name-th").focus();
-  toast(`เพิ่มเมนู "${th}" แล้ว • Menu added`);
+  toast(`เพิ่มเมนู "${th}" แล้ว${menu.options ? ` (${menu.options.length} meat options)` : ""} • Menu added`);
 });
 
 function changeMenuCategory(menuId, val) {
@@ -822,6 +896,126 @@ function jumpToMenu(menuId) {
   }, 0);
 }
 
+/* ---------- meat options: defaults + add-form builder ---------- */
+const DEFAULT_MEAT_OPTS = [
+  { th: "หมู", en: "Pork" },
+  { th: "เนื้อ", en: "Beef" },
+  { th: "ไก่", en: "Chicken" },
+  { th: "กุ้ง", en: "Prawn" },
+  { th: "เต้าหู้และผัก", en: "Tofu or Veg" },
+];
+
+let builderOpts = [];
+function resetBuilder() {
+  builderOpts = DEFAULT_MEAT_OPTS.map(o => ({ ...o, checked: true }));
+  document.getElementById("menu-has-opts").checked = false;
+  document.getElementById("opts-builder").style.display = "none";
+  renderBuilderChoices();
+}
+function renderBuilderChoices() {
+  document.getElementById("opts-choices").innerHTML = builderOpts.map((o, i) =>
+    `<label class="opt-choice${o.checked ? " on" : ""}">
+       <input type="checkbox"${o.checked ? " checked" : ""} onchange="toggleBuilderOpt(${i}, this.checked)">
+       ${esc(o.th)} • ${esc(o.en)}
+     </label>`).join("");
+}
+function toggleBuilderOpt(i, v) { builderOpts[i].checked = v; renderBuilderChoices(); }
+
+document.getElementById("menu-has-opts").addEventListener("change", e => {
+  document.getElementById("opts-builder").style.display = e.target.checked ? "" : "none";
+});
+document.getElementById("add-custom-opt-btn").addEventListener("click", () => {
+  const th = document.getElementById("custom-opt-th").value.trim();
+  const en = document.getElementById("custom-opt-en").value.trim();
+  if (!th && !en) return;
+  builderOpts.push({ th: th || en, en: en, checked: true });
+  document.getElementById("custom-opt-th").value = "";
+  document.getElementById("custom-opt-en").value = "";
+  renderBuilderChoices();
+});
+
+/* ---------- meat options: per-menu editor modal ---------- */
+let editingOptsMenuId = null;
+let editorOpts = [];
+
+function openOptsEditor(menuId) {
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu) return;
+  editingOptsMenuId = menuId;
+  const existing = menuOptions(menu) || [];
+  editorOpts = existing.map(o => ({
+    id: o.id, th: o.nameTh, en: o.nameEn || "", checked: true, count: (o.items || []).length
+  }));
+  DEFAULT_MEAT_OPTS.forEach(d => {
+    const dup = editorOpts.some(e =>
+      e.th === d.th || (e.en && e.en.toLowerCase() === d.en.toLowerCase()));
+    if (!dup) editorOpts.push({ th: d.th, en: d.en, checked: false, count: 0 });
+  });
+  document.getElementById("opts-modal-sub").textContent = `${menu.nameTh}${menu.nameEn ? " • " + menu.nameEn : ""}`;
+  document.getElementById("editor-has-opts").checked = existing.length > 0;
+  document.getElementById("editor-opts-panel").style.display = existing.length > 0 ? "" : "none";
+  document.getElementById("editor-custom-th").value = "";
+  document.getElementById("editor-custom-en").value = "";
+  renderEditorChoices();
+  document.getElementById("opts-modal").classList.add("show");
+}
+function renderEditorChoices() {
+  document.getElementById("editor-opts-choices").innerHTML = editorOpts.map((o, i) =>
+    `<label class="opt-choice${o.checked ? " on" : ""}">
+       <input type="checkbox"${o.checked ? " checked" : ""} onchange="toggleEditorOpt(${i}, this.checked)">
+       ${esc(o.th)}${o.en && o.en !== o.th ? ` • ${esc(o.en)}` : ""}
+       ${o.count ? `<span class="cnt">(${o.count} ส่วนผสม)</span>` : ""}
+     </label>`).join("");
+}
+function toggleEditorOpt(i, v) { editorOpts[i].checked = v; renderEditorChoices(); }
+function toggleEditorHasOpts(v) {
+  document.getElementById("editor-opts-panel").style.display = v ? "" : "none";
+}
+function addEditorCustom() {
+  const th = document.getElementById("editor-custom-th").value.trim();
+  const en = document.getElementById("editor-custom-en").value.trim();
+  if (!th && !en) return;
+  editorOpts.push({ th: th || en, en: en, checked: true, count: 0 });
+  document.getElementById("editor-custom-th").value = "";
+  document.getElementById("editor-custom-en").value = "";
+  renderEditorChoices();
+}
+function saveOptsModal() {
+  const menu = state.menus.find(m => m.id === editingOptsMenuId);
+  if (!menu) { closeOptsModal(); return; }
+  const hasOpts = document.getElementById("editor-has-opts").checked;
+  const existing = menuOptions(menu) || [];
+
+  if (!hasOpts) {
+    const lost = existing.filter(o => (o.items || []).length);
+    if (lost.length && !confirm(
+      `ปิด meat options จะลบส่วนผสมใน ${lost.length} option ด้วย ยืนยัน?\nTurning off meat options deletes the ingredients inside them. Continue?`)) return;
+    delete menu.options;
+  } else {
+    const chosen = editorOpts.filter(o => o.checked);
+    if (!chosen.length) { toast("เลือกอย่างน้อย 1 option • Pick at least one option"); return; }
+    const removedWithItems = existing.filter(o =>
+      (o.items || []).length && !chosen.some(c => c.id === o.id));
+    if (removedWithItems.length && !confirm(
+      `option ที่เอาออก (${removedWithItems.map(o => o.nameTh).join(", ")}) มีส่วนผสมอยู่ จะถูกลบด้วย ยืนยัน?\nRemoved options contain ingredients — they will be deleted. Continue?`)) return;
+    menu.options = chosen.map(c => {
+      const old = existing.find(o => o.id === c.id);
+      return old || { id: uid(), nameTh: c.th, nameEn: c.en, items: [] };
+    });
+    delete selectedOpt[menu.id];
+  }
+  save(); renderAll();
+  closeOptsModal();
+  toast("บันทึก meat options แล้ว • Meat options saved");
+}
+function closeOptsModal() {
+  editingOptsMenuId = null;
+  document.getElementById("opts-modal").classList.remove("show");
+}
+document.getElementById("opts-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeOptsModal();
+});
+
 /* ---------- shared-ingredients popup ---------- */
 function showShared(aId, bId) {
   const a = state.menus.find(m => m.id === aId);
@@ -869,7 +1063,7 @@ document.getElementById("modal-overlay").addEventListener("click", e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") closeModal();
+  if (e.key === "Escape") { closeModal(); closeOptsModal(); }
 });
 
 /* ---------- actions: ingredients ---------- */
@@ -1011,6 +1205,8 @@ document.getElementById("load-sample").addEventListener("click", () => {
 document.getElementById("menu-category").innerHTML =
   `<option value="">— เลือกประเภท • Select type —</option>` +
   MENU_TYPES.map(t => `<option value="${esc(t.value)}">${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+
+resetBuilder();
 
 /* ---------- init: load shared data from server ---------- */
 (async () => {
