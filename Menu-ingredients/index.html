@@ -150,6 +150,20 @@
   .menu-card h3 { font-size: 1.1rem; }
   .menu-card .name-en { color: var(--muted); font-size: .88rem; font-weight: 400; }
 
+  .opt-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .opt-label { font-size: .75rem; color: var(--muted); width: 100%; }
+  .opt-tab {
+    font-family: inherit; font-size: .8rem; font-weight: 600;
+    padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--chip-border2); background: var(--card); color: var(--blue);
+    transition: background .12s;
+  }
+  .opt-tab:hover { background: var(--accent-soft); }
+  .opt-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
   ul.ing-list { list-style: none; margin: 12px 0 4px; }
   ul.ing-list li {
     display: flex; align-items: center; gap: 8px;
@@ -416,6 +430,10 @@ function migrate(s) {
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
   s.menus.forEach(m => {
     if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
+    if (!Array.isArray(m.items)) m.items = [];
+    if (m.options && Array.isArray(m.options)) {
+      m.options.forEach(o => { if (!Array.isArray(o.items)) o.items = []; });
+    }
   });
   return s;
 }
@@ -477,8 +495,34 @@ function ingDisplay(ing) {
   if (!ing) return "(ถูกลบ • deleted)";
   return ing.nameEn ? `${ing.nameTh} (${ing.nameEn})` : ing.nameTh;
 }
+/* meat options: a menu may have options[], each with its own items[] */
+const selectedOpt = {}; // menuId -> optionId (per-session UI state)
+function menuOptions(menu) {
+  return Array.isArray(menu.options) && menu.options.length ? menu.options : null;
+}
+function currentOption(menu) {
+  const opts = menuOptions(menu);
+  if (!opts) return null;
+  return opts.find(o => o.id === selectedOpt[menu.id]) || opts[0];
+}
+function selectOpt(menuId, optId) {
+  selectedOpt[menuId] = optId;
+  renderMenus();
+}
+/* all ingredients of a menu across every option (deduped) — used for
+   shared-ingredient links and the dashboard's "used in menus" column */
+function menuUnionItems(menu) {
+  const opts = menuOptions(menu);
+  if (!opts) return menu.items || [];
+  const map = new Map();
+  opts.forEach(o => (o.items || []).forEach(it => {
+    if (!map.has(it.ingredientId)) map.set(it.ingredientId, it);
+  }));
+  return [...map.values()];
+}
+
 function menusUsing(ingId) {
-  return state.menus.filter(m => m.items.some(it => it.ingredientId === ingId));
+  return state.menus.filter(m => menuUnionItems(m).some(it => it.ingredientId === ingId));
 }
 function matchIngredientByName(text) {
   const t = text.trim().toLowerCase();
@@ -489,11 +533,11 @@ function matchIngredientByName(text) {
   );
 }
 function relatedMenus(menu) {
-  const myIds = new Set(menu.items.map(it => it.ingredientId));
+  const myIds = new Set(menuUnionItems(menu).map(it => it.ingredientId));
   return state.menus
     .filter(m => m.id !== menu.id)
     .map(m => {
-      const shared = m.items.filter(it => myIds.has(it.ingredientId)).map(it => it.ingredientId);
+      const shared = menuUnionItems(m).filter(it => myIds.has(it.ingredientId)).map(it => it.ingredientId);
       return { menu: m, shared };
     })
     .filter(r => r.shared.length > 0)
@@ -555,7 +599,7 @@ function renderMenus() {
     if (!q) return true;
     if (m.nameTh.toLowerCase().includes(q) || (m.nameEn || "").toLowerCase().includes(q)) return true;
     if ((m.category || "").toLowerCase().includes(q)) return true;
-    return m.items.some(it => {
+    return menuUnionItems(m).some(it => {
       const ing = findIngredient(it.ingredientId);
       return ing && (ing.nameTh.toLowerCase().includes(q) || (ing.nameEn || "").toLowerCase().includes(q));
     });
@@ -587,8 +631,20 @@ function renderMenus() {
 }
 
 function menuCardHtml(menu) {
-    const itemsHtml = menu.items.length
-      ? `<ul class="ing-list">` + menu.items.map(it => {
+    const opts = menuOptions(menu);
+    const cur = currentOption(menu);
+    const optsHtml = opts
+      ? `<div class="opt-tabs">
+           <div class="opt-label">🥩 เลือกเนื้อสัตว์ • Meat option:</div>
+           ${opts.map(o => `<button type="button" class="opt-tab${cur.id === o.id ? " active" : ""}" onclick="selectOpt('${menu.id}','${o.id}')">${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</button>`).join("")}
+         </div>`
+      : "";
+    const shownItems = opts ? (cur.items || []) : menu.items;
+    const emptyMsg = opts
+      ? `ยังไม่มีส่วนผสมของ ${esc(cur.nameTh)} • No ingredients for ${esc(cur.nameEn || cur.nameTh)} yet`
+      : "ยังไม่มีส่วนผสม • No ingredients yet";
+    const itemsHtml = shownItems.length
+      ? `<ul class="ing-list">` + shownItems.map(it => {
           const ing = findIngredient(it.ingredientId);
           const qty = [it.qty, it.unit].filter(Boolean).join(" ");
           return `<li>
@@ -597,7 +653,7 @@ function menuCardHtml(menu) {
             <button class="icon-btn" title="ลบส่วนผสมออกจากเมนู • Remove" onclick="removeItem('${menu.id}','${it.ingredientId}')">✕</button>
           </li>`;
         }).join("") + `</ul>`
-      : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
+      : `<div class="empty-ing">${emptyMsg}</div>`;
 
     const rels = relatedMenus(menu);
     const relHtml = rels.length
@@ -620,6 +676,7 @@ function menuCardHtml(menu) {
         </h3>
         <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
       </div>
+      ${optsHtml}
       ${itemsHtml}
       <form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}')">
         <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
@@ -726,12 +783,14 @@ function addItem(e, menuId) {
     toast(`สร้างส่วนผสมใหม่ "${name}" — เพิ่มประเภท/แบรนด์ได้ในแท็บส่วนผสม • New ingredient created`);
   }
 
-  const existing = menu.items.find(it => it.ingredientId === ing.id);
+  const cur = currentOption(menu);
+  const list = cur ? (cur.items = cur.items || []) : menu.items;
+  const existing = list.find(it => it.ingredientId === ing.id);
   if (existing) {
     existing.qty = qty; existing.unit = unit;
     toast(`อัปเดตปริมาณ "${ing.nameTh}" แล้ว • Quantity updated`);
   } else {
-    menu.items.push({ ingredientId: ing.id, qty, unit });
+    list.push({ ingredientId: ing.id, qty, unit });
   }
   save(); renderAll();
   const newForm = document.querySelector(`#menu-${menuId} .ing-input`);
@@ -742,7 +801,9 @@ function addItem(e, menuId) {
 function removeItem(menuId, ingredientId) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu) return;
-  menu.items = menu.items.filter(it => it.ingredientId !== ingredientId);
+  const cur = currentOption(menu);
+  if (cur) cur.items = (cur.items || []).filter(it => it.ingredientId !== ingredientId);
+  else menu.items = menu.items.filter(it => it.ingredientId !== ingredientId);
   save(); renderAll();
 }
 
@@ -766,8 +827,8 @@ function showShared(aId, bId) {
   const a = state.menus.find(m => m.id === aId);
   const b = state.menus.find(m => m.id === bId);
   if (!a || !b) return;
-  const bMap = new Map(b.items.map(it => [it.ingredientId, it]));
-  const shared = a.items.filter(it => bMap.has(it.ingredientId));
+  const bMap = new Map(menuUnionItems(b).map(it => [it.ingredientId, it]));
+  const shared = menuUnionItems(a).filter(it => bMap.has(it.ingredientId));
 
   document.getElementById("modal-sub").textContent =
     `${a.nameTh} ↔ ${b.nameTh} • ${shared.length} อย่าง`;
