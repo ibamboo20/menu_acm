@@ -308,6 +308,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
   <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
+  <button class="tab-btn" data-tab="reports">📊 รายงาน • Reports</button>
 </nav>
 
 <main>
@@ -412,6 +413,39 @@
       <div id="ing-empty" class="empty-state" style="display:none">
         <div class="big">🥬</div>
         <p>ยังไม่มีข้อมูลส่วนผสม<br>No ingredients yet</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= REPORTS TAB ================= -->
+  <section class="panel" id="panel-reports">
+
+    <div class="card">
+      <h2>📊 รายงานตามส่วนผสม <span class="en">• Report by Ingredient</span></h2>
+      <p class="hint">เลือกส่วนผสมที่ต้องการ รายงานจะแสดงว่ามีเมนูอะไรบ้างที่ใช้ แต่ละเมนูใช้เท่าไหร่ และรวมทุกเมนูใช้เท่าไหร่ • Pick ingredients — the report shows which menus use them, how much each uses, and the total</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('ing', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('ing', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-ing-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeIngredientReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeIngredientReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📋 รายงานตามเมนู <span class="en">• Report by Menu</span></h2>
+      <p class="hint">เลือกเมนูที่ต้องการ รายงานจะแสดงส่วนผสมทั้งหมดของเมนู พร้อมบอกว่าส่วนผสมแต่ละอย่างมีเมนูไหนใช้ด้วยบ้าง จำนวนเท่าไหร่ • Pick menus — the report lists their ingredients and which other menus share each one, with quantities</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('menu', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('menu', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-menu-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeMenuReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeMenuReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
       </div>
     </div>
 
@@ -797,7 +831,7 @@ function renderDatalists() {
     cats.map(c => `<option value="${esc(c)}">`).join("");
 }
 
-function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); }
+function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); renderReports(); }
 
 /* ---------- actions: menus ---------- */
 document.getElementById("add-menu-form").addEventListener("submit", e => {
@@ -1135,6 +1169,198 @@ function deleteIngredient(id) {
   if (editingId === id) cancelEdit();
   save(); renderAll();
   toast(`ลบส่วนผสมแล้ว • Ingredient deleted`);
+}
+
+/* ---------- reports ---------- */
+const reportIngSel = new Set();
+const reportMenuSel = new Set();
+
+function renderReports() {
+  const ings = [...state.ingredients].sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"));
+  document.getElementById("report-ing-choices").innerHTML = ings.length ? ings.map(i =>
+    `<label class="opt-choice${reportIngSel.has(i.id) ? " on" : ""}">
+       <input type="checkbox"${reportIngSel.has(i.id) ? " checked" : ""} onchange="toggleReportSel('ing','${i.id}',this.checked)">
+       ${esc(i.nameTh)}${i.nameEn ? ` • ${esc(i.nameEn)}` : ""}
+     </label>`).join("")
+    : `<span class="brand-txt">ยังไม่มีส่วนผสม • No ingredients yet</span>`;
+  document.getElementById("report-menu-choices").innerHTML = state.menus.length ? state.menus.map(m =>
+    `<label class="opt-choice${reportMenuSel.has(m.id) ? " on" : ""}">
+       <input type="checkbox"${reportMenuSel.has(m.id) ? " checked" : ""} onchange="toggleReportSel('menu','${m.id}',this.checked)">
+       ${esc(m.nameTh)}${m.nameEn ? ` • ${esc(m.nameEn)}` : ""}
+     </label>`).join("")
+    : `<span class="brand-txt">ยังไม่มีเมนู • No menus yet</span>`;
+}
+function toggleReportSel(kind, id, v) {
+  const s = kind === "ing" ? reportIngSel : reportMenuSel;
+  if (v) s.add(id); else s.delete(id);
+  renderReports();
+}
+function setAllReportSel(kind, on) {
+  const s = kind === "ing" ? reportIngSel : reportMenuSel;
+  s.clear();
+  if (on) (kind === "ing" ? state.ingredients : state.menus).forEach(x => s.add(x.id));
+  renderReports();
+}
+
+/* every place an ingredient is used: ingredientId -> [{menuId, label, labelEn, qty, unit}] */
+function allUsages() {
+  const map = new Map();
+  state.menus.forEach(m => {
+    const push = (it, optTh, optEn) => {
+      const arr = map.get(it.ingredientId) || [];
+      arr.push({
+        menuId: m.id,
+        label: m.nameTh + (optTh ? ` (${optTh})` : ""),
+        labelEn: m.nameEn ? m.nameEn + (optEn ? ` (${optEn})` : "") : "",
+        qty: it.qty, unit: it.unit
+      });
+      map.set(it.ingredientId, arr);
+    };
+    const opts = menuOptions(m);
+    if (opts) opts.forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
+    else (m.items || []).forEach(it => push(it, null, null));
+  });
+  return map;
+}
+function fmtQty(it) { return [it.qty, it.unit].filter(Boolean).join(" ") || "–"; }
+function parseNum(q) { const n = parseFloat(String(q ?? "").replace(/,/g, "")); return isNaN(n) ? null : n; }
+function totalLine(usages) {
+  const sums = new Map(); let noQty = 0;
+  usages.forEach(u => {
+    const n = parseNum(u.qty);
+    if (n === null) { noQty++; return; }
+    const unit = (u.unit || "").trim() || "(ไม่ระบุหน่วย • no unit)";
+    sums.set(unit, (sums.get(unit) || 0) + n);
+  });
+  const parts = [...sums.entries()].map(([u, n]) => `${+n.toFixed(2)} ${u}`);
+  if (noQty) parts.push(`${noQty} รายการไม่ระบุปริมาณ`);
+  return parts.length ? parts.join("  +  ") : "–";
+}
+function dateStamp() { return new Date().toISOString().slice(0, 10); }
+
+function reportShell(title, sub, body) {
+  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(title)}</title>
+<style>
+  /* a report is a printable document: always light, regardless of the viewer's theme */
+  :root { color-scheme: light; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", "Sarabun", sans-serif; color: #3c271d; background: #fff; margin: 0; padding: 32px 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 2px; }
+  .sub { color: #94806f; font-size: .9rem; margin-bottom: 18px; }
+  h2 { font-size: 1.05rem; margin: 26px 0 4px; color: #e06a17; border-bottom: 2px solid #eadfd7; padding-bottom: 4px; }
+  h3 { font-size: .92rem; margin: 14px 0 4px; }
+  .meta { color: #94806f; font-size: .85rem; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 6px; }
+  th { text-align: left; font-size: .75rem; color: #94806f; padding: 6px 8px; border-bottom: 2px solid #eadfd7; }
+  td { padding: 7px 8px; border-bottom: 1px solid #f0e7de; vertical-align: top; }
+  tfoot td { font-weight: 700; background: #fff1e6; border-bottom: none; }
+  .en { color: #94806f; font-size: .82rem; }
+  .print-btn { position: fixed; top: 14px; right: 14px; background: #ff873c; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-family: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+  @media print { .print-btn { display: none; } body { padding: 0; } }
+</style></head><body>
+<button class="print-btn" onclick="window.print()">🖨️ พิมพ์ / Save as PDF</button>
+<h1>🍜 ${esc(title)}</h1>
+<div class="sub">${esc(sub)}</div>
+${body}
+</body></html>`;
+}
+
+function buildIngredientReport(ids) {
+  const usages = allUsages();
+  const body = ids.map(id => {
+    const ing = findIngredient(id);
+    if (!ing) return "";
+    const list = usages.get(id) || [];
+    const meta = [
+      ing.category ? `ประเภท • Category: ${esc(ing.category)}` : "",
+      ing.brand ? `แบรนด์ • Brand: ${esc(ing.brand)}` : ""
+    ].filter(Boolean).join(" &nbsp;|&nbsp; ");
+    const rows = list.map(u =>
+      `<tr><td>${esc(u.label)}${u.labelEn ? `<br><span class="en">${esc(u.labelEn)}</span>` : ""}</td><td>${esc(fmtQty(u))}</td></tr>`).join("");
+    const table = list.length
+      ? `<table><thead><tr><th>เมนู • Menu</th><th>ปริมาณที่ใช้ • Quantity used</th></tr></thead>
+         <tbody>${rows}</tbody>
+         <tfoot><tr><td>รวมทุกเมนู • Total (${list.length} เมนู)</td><td>${esc(totalLine(list))}</td></tr></tfoot></table>`
+      : `<div class="meta">ยังไม่มีเมนูที่ใช้ส่วนผสมนี้ • Not used in any menu yet</div>`;
+    return `<h2>${esc(ing.nameTh)}${ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</h2>${meta ? `<div class="meta">${meta}</div>` : ""}${table}`;
+  }).join("");
+  return reportShell(
+    "รายงานส่วนผสม • Ingredient Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} ส่วนผสม`,
+    body);
+}
+
+function buildMenuReport(ids) {
+  const usages = allUsages();
+  const othersFor = (ingId, menuId) => {
+    const list = (usages.get(ingId) || []).filter(u => u.menuId !== menuId);
+    if (!list.length) return `<span class="en">–</span>`;
+    return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
+  };
+  const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead>`;
+  const itemRows = (items, menuId) => items.map(it => {
+    const ing = findIngredient(it.ingredientId);
+    return `<tr>
+      <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td>${esc(fmtQty(it))}</td>
+      <td>${othersFor(it.ingredientId, menuId)}</td>
+    </tr>`;
+  }).join("");
+  const body = ids.map(id => {
+    const m = state.menus.find(x => x.id === id);
+    if (!m) return "";
+    const cat = m.category ? `<div class="meta">ประเภท • Type: ${esc(menuCatLabel(m.category))}</div>` : "";
+    const opts = menuOptions(m);
+    let content;
+    if (opts) {
+      content = opts.map(o => {
+        const items = o.items || [];
+        return `<h3>🥩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
+          (items.length
+            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody></table>`
+            : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
+      }).join("");
+    } else {
+      content = (m.items || []).length
+        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody></table>`
+        : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
+    }
+    return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
+  }).join("");
+  return reportShell(
+    "รายงานเมนู • Menu Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
+    body);
+}
+
+function downloadHtml(filename, html) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function openPrint(html) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  window.open(URL.createObjectURL(blob), "_blank");
+}
+function makeIngredientReport(mode) {
+  const ids = state.ingredients.filter(i => reportIngSel.has(i.id)).map(i => i.id);
+  if (!ids.length) { toast("เลือกส่วนผสมอย่างน้อย 1 อย่างก่อน • Select at least one ingredient"); return; }
+  const html = buildIngredientReport(ids);
+  if (mode === "download") { downloadHtml(`ingredient-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeMenuReport(mode) {
+  const ids = state.menus.filter(m => reportMenuSel.has(m.id)).map(m => m.id);
+  if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
+  const html = buildMenuReport(ids);
+  if (mode === "download") { downloadHtml(`menu-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
 }
 
 /* ---------- search ---------- */
