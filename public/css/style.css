@@ -487,3 +487,92 @@ body {
 .modal h3 { font-family: var(--serif); color: var(--turquoise); margin-bottom: 14px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
 .modal-actions .btn { flex: 1; }
+.modal.wide { max-width: 620px; }
+
+/* ---------- Category manager ---------- */
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--thai);
+  font-weight: 500;
+  font-size: .76rem;
+  color: var(--orange);
+  padding: 0;
+  letter-spacing: .02em;
+}
+.link-btn:hover { text-decoration: underline; }
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #eee4d6;
+}
+.cat-row .c-info { flex: 1; min-width: 0; }
+.cat-row .c-en {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: .95rem;
+  color: var(--turquoise);
+}
+.cat-row .c-th {
+  font-family: var(--thai);
+  font-weight: 300;
+  font-size: .78rem;
+  color: #8a7a67;
+}
+.cat-row .c-note {
+  font-family: var(--thai);
+  font-weight: 300;
+  font-size: .72rem;
+  color: #a3937f;
+  margin-top: 2px;
+}
+.cat-row .c-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.cat-row .c-actions .btn { padding: 5px 11px; font-size: .75rem; }
+.cat-row .c-arrow { padding: 5px 9px; line-height: 1; }
+.cat-row .c-arrow:disabled { opacity: .3; cursor: default; }
+.cat-row .c-arrow:disabled:hover { background: transparent; color: var(--turquoise); }
+
+.cat-row.editing { align-items: flex-end; }
+.cat-row .c-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cat-row .c-in {
+  width: 100%;
+  font-family: var(--thai);
+  font-weight: 300;
+  font-size: .85rem;
+  padding: 7px 10px;
+  border: 1.5px solid #d9cdbd;
+  border-radius: 8px;
+  background: var(--cream);
+  color: var(--cocoa);
+  outline: none;
+}
+.cat-row .c-in:focus { border-color: var(--orange); }
+.cat-row .c-save { color: var(--turquoise-deep); }
+
+.cat-add {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 2px solid var(--turquoise);
+}
+.cat-add-title {
+  font-family: var(--thai);
+  font-weight: 500;
+  font-size: .92rem;
+  color: var(--turquoise);
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .cat-row { flex-wrap: wrap; }
+  .cat-row .c-actions { width: 100%; justify-content: flex-end; }
+}

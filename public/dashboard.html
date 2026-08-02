@@ -24,7 +24,10 @@
         <h2>เพิ่มเมนูใหม่ · Add Menu</h2>
         <form id="add-form">
           <div class="field">
-            <label>หมวดหมู่ · Category *</label>
+            <label class="label-row">
+              <span>หมวดหมู่ · Category *</span>
+              <button type="button" class="link-btn" id="cat-manage">⚙ จัดการหมวดหมู่</button>
+            </label>
             <select name="category_id" id="add-category" required></select>
           </div>
           <div class="field">
@@ -125,6 +128,34 @@
           <button type="submit" class="btn btn-primary">บันทึก</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="cat-modal">
+    <div class="modal wide">
+      <h3>จัดการหมวดหมู่ · Categories</h3>
+      <div id="cat-list"></div>
+
+      <form id="cat-add-form" class="cat-add">
+        <div class="cat-add-title">+ เพิ่มหมวดหมู่ใหม่</div>
+        <div class="field">
+          <label>ชื่ออังกฤษ · English Name *</label>
+          <input type="text" name="name_en" required placeholder="e.g. Dessert">
+        </div>
+        <div class="field">
+          <label>ชื่อไทย · Thai Name *</label>
+          <input type="text" name="name_th" required placeholder="เช่น ของหวาน">
+        </div>
+        <div class="field">
+          <label>คำอธิบายหมวด · Note</label>
+          <input type="text" name="note" placeholder="(ไม่บังคับ) แสดงใต้ชื่อหมวดในหน้าเมนู">
+        </div>
+        <button type="submit" class="btn btn-primary" id="cat-add-btn">+ เพิ่มหมวดหมู่</button>
+      </form>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cat-close">ปิด</button>
+      </div>
     </div>
   </div>
 

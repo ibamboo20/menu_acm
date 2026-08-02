@@ -50,12 +50,15 @@ const editDrop = setupDropZone('edit-drop', 'edit-drop-text', 'edit-file');
 
 // ---- data ----
 async function loadCategories() {
+  const keep = { add: $('add-category').value, filter: $('filter-category').value };
   categories = await fetch('/api/categories').then((r) => r.json());
   const opts = categories.map((c) =>
     `<option value="${c.id}">${esc(c.name_en)} · ${esc(c.name_th)}</option>`).join('');
   $('add-category').innerHTML = opts;
   $('edit-category').innerHTML = opts;
   $('filter-category').innerHTML = `<option value="">ทุกหมวดหมู่ · All categories</option>${opts}`;
+  if (categories.some((c) => String(c.id) === keep.add)) $('add-category').value = keep.add;
+  if (categories.some((c) => String(c.id) === keep.filter)) $('filter-category').value = keep.filter;
 }
 
 async function loadItems() {
@@ -170,6 +173,155 @@ $('edit-form').addEventListener('submit', async (e) => {
     await loadItems();
   } catch (err) {
     toast(`เกิดข้อผิดพลาด: ${err.message}`, true);
+  }
+});
+
+// ---- categories ----
+let editingCatId = null;
+
+function renderCategories() {
+  $('cat-list').innerHTML = categories.map((c, i) => {
+    if (c.id === editingCatId) {
+      return `
+        <div class="cat-row editing" data-id="${c.id}">
+          <div class="c-fields">
+            <input type="text" class="c-in" data-f="name_en" value="${esc(c.name_en)}" placeholder="English Name">
+            <input type="text" class="c-in" data-f="name_th" value="${esc(c.name_th)}" placeholder="ชื่อไทย">
+            <input type="text" class="c-in" data-f="note" value="${esc(c.note || '')}" placeholder="คำอธิบายหมวด (ไม่บังคับ)">
+          </div>
+          <div class="c-actions">
+            <button class="btn btn-primary c-save" data-act="save">บันทึก</button>
+            <button class="btn btn-ghost" data-act="cancel">ยกเลิก</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="cat-row" data-id="${c.id}">
+        <div class="c-info">
+          <div class="c-en">${esc(c.name_en)}</div>
+          <div class="c-th">${esc(c.name_th)} · ${c.item_count} เมนู</div>
+          ${c.note ? `<div class="c-note">${esc(c.note)}</div>` : ''}
+        </div>
+        <div class="c-actions">
+          <button class="btn btn-ghost c-arrow" data-act="up" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn btn-ghost c-arrow" data-act="down" ${i === categories.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn btn-ghost" data-act="edit">แก้ไข</button>
+          <button class="btn btn-danger" data-act="del">ลบ</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function refreshCategories() {
+  await loadCategories();
+  await loadItems();
+  renderCategories();
+}
+
+$('cat-manage').addEventListener('click', () => {
+  editingCatId = null;
+  renderCategories();
+  $('cat-modal').classList.add('open');
+});
+$('cat-close').addEventListener('click', () => $('cat-modal').classList.remove('open'));
+$('cat-modal').addEventListener('click', (e) => {
+  if (e.target === $('cat-modal')) $('cat-modal').classList.remove('open');
+});
+
+$('cat-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const row = btn.closest('.cat-row');
+  const id = Number(row.dataset.id);
+  const cat = categories.find((c) => c.id === id);
+  if (!cat) return;
+  const act = btn.dataset.act;
+
+  if (act === 'edit') {
+    editingCatId = id;
+    renderCategories();
+    return;
+  }
+  if (act === 'cancel') {
+    editingCatId = null;
+    renderCategories();
+    return;
+  }
+
+  if (act === 'save') {
+    const body = {};
+    row.querySelectorAll('.c-in').forEach((inp) => { body[inp.dataset.f] = inp.value; });
+    if (!body.name_en.trim() || !body.name_th.trim()) {
+      toast('ต้องกรอกชื่อทั้งอังกฤษและไทย', true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      editingCatId = null;
+      toast('แก้ไขหมวดหมู่แล้ว ✓');
+      await refreshCategories();
+    } catch (err) {
+      toast(`เกิดข้อผิดพลาด: ${err.message}`, true);
+    }
+    return;
+  }
+
+  if (act === 'up' || act === 'down') {
+    await fetch(`/api/categories/${id}/move`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: act }),
+    });
+    await refreshCategories();
+    return;
+  }
+
+  if (act === 'del') {
+    if (!confirm(`ลบหมวดหมู่ "${cat.name_en} · ${cat.name_th}" ?`)) return;
+    let res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+    if (res.status === 409) {
+      const info = await res.json();
+      const ok = confirm(
+        `หมวดนี้มี ${info.items} เมนูอยู่ข้างใน\n\nถ้าลบหมวด เมนูทั้ง ${info.items} รายการจะถูกลบไปด้วย และกู้คืนไม่ได้\n\nยืนยันลบทั้งหมด?`
+      );
+      if (!ok) return;
+      res = await fetch(`/api/categories/${id}?force=1`, { method: 'DELETE' });
+    }
+    if (!res.ok) {
+      toast('ลบไม่สำเร็จ', true);
+      return;
+    }
+    const out = await res.json();
+    toast(out.deleted_items ? `ลบหมวดและ ${out.deleted_items} เมนูแล้ว` : 'ลบหมวดหมู่แล้ว');
+    editingCatId = null;
+    await refreshCategories();
+  }
+});
+
+$('cat-add-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('cat-add-btn');
+  btn.disabled = true;
+  try {
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    const res = await fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    e.target.reset();
+    toast('เพิ่มหมวดหมู่เรียบร้อย ✓');
+    await refreshCategories();
+  } catch (err) {
+    toast(`เกิดข้อผิดพลาด: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
   }
 });
 

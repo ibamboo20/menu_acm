@@ -43,7 +43,26 @@
       "Bash(pdftotext \"Drink Menu.pdf\" -)",
       "Bash(curl -s \"http://localhost:3456/api/menu?category=drinks\")",
       "Bash(curl -s http://localhost:3456/api/categories)",
-      "Bash(python3 -c \"import json,sys; print\\('categories:', ', '.join\\(c['name_en'] for c in json.load\\(sys.stdin\\)\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; print\\('categories:', ', '.join\\(c['name_en'] for c in json.load\\(sys.stdin\\)\\)\\)\")",
+      "Bash(curl -sS -m 15 \"https://menuacm-production.up.railway.app/api/menu?category=drinks\")",
+      "Bash(git -C /Users/ibamhrk/Desktop/Claude-workspace/AtChiangMai remote -v)",
+      "Bash(railway whoami *)",
+      "Bash(railway login *)",
+      "Bash(railway up *)",
+      "Bash(railway domain *)",
+      "Bash(railway status *)",
+      "Bash(curl -s https://menu-ingredients-production.up.railway.app)",
+      "Bash(railway volume *)",
+      "Bash(railway service *)",
+      "Bash(railway variables *)",
+      "Bash(curl -s --max-time 5 https://menu-ingredients-production.up.railway.app/api/state)",
+      "Bash(curl -s -X PUT -H 'Content-Type: application/json' -d '{\"version\":0,\"state\":{\"menus\":[{\"id\":\"test1\",\"nameTh\":\"ทดสอบ\",\"nameEn\":\"Test\",\"category\":\"Soup\",\"items\":[]}],\"ingredients\":[]}}' https://menu-ingredients-production.up.railway.app/api/state)",
+      "Bash(curl -s https://menu-ingredients-production.up.railway.app/api/state)",
+      "Bash(curl -s -X PUT -H 'Content-Type: application/json' -d '{\"version\":1,\"state\":{\"menus\":[],\"ingredients\":[]}}' https://menu-ingredients-production.up.railway.app/api/state)",
+      "Bash(curl -s --max-time 5 https://menu-ingredients-production.up.railway.app)",
+      "Bash(node /private/tmp/claude-501/-Users-ibamhrk-Desktop-Claude-workspace-AtChiangMai-Menu-ingredients/90d4643c-24c8-46ea-bb75-a281fb9e1c7c/scratchpad/add-menus.js)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const s=JSON.parse\\(d\\);console.log\\('version:',s.version\\);s.state.menus.forEach\\(m=>console.log\\('-',m.nameTh,'|',m.nameEn,'|',m.category||'\\(none\\)','|',m.items.length,'items'\\)\\)}\\)\")",
+      "Bash(node /private/tmp/claude-501/-Users-ibamhrk-Desktop-Claude-workspace-AtChiangMai-Menu-ingredients/90d4643c-24c8-46ea-bb75-a281fb9e1c7c/scratchpad/list-menus.js)"
     ]
   }
 }

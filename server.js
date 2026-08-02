@@ -54,8 +54,81 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.get('/api/categories', (req, res) => {
-  const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, id').all();
+  const rows = db.prepare(`
+    SELECT c.*, (SELECT COUNT(*) FROM menu_items m WHERE m.category_id = c.id) AS item_count
+    FROM categories c ORDER BY c.sort_order, c.id`).all();
   res.json(rows);
+});
+
+// Slugs stay fixed once created so shared links keep working after a rename.
+function uniqueSlug(nameEn) {
+  const base = String(nameEn || '').toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `cat-${Date.now()}`;
+  let slug = base;
+  for (let n = 2; db.prepare('SELECT 1 FROM categories WHERE slug = ?').get(slug); n += 1) {
+    slug = `${base}-${n}`;
+  }
+  return slug;
+}
+
+app.post('/api/categories', requireAuth, (req, res) => {
+  const { name_en, name_th, note } = req.body;
+  if (!name_en || !name_th) {
+    return res.status(400).json({ error: 'name_en and name_th are required' });
+  }
+  const maxOrder = db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM categories').get().m;
+  const info = db.prepare('INSERT INTO categories (slug, name_en, name_th, note, sort_order) VALUES (?, ?, ?, ?, ?)')
+    .run(uniqueSlug(name_en), name_en.trim(), name_th.trim(), (note || '').trim() || null, maxOrder + 1);
+  res.status(201).json(db.prepare('SELECT * FROM categories WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/categories/:id', requireAuth, (req, res) => {
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Not found' });
+  const { name_en, name_th, note } = req.body;
+  db.prepare('UPDATE categories SET name_en = ?, name_th = ?, note = ? WHERE id = ?')
+    .run(
+      name_en !== undefined ? String(name_en).trim() || cat.name_en : cat.name_en,
+      name_th !== undefined ? String(name_th).trim() || cat.name_th : cat.name_th,
+      note !== undefined ? (String(note).trim() || null) : cat.note,
+      cat.id
+    );
+  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(cat.id));
+});
+
+app.put('/api/categories/:id/move', requireAuth, (req, res) => {
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Not found' });
+  const all = db.prepare('SELECT * FROM categories ORDER BY sort_order, id').all();
+  const i = all.findIndex((c) => c.id === cat.id);
+  const j = req.body.dir === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= all.length) return res.json({ ok: true });
+  const upd = db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?');
+  db.transaction(() => {
+    all.forEach((c, idx) => upd.run(idx, c.id));
+    upd.run(j, all[i].id);
+    upd.run(i, all[j].id);
+  })();
+  res.json({ ok: true });
+});
+
+app.delete('/api/categories/:id', requireAuth, (req, res) => {
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Not found' });
+  const items = db.prepare('SELECT id, image FROM menu_items WHERE category_id = ?').all(cat.id);
+  if (items.length > 0 && req.query.force !== '1') {
+    return res.status(409).json({ error: `หมวดนี้มี ${items.length} เมนูอยู่`, items: items.length });
+  }
+  for (const it of items) {
+    if (it.image && it.image.startsWith('/uploads/')) {
+      fs.unlink(path.join(uploadDir, path.basename(it.image)), () => {});
+    }
+  }
+  db.transaction(() => {
+    db.prepare('DELETE FROM menu_items WHERE category_id = ?').run(cat.id);
+    db.prepare('DELETE FROM categories WHERE id = ?').run(cat.id);
+  })();
+  res.json({ ok: true, deleted_items: items.length });
 });
 
 app.get('/api/menu', (req, res) => {

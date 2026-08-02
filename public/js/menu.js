@@ -28,6 +28,10 @@ async function init() {
     const btn = e.target.closest('.tab');
     if (btn) selectTab(btn.dataset.slug);
   });
+  if (categories.length === 0) {
+    $menu.innerHTML = '<div class="empty-note">ยังไม่มีหมวดหมู่ — เพิ่มได้จาก Dashboard</div>';
+    return;
+  }
   const hash = location.hash.replace('#', '');
   selectTab(categories.some((c) => c.slug === hash) ? hash : categories[0].slug);
 }
