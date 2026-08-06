@@ -392,14 +392,17 @@
           <label><b>แบรนด์</b> • Brand <span style="color:#bbb">(optional)</span></label>
           <input type="text" id="ing-brand" placeholder="เช่น อร่อยดี">
         </div>
-        <div class="field">
-          <label><b>ปริมาณ/ขนาดบรรจุ</b> • Pack size <span style="color:#bbb">(optional)</span></label>
-          <input type="text" id="ing-packsize" list="packsize-list" placeholder="เช่น 1 กก., 400 มล.">
-          <datalist id="packsize-list"></datalist>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ปริมาณ</b> • Pack qty <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="ing-packqty" min="0" step="any" placeholder="เช่น 800">
         </div>
         <div class="field">
-          <label><b>ราคา (บาท)</b> • Price (THB) <span style="color:#bbb">(optional)</span></label>
-          <input type="text" id="ing-price" inputmode="decimal" placeholder="เช่น 120">
+          <label><b>หน่วย</b> • Unit <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="ing-packunit" list="unit-list" placeholder="เช่น กรัม (g)">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>ราคา ($ AUD)</b> • Price (AUD) <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="ing-price" min="0" step="0.01" placeholder="เช่น 12.50">
         </div>
         <div class="field">
           <label><b>แหล่งจัดจำหน่าย</b> • Supplier <span style="color:#bbb">(optional)</span></label>
@@ -546,6 +549,15 @@ function migrate(s) {
   if (!s || typeof s !== "object") s = {};
   s.menus = Array.isArray(s.menus) ? s.menus : [];
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
+  // packSize used to be one free-text field ("800 กรัม") -> split into number + unit
+  s.ingredients.forEach(i => {
+    if (i.packSize && i.packQty == null) {
+      const m = String(i.packSize).trim().match(/^([\d.,]+)\s*(.*)$/);
+      if (m) { i.packQty = m[1].replace(/,/g, ""); i.packUnit = m[2]; }
+      else { i.packQty = ""; i.packUnit = String(i.packSize).trim(); }
+      delete i.packSize;
+    }
+  });
   s.menus.forEach(m => {
     if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
     if (!Array.isArray(m.items)) m.items = [];
@@ -667,7 +679,10 @@ function esc(s) {
 function fmtPrice(p) {
   const n = parseFloat(String(p).replace(/,/g, ""));
   if (isNaN(n)) return String(p);
-  return "฿" + n.toLocaleString("th-TH", { maximumFractionDigits: 2 });
+  return "$" + n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPack(ing) {
+  return [ing.packQty, ing.packUnit].filter(v => v !== "" && v != null).join(" ");
 }
 let toastTimer;
 function toast(msg) {
@@ -826,7 +841,7 @@ function renderIngredients() {
       (i.category || "").toLowerCase().includes(q) ||
       (i.brand || "").toLowerCase().includes(q) ||
       (i.supplier || "").toLowerCase().includes(q) ||
-      (i.packSize || "").toLowerCase().includes(q);
+      fmtPack(i).toLowerCase().includes(q);
   }).sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"));
 
   document.getElementById("ing-empty").style.display =
@@ -842,7 +857,7 @@ function renderIngredients() {
       <td><b>${esc(ing.nameTh)}</b>${ing.nameEn ? `<br><span class="brand-txt">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${ing.category ? `<span class="cat-badge">${esc(ing.category)}</span>` : dash}</td>
       <td>${ing.brand ? `<span class="brand-txt">${esc(ing.brand)}</span>` : dash}</td>
-      <td>${ing.packSize ? esc(ing.packSize) : dash}</td>
+      <td>${fmtPack(ing) ? esc(fmtPack(ing)) : dash}</td>
       <td>${ing.price ? esc(fmtPrice(ing.price)) : dash}</td>
       <td>${ing.supplier ? `<span class="brand-txt">${esc(ing.supplier)}</span>` : dash}</td>
       <td>${usedHtml}</td>
@@ -861,7 +876,6 @@ function renderDatalists() {
   const opts = (vals) => [...new Set(vals.filter(Boolean))].map(v => `<option value="${esc(v)}">`).join("");
   document.getElementById("category-list").innerHTML = opts(state.ingredients.map(i => i.category));
   document.getElementById("supplier-list").innerHTML = opts(state.ingredients.map(i => i.supplier));
-  document.getElementById("packsize-list").innerHTML = opts(state.ingredients.map(i => i.packSize));
 }
 
 function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); renderReports(); }
@@ -919,7 +933,7 @@ function addItem(e, menuId) {
 
   let ing = matchIngredientByName(name);
   if (!ing) {
-    ing = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packSize: "", price: "", supplier: "" };
+    ing = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
     state.ingredients.push(ing);
     toast(`สร้างส่วนผสมใหม่ "${name}" — เพิ่มประเภท/แบรนด์ได้ในแท็บส่วนผสม • New ingredient created`);
   }
@@ -1142,7 +1156,8 @@ document.getElementById("add-ing-form").addEventListener("submit", e => {
   const en = document.getElementById("ing-name-en").value.trim();
   const cat = document.getElementById("ing-category").value.trim();
   const brand = document.getElementById("ing-brand").value.trim();
-  const packSize = document.getElementById("ing-packsize").value.trim();
+  const packQty = document.getElementById("ing-packqty").value.trim();
+  const packUnit = document.getElementById("ing-packunit").value.trim();
   const price = document.getElementById("ing-price").value.trim();
   const supplier = document.getElementById("ing-supplier").value.trim();
   if (!th) return;
@@ -1151,7 +1166,7 @@ document.getElementById("add-ing-form").addEventListener("submit", e => {
     const ing = findIngredient(editingId);
     if (ing) {
       ing.nameTh = th; ing.nameEn = en; ing.category = cat; ing.brand = brand;
-      ing.packSize = packSize; ing.price = price; ing.supplier = supplier;
+      ing.packQty = packQty; ing.packUnit = packUnit; ing.price = price; ing.supplier = supplier;
     }
     toast(`บันทึกการแก้ไข "${th}" แล้ว • Ingredient updated`);
     cancelEdit();
@@ -1161,7 +1176,7 @@ document.getElementById("add-ing-form").addEventListener("submit", e => {
       toast(`"${th}" มีอยู่แล้ว • Already exists`);
       return;
     }
-    state.ingredients.push({ id: uid(), nameTh: th, nameEn: en, category: cat, brand, packSize, price, supplier });
+    state.ingredients.push({ id: uid(), nameTh: th, nameEn: en, category: cat, brand, packQty, packUnit, price, supplier });
     toast(`เพิ่มส่วนผสม "${th}" แล้ว • Ingredient added`);
     e.target.reset();
     document.getElementById("ing-name-th").focus();
@@ -1177,7 +1192,8 @@ function editIngredient(id) {
   document.getElementById("ing-name-en").value = ing.nameEn || "";
   document.getElementById("ing-category").value = ing.category || "";
   document.getElementById("ing-brand").value = ing.brand || "";
-  document.getElementById("ing-packsize").value = ing.packSize || "";
+  document.getElementById("ing-packqty").value = ing.packQty || "";
+  document.getElementById("ing-packunit").value = ing.packUnit || "";
   document.getElementById("ing-price").value = ing.price || "";
   document.getElementById("ing-supplier").value = ing.supplier || "";
   document.getElementById("ing-form-title").innerHTML =
@@ -1317,8 +1333,8 @@ function buildIngredientReport(ids) {
     const meta = [
       ing.category ? `ประเภท • Category: ${esc(ing.category)}` : "",
       ing.brand ? `แบรนด์ • Brand: ${esc(ing.brand)}` : "",
-      ing.packSize ? `ปริมาณ • Pack size: ${esc(ing.packSize)}` : "",
-      ing.price ? `ราคา • Price: ${esc(fmtPrice(ing.price))}${ing.packSize ? ` / ${esc(ing.packSize)}` : ""}` : "",
+      fmtPack(ing) ? `ปริมาณ • Pack size: ${esc(fmtPack(ing))}` : "",
+      ing.price ? `ราคา • Price: ${esc(fmtPrice(ing.price))}${fmtPack(ing) ? ` / ${esc(fmtPack(ing))}` : ""}` : "",
       ing.supplier ? `แหล่งจัดจำหน่าย • Supplier: ${esc(ing.supplier)}` : ""
     ].filter(Boolean).join(" &nbsp;|&nbsp; ");
     const rows = list.map(u =>
