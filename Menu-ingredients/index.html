@@ -199,6 +199,20 @@
   }
   .empty-ing { color: var(--muted); font-size: .85rem; font-style: italic; padding: 8px 0; }
 
+  .menu-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .meta-pill {
+    background: var(--green-soft); color: var(--green); border: 1px solid var(--chip-border);
+    font-size: .75rem; padding: 2px 9px; border-radius: 999px;
+  }
+  .cost-box {
+    margin-top: 10px; padding: 9px 12px; border-radius: 10px;
+    background: var(--accent-soft); border: 1px solid var(--chip-border2);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  }
+  .cost-box .cost-main { font-size: 1.02rem; font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; }
+  .cost-box .cost-label { font-size: .78rem; color: var(--muted); }
+  .cost-box .cost-note { font-size: .74rem; color: var(--muted); width: 100%; }
+
   .add-ing-form {
     display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
     padding-top: 10px; border-top: 1px solid var(--line);
@@ -335,6 +349,31 @@
         <div class="field" style="flex:0 1 240px">
           <label><b>ประเภทเมนู</b> • Menu type</label>
           <select id="menu-category"></select>
+        </div>
+        <div style="flex-basis:100%; border-top:1px solid var(--line); padding-top:10px; margin-top:2px">
+          <div class="opt-label" style="margin-bottom:6px">📐 ข้อมูลการผลิต • Production info <span style="color:#bbb">(optional)</span></div>
+          <div class="form-row">
+            <div class="field" style="flex:1 1 100px">
+              <label><b>Yield</b> • ปริมาณที่ได้</label>
+              <input type="number" id="menu-yield-qty" min="0" step="any" placeholder="เช่น 4">
+            </div>
+            <div class="field" style="flex:1 1 120px">
+              <label><b>หน่วย</b> • Unit</label>
+              <input type="text" id="menu-yield-unit" list="unit-list" placeholder="เช่น ลิตร (L)">
+            </div>
+            <div class="field" style="flex:1 1 100px">
+              <label><b>Portion size</b> • ขนาดต่อที่</label>
+              <input type="number" id="menu-portion-qty" min="0" step="any" placeholder="เช่น 250">
+            </div>
+            <div class="field" style="flex:1 1 120px">
+              <label><b>หน่วย</b> • Unit</label>
+              <input type="text" id="menu-portion-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+            </div>
+            <div class="field" style="flex:1 1 100px">
+              <label><b>Serves</b> • จำนวนที่</label>
+              <input type="number" id="menu-serves" min="0" step="any" placeholder="เช่น 4">
+            </div>
+          </div>
         </div>
         <div style="flex-basis:100%">
           <label class="chk-row">
@@ -497,6 +536,57 @@
     <div class="modal-foot">
       <button class="btn small ghost" onclick="closeModal()">ปิด • Close</button>
       <button class="btn small" id="modal-goto"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="menu-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>✏️ แก้ไขรายละเอียดเมนู <span class="modal-en">• Edit menu details</span>
+        <div class="modal-sub" id="menu-modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeMenuEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="margin-top:8px">
+        <div class="field">
+          <label><b>ชื่อเมนู (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="edit-menu-th">
+        </div>
+        <div class="field">
+          <label><b>ชื่อเมนู (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="edit-menu-en">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>ประเภทเมนู</b> • Menu type</label>
+          <select id="edit-menu-cat"></select>
+        </div>
+        <div class="field" style="flex:1 1 90px">
+          <label><b>Yield</b> • ปริมาณที่ได้</label>
+          <input type="number" id="edit-menu-yield-qty" min="0" step="any">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-menu-yield-unit" list="unit-list">
+        </div>
+        <div class="field" style="flex:1 1 90px">
+          <label><b>Portion size</b> • ขนาดต่อที่</label>
+          <input type="number" id="edit-menu-portion-qty" min="0" step="any">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-menu-portion-unit" list="unit-list">
+        </div>
+        <div class="field" style="flex:1 1 90px">
+          <label><b>Serves</b> • จำนวนที่</label>
+          <input type="number" id="edit-menu-serves" min="0" step="any">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeMenuEditor()">ยกเลิก • Cancel</button>
+      <button class="btn small" onclick="saveMenuEditor()">💾 บันทึก • Save</button>
     </div>
   </div>
 </div>
@@ -684,6 +774,68 @@ function fmtPrice(p) {
 function fmtPack(ing) {
   return [ing.packQty, ing.packUnit].filter(v => v !== "" && v != null).join(" ");
 }
+
+/* ---------- unit conversion & cost ---------- */
+/* each convertible unit maps to [dimension, size in the dimension's base unit] */
+const UNIT_BASE = {
+  "กรัม (g)": ["w", 1], "กิโลกรัม (kg)": ["w", 1000],
+  "มล. (ml)": ["v", 1], "ลิตร (L)": ["v", 1000],
+  "ช้อนชา (tsp)": ["v", 5], "ช้อนโต๊ะ (tbsp)": ["v", 15], "ถ้วย (cup)": ["v", 250],
+};
+/* accept hand-typed variants of the same unit, e.g. "g", "กรัม", "kg." */
+const UNIT_ALIAS = {
+  "g": "กรัม (g)", "กรัม": "กรัม (g)", "gram": "กรัม (g)", "grams": "กรัม (g)",
+  "kg": "กิโลกรัม (kg)", "กก": "กิโลกรัม (kg)", "กิโลกรัม": "กิโลกรัม (kg)", "กิโล": "กิโลกรัม (kg)",
+  "ml": "มล. (ml)", "มล": "มล. (ml)", "มิลลิลิตร": "มล. (ml)",
+  "l": "ลิตร (L)", "ลิตร": "ลิตร (L)", "litre": "ลิตร (L)", "liter": "ลิตร (L)",
+  "tsp": "ช้อนชา (tsp)", "ช้อนชา": "ช้อนชา (tsp)",
+  "tbsp": "ช้อนโต๊ะ (tbsp)", "ช้อนโต๊ะ": "ช้อนโต๊ะ (tbsp)",
+  "cup": "ถ้วย (cup)", "ถ้วย": "ถ้วย (cup)",
+};
+function normUnit(u) {
+  const raw = String(u ?? "").trim();
+  if (UNIT_BASE[raw]) return raw;
+  const key = raw.toLowerCase().replace(/[.\s]+$/, "");
+  return UNIT_ALIAS[key] || raw;
+}
+/* returns qty expressed in `toUnit`, or null when the units can't be reconciled */
+function convertQty(qty, fromUnit, toUnit) {
+  const a = normUnit(fromUnit), b = normUnit(toUnit);
+  if (a === b) return qty;
+  const ia = UNIT_BASE[a], ib = UNIT_BASE[b];
+  if (ia && ib && ia[0] === ib[0]) return qty * ia[1] / ib[1];
+  return null;
+}
+/* cost of one menu item, or null when the ingredient lacks price/pack data
+   or its pack unit can't be converted to the unit used in the menu */
+function itemCost(it) {
+  const ing = findIngredient(it.ingredientId);
+  if (!ing) return null;
+  const price = parseFloat(ing.price), packQty = parseFloat(ing.packQty), useQty = parseFloat(it.qty);
+  if (!isFinite(price) || !isFinite(packQty) || packQty <= 0 || !isFinite(useQty)) return null;
+  const converted = convertQty(useQty, it.unit, ing.packUnit);
+  if (converted === null) return null;
+  return price / packQty * converted;
+}
+/* cost of the items shown for a menu (a specific option's items when it has options) */
+function costOf(items) {
+  let total = 0, priced = 0;
+  (items || []).forEach(it => {
+    const c = itemCost(it);
+    if (c === null) return;
+    total += c; priced++;
+  });
+  return { total, priced, missing: (items || []).length - priced };
+}
+function fmtMenuMeta(menu) {
+  const bits = [];
+  const y = [menu.yieldQty, menu.yieldUnit].filter(v => v !== "" && v != null).join(" ");
+  const p = [menu.portionQty, menu.portionUnit].filter(v => v !== "" && v != null).join(" ");
+  if (y) bits.push(`Yield: ${y}`);
+  if (p) bits.push(`Portion: ${p}`);
+  if (menu.serves !== "" && menu.serves != null) bits.push(`Serves: ${menu.serves}`);
+  return bits;
+}
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById("toast");
@@ -781,6 +933,26 @@ function menuCardHtml(menu) {
     const emptyMsg = opts
       ? `ยังไม่มีส่วนผสมของ ${esc(cur.nameTh)} • No ingredients for ${esc(cur.nameEn || cur.nameTh)} yet`
       : "ยังไม่มีส่วนผสม • No ingredients yet";
+    const metaBits = fmtMenuMeta(menu);
+    const metaHtml = metaBits.length
+      ? `<div class="menu-meta">${metaBits.map(b => `<span class="meta-pill">${esc(b)}</span>`).join("")}</div>`
+      : "";
+
+    const cost = costOf(shownItems);
+    const serves = parseFloat(menu.serves);
+    const costHtml = cost.priced
+      ? `<div class="cost-box">
+           <span class="cost-label">💰 ต้นทุน${opts ? ` (${esc(cur.nameTh)})` : ""} • Cost:</span>
+           <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+           ${isFinite(serves) && serves > 0
+             ? `<span class="cost-label">≈ ${esc(fmtPrice(cost.total / serves))} / ที่ • per serve</span>` : ""}
+           ${cost.missing
+             ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} ส่วนผสม — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
+         </div>`
+      : (shownItems.length
+        ? `<div class="cost-box"><span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุของส่วนผสมในแท็บส่วนผสมก่อน • Add ingredient price &amp; pack size to see cost</span></div>`
+        : "");
+
     const itemsHtml = shownItems.length
       ? `<ul class="ing-list">` + shownItems.map(it => {
           const ing = findIngredient(it.ingredientId);
@@ -813,12 +985,15 @@ function menuCardHtml(menu) {
           </select>
         </h3>
         <span style="white-space:nowrap">
+          <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
           <button class="icon-btn" title="เพิ่ม/แก้ไข meat options • Edit meat options" onclick="openOptsEditor('${menu.id}')">🥩</button>
           <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
         </span>
       </div>
+      ${metaHtml}
       ${optsHtml}
       ${itemsHtml}
+      ${costHtml}
       <form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}')">
         <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
         <input class="qty-input" placeholder="ปริมาณ • Qty">
@@ -887,7 +1062,14 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
   const en = document.getElementById("menu-name-en").value.trim();
   const cat = document.getElementById("menu-category").value.trim();
   if (!th) return;
-  const menu = { id: uid(), nameTh: th, nameEn: en, category: cat, items: [] };
+  const menu = {
+    id: uid(), nameTh: th, nameEn: en, category: cat, items: [],
+    yieldQty: document.getElementById("menu-yield-qty").value.trim(),
+    yieldUnit: document.getElementById("menu-yield-unit").value.trim(),
+    portionQty: document.getElementById("menu-portion-qty").value.trim(),
+    portionUnit: document.getElementById("menu-portion-unit").value.trim(),
+    serves: document.getElementById("menu-serves").value.trim(),
+  };
   if (document.getElementById("menu-has-opts").checked) {
     const chosen = builderOpts.filter(o => o.checked);
     if (chosen.length) {
@@ -1013,6 +1195,50 @@ document.getElementById("add-custom-opt-btn").addEventListener("click", () => {
   document.getElementById("custom-opt-th").value = "";
   document.getElementById("custom-opt-en").value = "";
   renderBuilderChoices();
+});
+
+/* ---------- menu details editor modal ---------- */
+let editingMenuId = null;
+function openMenuEditor(menuId) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  editingMenuId = menuId;
+  document.getElementById("menu-modal-sub").textContent = m.nameTh + (m.nameEn ? " • " + m.nameEn : "");
+  document.getElementById("edit-menu-th").value = m.nameTh || "";
+  document.getElementById("edit-menu-en").value = m.nameEn || "";
+  document.getElementById("edit-menu-cat").innerHTML =
+    `<option value="">— ไม่ระบุประเภท • Uncategorized —</option>` +
+    MENU_TYPES.map(t => `<option value="${esc(t.value)}"${m.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+  document.getElementById("edit-menu-yield-qty").value = m.yieldQty || "";
+  document.getElementById("edit-menu-yield-unit").value = m.yieldUnit || "";
+  document.getElementById("edit-menu-portion-qty").value = m.portionQty || "";
+  document.getElementById("edit-menu-portion-unit").value = m.portionUnit || "";
+  document.getElementById("edit-menu-serves").value = m.serves || "";
+  document.getElementById("menu-modal").classList.add("show");
+}
+function saveMenuEditor() {
+  const m = state.menus.find(x => x.id === editingMenuId);
+  if (!m) { closeMenuEditor(); return; }
+  const th = document.getElementById("edit-menu-th").value.trim();
+  if (!th) { toast("ต้องใส่ชื่อเมนูภาษาไทย • Thai menu name is required"); return; }
+  m.nameTh = th;
+  m.nameEn = document.getElementById("edit-menu-en").value.trim();
+  m.category = document.getElementById("edit-menu-cat").value;
+  m.yieldQty = document.getElementById("edit-menu-yield-qty").value.trim();
+  m.yieldUnit = document.getElementById("edit-menu-yield-unit").value.trim();
+  m.portionQty = document.getElementById("edit-menu-portion-qty").value.trim();
+  m.portionUnit = document.getElementById("edit-menu-portion-unit").value.trim();
+  m.serves = document.getElementById("edit-menu-serves").value.trim();
+  save(); renderAll();
+  closeMenuEditor();
+  toast("บันทึกรายละเอียดเมนูแล้ว • Menu details saved");
+}
+function closeMenuEditor() {
+  editingMenuId = null;
+  document.getElementById("menu-modal").classList.remove("show");
+}
+document.getElementById("menu-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeMenuEditor();
 });
 
 /* ---------- meat options: per-menu editor modal ---------- */
@@ -1144,7 +1370,7 @@ document.getElementById("modal-overlay").addEventListener("click", e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeModal(); closeOptsModal(); }
+  if (e.key === "Escape") { closeModal(); closeOptsModal(); closeMenuEditor(); }
 });
 
 /* ---------- actions: ingredients ---------- */
@@ -1359,19 +1585,34 @@ function buildMenuReport(ids) {
     if (!list.length) return `<span class="en">–</span>`;
     return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
   };
-  const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead>`;
+  const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead>`;
   const itemRows = (items, menuId) => items.map(it => {
     const ing = findIngredient(it.ingredientId);
+    const c = itemCost(it);
     return `<tr>
       <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${esc(fmtQty(it))}</td>
+      <td>${c === null ? `<span class="en">–</span>` : esc(fmtPrice(c))}</td>
       <td>${othersFor(it.ingredientId, menuId)}</td>
     </tr>`;
   }).join("");
+  const costFoot = (items, menu) => {
+    const c = costOf(items);
+    if (!c.priced) return "";
+    const serves = parseFloat(menu.serves);
+    const perServe = isFinite(serves) && serves > 0
+      ? ` &nbsp;(${esc(fmtPrice(c.total / serves))} / ที่ • per serve)` : "";
+    const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
+    return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr></tfoot>`;
+  };
   const body = ids.map(id => {
     const m = state.menus.find(x => x.id === id);
     if (!m) return "";
-    const cat = m.category ? `<div class="meta">ประเภท • Type: ${esc(menuCatLabel(m.category))}</div>` : "";
+    const metaBits = [
+      m.category ? `ประเภท • Type: ${menuCatLabel(m.category)}` : "",
+      ...fmtMenuMeta(m)
+    ].filter(Boolean);
+    const cat = metaBits.length ? `<div class="meta">${esc(metaBits.join("  |  "))}</div>` : "";
     const opts = menuOptions(m);
     let content;
     if (opts) {
@@ -1379,12 +1620,12 @@ function buildMenuReport(ids) {
         const items = o.items || [];
         return `<h3>🥩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
           (items.length
-            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody></table>`
+            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody>${costFoot(items, m)}</table>`
             : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
       }).join("");
     } else {
       content = (m.items || []).length
-        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody></table>`
+        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, m)}</table>`
         : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
     }
     return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
