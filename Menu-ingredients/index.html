@@ -583,6 +583,7 @@
           <input type="number" id="edit-menu-serves" min="0" step="any">
         </div>
       </div>
+      <div id="edit-menu-opts"></div>
     </div>
     <div class="modal-foot">
       <button class="btn small ghost" onclick="closeMenuEditor()">ยกเลิก • Cancel</button>
@@ -827,13 +828,24 @@ function costOf(items) {
   });
   return { total, priced, missing: (items || []).length - priced };
 }
-function fmtMenuMeta(menu) {
+const PROD_FIELDS = ["yieldQty", "yieldUnit", "portionQty", "portionUnit", "serves"];
+/* production info that actually applies: an option's own values win,
+   anything it leaves blank falls back to the menu's */
+function prodOf(menu, opt) {
+  const out = {};
+  PROD_FIELDS.forEach(k => {
+    const own = opt ? opt[k] : undefined;
+    out[k] = (own !== "" && own != null) ? own : (menu[k] ?? "");
+  });
+  return out;
+}
+function fmtMenuMeta(prod) {
   const bits = [];
-  const y = [menu.yieldQty, menu.yieldUnit].filter(v => v !== "" && v != null).join(" ");
-  const p = [menu.portionQty, menu.portionUnit].filter(v => v !== "" && v != null).join(" ");
+  const y = [prod.yieldQty, prod.yieldUnit].filter(v => v !== "" && v != null).join(" ");
+  const p = [prod.portionQty, prod.portionUnit].filter(v => v !== "" && v != null).join(" ");
   if (y) bits.push(`Yield: ${y}`);
   if (p) bits.push(`Portion: ${p}`);
-  if (menu.serves !== "" && menu.serves != null) bits.push(`Serves: ${menu.serves}`);
+  if (prod.serves !== "" && prod.serves != null) bits.push(`Serves: ${prod.serves}`);
   return bits;
 }
 let toastTimer;
@@ -933,13 +945,14 @@ function menuCardHtml(menu) {
     const emptyMsg = opts
       ? `ยังไม่มีส่วนผสมของ ${esc(cur.nameTh)} • No ingredients for ${esc(cur.nameEn || cur.nameTh)} yet`
       : "ยังไม่มีส่วนผสม • No ingredients yet";
-    const metaBits = fmtMenuMeta(menu);
+    const prod = prodOf(menu, cur);
+    const metaBits = fmtMenuMeta(prod);
     const metaHtml = metaBits.length
       ? `<div class="menu-meta">${metaBits.map(b => `<span class="meta-pill">${esc(b)}</span>`).join("")}</div>`
       : "";
 
     const cost = costOf(shownItems);
-    const serves = parseFloat(menu.serves);
+    const serves = parseFloat(prod.serves);
     const costHtml = cost.priced
       ? `<div class="cost-box">
            <span class="cost-label">💰 ต้นทุน${opts ? ` (${esc(cur.nameTh)})` : ""} • Cost:</span>
@@ -990,8 +1003,8 @@ function menuCardHtml(menu) {
           <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
         </span>
       </div>
-      ${metaHtml}
       ${optsHtml}
+      ${metaHtml}
       ${itemsHtml}
       ${costHtml}
       <form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}')">
@@ -1214,7 +1227,47 @@ function openMenuEditor(menuId) {
   document.getElementById("edit-menu-portion-qty").value = m.portionQty || "";
   document.getElementById("edit-menu-portion-unit").value = m.portionUnit || "";
   document.getElementById("edit-menu-serves").value = m.serves || "";
+  renderMenuEditorOpts(m);
   document.getElementById("menu-modal").classList.add("show");
+}
+
+/* per-option production info; blank inputs inherit the menu-level value */
+function renderMenuEditorOpts(m) {
+  const opts = menuOptions(m);
+  const box = document.getElementById("edit-menu-opts");
+  if (!opts) { box.innerHTML = ""; return; }
+  const ph = (v, fallback) => fallback ? `เมนู: ${fallback}` : "";
+  box.innerHTML = `
+    <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:12px">
+      <div class="opt-label" style="margin-bottom:2px">🥩 ตั้งค่าแยกราย option • Per-option production info</div>
+      <div class="hint" style="margin-bottom:10px">เว้นว่างไว้ = ใช้ค่าของเมนูด้านบน • Leave blank to inherit the menu values above</div>
+      ${opts.map((o, i) => `
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600; font-size:.88rem; margin-bottom:4px">${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` <span class="modal-en">• ${esc(o.nameEn)}</span>` : ""}</div>
+          <div class="form-row">
+            <div class="field" style="flex:1 1 80px">
+              <label>Yield</label>
+              <input type="number" min="0" step="any" id="opt-yq-${i}" value="${esc(o.yieldQty || "")}" placeholder="${esc(ph(o.yieldQty, m.yieldQty))}">
+            </div>
+            <div class="field" style="flex:1 1 100px">
+              <label>หน่วย • Unit</label>
+              <input type="text" list="unit-list" id="opt-yu-${i}" value="${esc(o.yieldUnit || "")}" placeholder="${esc(ph(o.yieldUnit, m.yieldUnit))}">
+            </div>
+            <div class="field" style="flex:1 1 80px">
+              <label>Portion</label>
+              <input type="number" min="0" step="any" id="opt-pq-${i}" value="${esc(o.portionQty || "")}" placeholder="${esc(ph(o.portionQty, m.portionQty))}">
+            </div>
+            <div class="field" style="flex:1 1 100px">
+              <label>หน่วย • Unit</label>
+              <input type="text" list="unit-list" id="opt-pu-${i}" value="${esc(o.portionUnit || "")}" placeholder="${esc(ph(o.portionUnit, m.portionUnit))}">
+            </div>
+            <div class="field" style="flex:1 1 80px">
+              <label>Serves</label>
+              <input type="number" min="0" step="any" id="opt-sv-${i}" value="${esc(o.serves || "")}" placeholder="${esc(ph(o.serves, m.serves))}">
+            </div>
+          </div>
+        </div>`).join("")}
+    </div>`;
 }
 function saveMenuEditor() {
   const m = state.menus.find(x => x.id === editingMenuId);
@@ -1229,6 +1282,13 @@ function saveMenuEditor() {
   m.portionQty = document.getElementById("edit-menu-portion-qty").value.trim();
   m.portionUnit = document.getElementById("edit-menu-portion-unit").value.trim();
   m.serves = document.getElementById("edit-menu-serves").value.trim();
+  const opts = menuOptions(m);
+  if (opts) opts.forEach((o, i) => {
+    const val = id => (document.getElementById(id + i)?.value || "").trim();
+    o.yieldQty = val("opt-yq-"); o.yieldUnit = val("opt-yu-");
+    o.portionQty = val("opt-pq-"); o.portionUnit = val("opt-pu-");
+    o.serves = val("opt-sv-");
+  });
   save(); renderAll();
   closeMenuEditor();
   toast("บันทึกรายละเอียดเมนูแล้ว • Menu details saved");
@@ -1596,10 +1656,10 @@ function buildMenuReport(ids) {
       <td>${othersFor(it.ingredientId, menuId)}</td>
     </tr>`;
   }).join("");
-  const costFoot = (items, menu) => {
+  const costFoot = (items, prod) => {
     const c = costOf(items);
     if (!c.priced) return "";
-    const serves = parseFloat(menu.serves);
+    const serves = parseFloat(prod.serves);
     const perServe = isFinite(serves) && serves > 0
       ? ` &nbsp;(${esc(fmtPrice(c.total / serves))} / ที่ • per serve)` : "";
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
@@ -1608,24 +1668,27 @@ function buildMenuReport(ids) {
   const body = ids.map(id => {
     const m = state.menus.find(x => x.id === id);
     if (!m) return "";
+    const opts = menuOptions(m);
     const metaBits = [
       m.category ? `ประเภท • Type: ${menuCatLabel(m.category)}` : "",
-      ...fmtMenuMeta(m)
+      ...fmtMenuMeta(prodOf(m, null))
     ].filter(Boolean);
     const cat = metaBits.length ? `<div class="meta">${esc(metaBits.join("  |  "))}</div>` : "";
-    const opts = menuOptions(m);
     let content;
     if (opts) {
       content = opts.map(o => {
         const items = o.items || [];
+        const prod = prodOf(m, o);
+        const optMeta = fmtMenuMeta(prod);
         return `<h3>🥩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
+          (optMeta.length ? `<div class="meta">${esc(optMeta.join("  |  "))}</div>` : "") +
           (items.length
-            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody>${costFoot(items, m)}</table>`
+            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody>${costFoot(items, prod)}</table>`
             : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
       }).join("");
     } else {
       content = (m.items || []).length
-        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, m)}</table>`
+        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, prodOf(m, null))}</table>`
         : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
     }
     return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
