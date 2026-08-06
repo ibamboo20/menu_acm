@@ -199,6 +199,15 @@
   }
   .empty-ing { color: var(--muted); font-size: .85rem; font-style: italic; padding: 8px 0; }
 
+  .list-head {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    font-size: .85rem; font-weight: 600; color: var(--blue);
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .list-head .en { color: var(--muted); font-weight: 400; font-size: .78rem; }
+  ul.ing-list li.overridden { opacity: .45; }
+  ul.ing-list li.overridden .ing-name { text-decoration: line-through; }
+
   .menu-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
   .meta-pill {
     background: var(--green-soft); color: var(--green); border: 1px solid var(--chip-border);
@@ -730,12 +739,23 @@ function selectOpt(menuId, optId) {
   selectedOpt[menuId] = optId;
   renderMenus();
 }
-/* all ingredients of a menu across every option (deduped) — used for
+/* what an option actually cooks with: the menu's base ingredients, with the
+   option's own entries added on top (an option may override a base quantity) */
+function effectiveItems(menu, opt) {
+  const base = menu.items || [];
+  if (!opt) return base;
+  const map = new Map();
+  base.forEach(it => map.set(it.ingredientId, it));
+  (opt.items || []).forEach(it => map.set(it.ingredientId, it));
+  return [...map.values()];
+}
+/* all ingredients of a menu across base + every option (deduped) — used for
    shared-ingredient links and the dashboard's "used in menus" column */
 function menuUnionItems(menu) {
   const opts = menuOptions(menu);
   if (!opts) return menu.items || [];
   const map = new Map();
+  (menu.items || []).forEach(it => map.set(it.ingredientId, it));
   opts.forEach(o => (o.items || []).forEach(it => {
     if (!map.has(it.ingredientId)) map.set(it.ingredientId, it);
   }));
@@ -941,10 +961,7 @@ function menuCardHtml(menu) {
            ${opts.map(o => `<button type="button" class="opt-tab${cur.id === o.id ? " active" : ""}" onclick="selectOpt('${menu.id}','${o.id}')">${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</button>`).join("")}
          </div>`
       : "";
-    const shownItems = opts ? (cur.items || []) : menu.items;
-    const emptyMsg = opts
-      ? `ยังไม่มีส่วนผสมของ ${esc(cur.nameTh)} • No ingredients for ${esc(cur.nameEn || cur.nameTh)} yet`
-      : "ยังไม่มีส่วนผสม • No ingredients yet";
+    const shownItems = effectiveItems(menu, cur);
     const prod = prodOf(menu, cur);
     const metaBits = fmtMenuMeta(prod);
     const metaHtml = metaBits.length
@@ -966,17 +983,52 @@ function menuCardHtml(menu) {
         ? `<div class="cost-box"><span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุของส่วนผสมในแท็บส่วนผสมก่อน • Add ingredient price &amp; pack size to see cost</span></div>`
         : "");
 
-    const itemsHtml = shownItems.length
-      ? `<ul class="ing-list">` + shownItems.map(it => {
-          const ing = findIngredient(it.ingredientId);
-          const qty = [it.qty, it.unit].filter(Boolean).join(" ");
-          return `<li>
-            <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
-            ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
-            <button class="icon-btn" title="ลบส่วนผสมออกจากเมนู • Remove" onclick="removeItem('${menu.id}','${it.ingredientId}')">✕</button>
-          </li>`;
-        }).join("") + `</ul>`
-      : `<div class="empty-ing">${emptyMsg}</div>`;
+    /* one ingredient row; `where` says which list it lives in */
+    const rowHtml = (it, where, overridden) => {
+      const ing = findIngredient(it.ingredientId);
+      const qty = [it.qty, it.unit].filter(Boolean).join(" ");
+      return `<li${overridden ? ` class="overridden" title="option นี้กำหนดปริมาณของตัวเอง • overridden by this option"` : ""}>
+        <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
+        ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
+        ${where === "opt"
+          ? `<button class="icon-btn" title="ย้ายไปส่วนผสมหลัก (ใช้ทุก option) • Move to base" onclick="promoteItem('${menu.id}','${it.ingredientId}')">⬆️</button>` : ""}
+        <button class="icon-btn" title="ลบออก • Remove" onclick="removeItem('${menu.id}','${it.ingredientId}','${where}')">✕</button>
+      </li>`;
+    };
+    const addFormHtml = (where, ph) =>
+      `<form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}','${where}')">
+        <input class="ing-input" list="ingredient-list" placeholder="${ph}" required>
+        <input class="qty-input" placeholder="ปริมาณ • Qty">
+        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+        <button type="submit" class="btn small secondary">+ ใส่</button>
+      </form>`;
+
+    let itemsHtml;
+    if (!opts) {
+      itemsHtml = (menu.items || []).length
+        ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", false)).join("")}</ul>`
+        : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
+      itemsHtml += addFormHtml("base", "ส่วนผสม • Ingredient");
+    } else {
+      const optIds = new Set((cur.items || []).map(it => it.ingredientId));
+      const baseList = (menu.items || []).length
+        ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", optIds.has(it.ingredientId))).join("")}</ul>`
+        : `<div class="empty-ing">ยังไม่มีส่วนผสมหลัก • No base ingredients yet</div>`;
+      const optList = (cur.items || []).length
+        ? `<ul class="ing-list">${cur.items.map(it => rowHtml(it, "opt", false)).join("")}</ul>`
+        : `<div class="empty-ing">ยังไม่มีส่วนผสมเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to ${esc(cur.nameEn || cur.nameTh)} yet</div>`;
+      itemsHtml = `
+        <div class="list-head">🧾 ส่วนผสมหลัก <span class="en">• Base — ใช้ทุก option</span></div>
+        ${baseList}
+        ${addFormHtml("base", "ส่วนผสมหลัก • Base ingredient")}
+        <div class="list-head" style="margin-top:14px">
+          🥩 เฉพาะ ${esc(cur.nameTh)} <span class="en">• ${esc(cur.nameEn || cur.nameTh)} only</span>
+          ${(cur.items || []).length > 1
+            ? `<button type="button" class="btn small ghost" style="margin-left:auto" onclick="promoteAll('${menu.id}')">⬆️ ย้ายทั้งหมดไปส่วนผสมหลัก</button>` : ""}
+        </div>
+        ${optList}
+        ${addFormHtml("opt", `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
+    }
 
     const rels = relatedMenus(menu);
     const relHtml = rels.length
@@ -1007,12 +1059,6 @@ function menuCardHtml(menu) {
       ${metaHtml}
       ${itemsHtml}
       ${costHtml}
-      <form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}')">
-        <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
-        <input class="qty-input" placeholder="ปริมาณ • Qty">
-        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
-        <button type="submit" class="btn small secondary">+ ใส่</button>
-      </form>
       ${relHtml}
     </div>`;
 }
@@ -1114,7 +1160,7 @@ function deleteMenu(menuId) {
   toast(`ลบเมนูแล้ว • Menu deleted`);
 }
 
-function addItem(e, menuId) {
+function addItem(e, menuId, where) {
   e.preventDefault();
   const form = e.target;
   const nameInput = form.querySelector(".ing-input");
@@ -1134,7 +1180,7 @@ function addItem(e, menuId) {
   }
 
   const cur = currentOption(menu);
-  const list = cur ? (cur.items = cur.items || []) : menu.items;
+  const list = (where === "opt" && cur) ? (cur.items = cur.items || []) : (menu.items = menu.items || []);
   const existing = list.find(it => it.ingredientId === ing.id);
   if (existing) {
     existing.qty = qty; existing.unit = unit;
@@ -1143,18 +1189,49 @@ function addItem(e, menuId) {
     list.push({ ingredientId: ing.id, qty, unit });
   }
   save(); renderAll();
-  const newForm = document.querySelector(`#menu-${menuId} .ing-input`);
-  if (newForm) newForm.focus();
+  const forms = document.querySelectorAll(`#menu-${menuId} .add-ing-form .ing-input`);
+  const back = forms[where === "opt" ? forms.length - 1 : 0];
+  if (back) back.focus();
   return false;
 }
 
-function removeItem(menuId, ingredientId) {
+function removeItem(menuId, ingredientId, where) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu) return;
   const cur = currentOption(menu);
-  if (cur) cur.items = (cur.items || []).filter(it => it.ingredientId !== ingredientId);
-  else menu.items = menu.items.filter(it => it.ingredientId !== ingredientId);
+  if (where === "opt" && cur) cur.items = (cur.items || []).filter(it => it.ingredientId !== ingredientId);
+  else menu.items = (menu.items || []).filter(it => it.ingredientId !== ingredientId);
   save(); renderAll();
+}
+
+/* move an option-specific ingredient into the shared base list */
+function promoteItem(menuId, ingredientId) {
+  const menu = state.menus.find(m => m.id === menuId);
+  const cur = menu && currentOption(menu);
+  if (!menu || !cur) return;
+  const it = (cur.items || []).find(x => x.ingredientId === ingredientId);
+  if (!it) return;
+  cur.items = cur.items.filter(x => x.ingredientId !== ingredientId);
+  menu.items = (menu.items || []).filter(x => x.ingredientId !== ingredientId);
+  menu.items.push(it);
+  save(); renderAll();
+  const ing = findIngredient(ingredientId);
+  toast(`ย้าย "${ing ? ing.nameTh : ""}" ไปส่วนผสมหลักแล้ว • Moved to base`);
+}
+
+function promoteAll(menuId) {
+  const menu = state.menus.find(m => m.id === menuId);
+  const cur = menu && currentOption(menu);
+  if (!menu || !cur || !(cur.items || []).length) return;
+  if (!confirm(`ย้ายส่วนผสมทั้ง ${cur.items.length} อย่างของ "${cur.nameTh}" ไปเป็นส่วนผสมหลักที่ใช้ทุก option?\nMove all ${cur.items.length} ingredients to the shared base list?`)) return;
+  menu.items = menu.items || [];
+  cur.items.forEach(it => {
+    menu.items = menu.items.filter(x => x.ingredientId !== it.ingredientId);
+    menu.items.push(it);
+  });
+  cur.items = [];
+  save(); renderAll();
+  toast(`ย้ายไปส่วนผสมหลักแล้ว • Moved to base`);
 }
 
 function jumpToMenu(menuId) {
@@ -1560,9 +1637,11 @@ function allUsages() {
       });
       map.set(it.ingredientId, arr);
     };
+    // base ingredients are listed once (they apply to every option),
+    // then each option's own ingredients are listed under that option
+    (m.items || []).forEach(it => push(it, null, null));
     const opts = menuOptions(m);
     if (opts) opts.forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
-    else (m.items || []).forEach(it => push(it, null, null));
   });
   return map;
 }
@@ -1646,11 +1725,12 @@ function buildMenuReport(ids) {
     return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
   };
   const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead>`;
-  const itemRows = (items, menuId) => items.map(it => {
+  const itemRows = (items, menuId, optIds) => items.map(it => {
     const ing = findIngredient(it.ingredientId);
     const c = itemCost(it);
+    const own = optIds && optIds.has(it.ingredientId) ? ` <span class="en">(เฉพาะ option นี้)</span>` : "";
     return `<tr>
-      <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${own}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${esc(fmtQty(it))}</td>
       <td>${c === null ? `<span class="en">–</span>` : esc(fmtPrice(c))}</td>
       <td>${othersFor(it.ingredientId, menuId)}</td>
@@ -1677,13 +1757,13 @@ function buildMenuReport(ids) {
     let content;
     if (opts) {
       content = opts.map(o => {
-        const items = o.items || [];
+        const items = effectiveItems(m, o);
         const prod = prodOf(m, o);
         const optMeta = fmtMenuMeta(prod);
         return `<h3>🥩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
           (optMeta.length ? `<div class="meta">${esc(optMeta.join("  |  "))}</div>` : "") +
           (items.length
-            ? `<table>${tableHead}<tbody>${itemRows(items, m.id)}</tbody>${costFoot(items, prod)}</table>`
+            ? `<table>${tableHead}<tbody>${itemRows(items, m.id, new Set((o.items || []).map(x => x.ingredientId)))}</tbody>${costFoot(items, prod)}</table>`
             : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
       }).join("");
     } else {
