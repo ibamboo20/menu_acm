@@ -17,7 +17,12 @@
     --green-soft: #f5eee9;
     --blue: #e06a17;
     --blue-soft: #fff1e6;
+    --chip-border: #e7dbd1;
+    --chip-border2: #ffd9bd;
+    --good: #2f7d55;
+    --good-soft: #e6f4ec;
     --danger: #b23a3a;
+    --danger-soft: #fbeaea;
     --radius: 14px;
     --shadow: 0 1px 3px rgba(60,39,29,.08), 0 4px 16px rgba(60,39,29,.06);
   }
@@ -262,6 +267,14 @@
   .cost-box .cost-main { font-size: 1.02rem; font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; }
   .cost-box .cost-label { font-size: .78rem; color: var(--muted); }
   .cost-box .cost-note { font-size: .74rem; color: var(--muted); width: 100%; }
+  .cost-box .cost-rule { width: 100%; height: 1px; background: var(--chip-border2); margin: 2px 0; }
+  .profit-main { font-size: 1.02rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--good); }
+  .profit-main.loss { color: var(--danger); }
+  .pct-pill {
+    font-size: .78rem; font-weight: 700; padding: 1px 9px; border-radius: 999px;
+    background: var(--good-soft); color: var(--good); font-variant-numeric: tabular-nums;
+  }
+  .pct-pill.loss { background: var(--danger-soft); color: var(--danger); }
 
   .add-ing-form {
     display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
@@ -427,6 +440,10 @@
             <div class="field" style="flex:1 1 100px">
               <label><b>Serves</b> • จำนวนที่</label>
               <input type="number" id="menu-serves" min="0" step="any" placeholder="เช่น 4">
+            </div>
+            <div class="field" style="flex:1 1 130px">
+              <label><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
+              <input type="number" id="menu-sellprice" min="0" step="0.01" placeholder="เช่น 18.90">
             </div>
           </div>
         </div>
@@ -636,6 +653,10 @@
         <div class="field" style="flex:1 1 90px">
           <label><b>Serves</b> • จำนวนที่</label>
           <input type="number" id="edit-menu-serves" min="0" step="any">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
+          <input type="number" id="edit-menu-sellprice" min="0" step="0.01">
         </div>
       </div>
       <div id="edit-menu-opts"></div>
@@ -894,7 +915,7 @@ function costOf(items) {
   });
   return { total, priced, missing: (items || []).length - priced };
 }
-const PROD_FIELDS = ["yieldQty", "yieldUnit", "portionQty", "portionUnit", "serves"];
+const PROD_FIELDS = ["yieldQty", "yieldUnit", "portionQty", "portionUnit", "serves", "sellPrice"];
 /* production info that actually applies: an option's own values win,
    anything it leaves blank falls back to the menu's */
 function prodOf(menu, opt) {
@@ -905,6 +926,22 @@ function prodOf(menu, opt) {
   });
   return out;
 }
+/* profit from the cost of one serve against its selling price;
+   null when anything needed (cost, serves, price) is missing */
+function profitOf(cost, prod) {
+  const serves = parseFloat(prod.serves);
+  const price = parseFloat(prod.sellPrice);
+  if (!cost.priced || !isFinite(serves) || serves <= 0 || !isFinite(price) || price <= 0) return null;
+  const costPerServe = cost.total / serves;
+  const profit = price - costPerServe;
+  return {
+    costPerServe, price, profit,
+    marginPct: profit / price * 100,      // กำไร ÷ ราคาขาย
+    foodCostPct: costPerServe / price * 100,
+  };
+}
+function fmtPct(n) { return (n >= 0 ? "" : "-") + Math.abs(n).toFixed(1) + "%"; }
+
 function fmtMenuMeta(prod) {
   const bits = [];
   const y = [prod.yieldQty, prod.yieldUnit].filter(v => v !== "" && v != null).join(" ");
@@ -1019,6 +1056,22 @@ function menuCardHtml(menu) {
 
     const cost = costOf(shownItems);
     const serves = parseFloat(prod.serves);
+    const profit = profitOf(cost, prod);
+    const sellPrice = parseFloat(prod.sellPrice);
+    const profitHtml = profit
+      ? `<div class="cost-rule"></div>
+         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่</span>
+         <span class="cost-label">📈 กำไร • Profit:</span>
+         <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
+         <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
+         <span class="cost-label">ต้นทุนอาหาร • Food cost ${esc(fmtPct(profit.foodCostPct))}</span>
+         ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกส่วนผสม</span>` : ""}`
+      : (isFinite(sellPrice) && sellPrice > 0
+        ? `<div class="cost-rule"></div>
+           <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(sellPrice))} / ที่</span>
+           <span class="cost-note">คำนวณกำไรไม่ได้ — ต้องมีทั้งต้นทุนส่วนผสมและจำนวน Serves • Needs ingredient costs and Serves</span>`
+        : "");
+
     const costHtml = cost.priced
       ? `<div class="cost-box">
            <span class="cost-label">💰 ต้นทุน${opts ? ` (${esc(cur.nameTh)})` : ""} • Cost:</span>
@@ -1027,9 +1080,13 @@ function menuCardHtml(menu) {
              ? `<span class="cost-label">≈ ${esc(fmtPrice(cost.total / serves))} / ที่ • per serve</span>` : ""}
            ${cost.missing
              ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} ส่วนผสม — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
+           ${profitHtml}
          </div>`
-      : (shownItems.length
-        ? `<div class="cost-box"><span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุของส่วนผสมในแท็บส่วนผสมก่อน • Add ingredient price &amp; pack size to see cost</span></div>`
+      : (shownItems.length || (isFinite(sellPrice) && sellPrice > 0)
+        ? `<div class="cost-box">
+             <span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุของส่วนผสมในแท็บส่วนผสมก่อน • Add ingredient price &amp; pack size to see cost</span>
+             ${profitHtml}
+           </div>`
         : "");
 
     /* one ingredient row; `where` says which list it lives in */
@@ -1177,6 +1234,7 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
     portionQty: document.getElementById("menu-portion-qty").value.trim(),
     portionUnit: document.getElementById("menu-portion-unit").value.trim(),
     serves: document.getElementById("menu-serves").value.trim(),
+    sellPrice: document.getElementById("menu-sellprice").value.trim(),
   };
   if (document.getElementById("menu-has-opts").checked) {
     const chosen = builderOpts.filter(o => o.checked);
@@ -1353,6 +1411,7 @@ function openMenuEditor(menuId) {
   document.getElementById("edit-menu-portion-qty").value = m.portionQty || "";
   document.getElementById("edit-menu-portion-unit").value = m.portionUnit || "";
   document.getElementById("edit-menu-serves").value = m.serves || "";
+  document.getElementById("edit-menu-sellprice").value = m.sellPrice || "";
   renderMenuEditorOpts(m);
   document.getElementById("menu-modal").classList.add("show");
 }
@@ -1391,6 +1450,10 @@ function renderMenuEditorOpts(m) {
               <label>Serves</label>
               <input type="number" min="0" step="any" id="opt-sv-${i}" value="${esc(o.serves || "")}" placeholder="${esc(ph(o.serves, m.serves))}">
             </div>
+            <div class="field" style="flex:1 1 110px">
+              <label>ราคาขาย/ที่ ($)</label>
+              <input type="number" min="0" step="0.01" id="opt-sp-${i}" value="${esc(o.sellPrice || "")}" placeholder="${esc(ph(o.sellPrice, m.sellPrice))}">
+            </div>
           </div>
         </div>`).join("")}
     </div>`;
@@ -1408,12 +1471,13 @@ function saveMenuEditor() {
   m.portionQty = document.getElementById("edit-menu-portion-qty").value.trim();
   m.portionUnit = document.getElementById("edit-menu-portion-unit").value.trim();
   m.serves = document.getElementById("edit-menu-serves").value.trim();
+  m.sellPrice = document.getElementById("edit-menu-sellprice").value.trim();
   const opts = menuOptions(m);
   if (opts) opts.forEach((o, i) => {
     const val = id => (document.getElementById(id + i)?.value || "").trim();
     o.yieldQty = val("opt-yq-"); o.yieldUnit = val("opt-yu-");
     o.portionQty = val("opt-pq-"); o.portionUnit = val("opt-pu-");
-    o.serves = val("opt-sv-");
+    o.serves = val("opt-sv-"); o.sellPrice = val("opt-sp-");
   });
   save(); renderAll();
   closeMenuEditor();
@@ -1792,7 +1856,11 @@ function buildMenuReport(ids) {
     const perServe = isFinite(serves) && serves > 0
       ? ` &nbsp;(${esc(fmtPrice(c.total / serves))} / ที่ • per serve)` : "";
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
-    return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr></tfoot>`;
+    const p = profitOf(c, prod);
+    const profitRow = p
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; ${esc(fmtPrice(p.profit))} (${esc(fmtPct(p.marginPct))}) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      : "";
+    return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr>${profitRow}</tfoot>`;
   };
   const body = ids.map(id => {
     const m = state.menus.find(x => x.id === id);
