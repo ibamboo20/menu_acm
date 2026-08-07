@@ -227,6 +227,10 @@
   }
   .opt-tab:hover { background: var(--accent-soft); }
   .opt-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* the serve-style axis reads as a separate control from the meat options */
+  .opt-tab.style-tab { border-color: var(--chip-border); color: var(--green); }
+  .opt-tab.style-tab:hover { background: var(--green-soft); }
+  .opt-tab.style-tab.active { background: var(--green); border-color: var(--green); color: #fff; }
 
   ul.ing-list { list-style: none; margin: 12px 0 4px; }
   ul.ing-list li {
@@ -690,6 +694,22 @@
           <button type="button" class="btn small secondary" onclick="addEditorCustom()">+ เพิ่ม</button>
         </div>
       </div>
+
+      <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:12px">
+        <label class="chk-row" style="margin-bottom:6px">
+          <input type="checkbox" id="editor-has-styles" onchange="toggleEditorHasStyles(this.checked)">
+          🍚 มีแบบเสิร์ฟ <span class="en">• Has serve styles (Main only / With rice)</span>
+        </label>
+        <div id="editor-styles-panel" style="display:none">
+          <div class="hint" style="margin-bottom:8px">แต่ละแบบใส่ส่วนผสมเพิ่มและราคาบวกเพิ่มได้ ส่วนผสมแก้ไขได้บนการ์ดเมนู • Each style adds its own ingredients and an optional surcharge</div>
+          <div id="editor-styles-rows"></div>
+          <div class="add-custom-opt" style="margin-bottom:10px">
+            <input type="text" id="editor-style-th" placeholder="เพิ่มแบบเสิร์ฟ (ไทย)">
+            <input type="text" id="editor-style-en" placeholder="Serve style (English)">
+            <button type="button" class="btn small secondary" onclick="addEditorStyle()">+ เพิ่ม</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn small ghost" onclick="closeOptsModal()">ยกเลิก • Cancel</button>
@@ -730,6 +750,9 @@ function migrate(s) {
     if (!Array.isArray(m.items)) m.items = [];
     if (m.options && Array.isArray(m.options)) {
       m.options.forEach(o => { if (!Array.isArray(o.items)) o.items = []; });
+    }
+    if (m.serveStyles && Array.isArray(m.serveStyles)) {
+      m.serveStyles.forEach(s => { if (!Array.isArray(s.items)) s.items = []; });
     }
   });
   return s;
@@ -806,26 +829,43 @@ function selectOpt(menuId, optId) {
   selectedOpt[menuId] = optId;
   renderMenus();
 }
-/* what an option actually cooks with: the menu's base ingredients, with the
-   option's own entries added on top (an option may override a base quantity) */
-function effectiveItems(menu, opt) {
-  const base = menu.items || [];
-  if (!opt) return base;
-  const map = new Map();
-  base.forEach(it => map.set(it.ingredientId, it));
-  (opt.items || []).forEach(it => map.set(it.ingredientId, it));
-  return [...map.values()];
+/* serve styles: a second, independent axis (e.g. Main only / With rice).
+   A style adds its own ingredients and an optional price surcharge, so it
+   composes with whichever meat option is selected. */
+const selectedStyle = {}; // menuId -> styleId
+function menuStyles(menu) {
+  return Array.isArray(menu.serveStyles) && menu.serveStyles.length ? menu.serveStyles : null;
 }
-/* all ingredients of a menu across base + every option (deduped) — used for
-   shared-ingredient links and the dashboard's "used in menus" column */
-function menuUnionItems(menu) {
-  const opts = menuOptions(menu);
-  if (!opts) return menu.items || [];
+function currentStyle(menu) {
+  const st = menuStyles(menu);
+  if (!st) return null;
+  return st.find(s => s.id === selectedStyle[menu.id]) || st[0];
+}
+function selectStyle(menuId, styleId) {
+  selectedStyle[menuId] = styleId;
+  renderMenus();
+}
+
+/* what a given combination actually cooks with: the menu's base ingredients,
+   then the meat option's, then the serve style's — later entries override an
+   earlier quantity for the same ingredient */
+function effectiveItems(menu, opt, style) {
   const map = new Map();
   (menu.items || []).forEach(it => map.set(it.ingredientId, it));
-  opts.forEach(o => (o.items || []).forEach(it => {
+  if (opt) (opt.items || []).forEach(it => map.set(it.ingredientId, it));
+  if (style) (style.items || []).forEach(it => map.set(it.ingredientId, it));
+  return [...map.values()];
+}
+/* all ingredients of a menu across base + every option + every serve style
+   (deduped) — used for shared-ingredient links and the dashboard */
+function menuUnionItems(menu) {
+  const map = new Map();
+  (menu.items || []).forEach(it => map.set(it.ingredientId, it));
+  const add = list => (list || []).forEach(it => {
     if (!map.has(it.ingredientId)) map.set(it.ingredientId, it);
-  }));
+  });
+  (menuOptions(menu) || []).forEach(o => add(o.items));
+  (menuStyles(menu) || []).forEach(s => add(s.items));
   return [...map.values()];
 }
 
@@ -928,14 +968,18 @@ function prodOf(menu, opt) {
 }
 /* profit from the cost of one serve against its selling price;
    null when anything needed (cost, serves, price) is missing */
-function profitOf(cost, prod) {
+function profitOf(cost, prod, style) {
   const serves = parseFloat(prod.serves);
-  const price = parseFloat(prod.sellPrice);
-  if (!cost.priced || !isFinite(serves) || serves <= 0 || !isFinite(price) || price <= 0) return null;
+  const base = parseFloat(prod.sellPrice);
+  if (!cost.priced || !isFinite(serves) || serves <= 0 || !isFinite(base) || base <= 0) return null;
+  const add = parseFloat(style && style.priceAdd);
+  const price = base + (isFinite(add) ? add : 0);
+  if (price <= 0) return null;
   const costPerServe = cost.total / serves;
   const profit = price - costPerServe;
   return {
     costPerServe, price, profit,
+    priceAdd: isFinite(add) ? add : 0,
     marginPct: profit / price * 100,      // กำไร ÷ ราคาขาย
     foodCostPct: costPerServe / price * 100,
   };
@@ -1047,7 +1091,15 @@ function menuCardHtml(menu) {
            ${opts.map(o => `<button type="button" class="opt-tab${cur.id === o.id ? " active" : ""}" onclick="selectOpt('${menu.id}','${o.id}')">${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</button>`).join("")}
          </div>`
       : "";
-    const shownItems = effectiveItems(menu, cur);
+    const styles = menuStyles(menu);
+    const curStyle = currentStyle(menu);
+    const stylesHtml = styles
+      ? `<div class="opt-tabs">
+           <div class="opt-label">🍚 แบบเสิร์ฟ • Serve style:</div>
+           ${styles.map(s => `<button type="button" class="opt-tab style-tab${curStyle.id === s.id ? " active" : ""}" onclick="selectStyle('${menu.id}','${s.id}')">${esc(s.nameTh)}${s.nameEn && s.nameEn !== s.nameTh ? ` • ${esc(s.nameEn)}` : ""}${parseFloat(s.priceAdd) > 0 ? ` (+${esc(fmtPrice(s.priceAdd))})` : ""}</button>`).join("")}
+         </div>`
+      : "";
+    const shownItems = effectiveItems(menu, cur, curStyle);
     const prod = prodOf(menu, cur);
     const metaBits = fmtMenuMeta(prod);
     const metaHtml = metaBits.length
@@ -1056,11 +1108,11 @@ function menuCardHtml(menu) {
 
     const cost = costOf(shownItems);
     const serves = parseFloat(prod.serves);
-    const profit = profitOf(cost, prod);
+    const profit = profitOf(cost, prod, curStyle);
     const sellPrice = parseFloat(prod.sellPrice);
     const profitHtml = profit
       ? `<div class="cost-rule"></div>
-         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่</span>
+         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่${profit.priceAdd ? ` <span class="en">(${esc(fmtPrice(profit.price - profit.priceAdd))} + ${esc(fmtPrice(profit.priceAdd))} ${esc(curStyle.nameTh)})</span>` : ""}</span>
          <span class="cost-label">📈 กำไร • Profit:</span>
          <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
          <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
@@ -1074,7 +1126,7 @@ function menuCardHtml(menu) {
 
     const costHtml = cost.priced
       ? `<div class="cost-box">
-           <span class="cost-label">💰 ต้นทุน${opts ? ` (${esc(cur.nameTh)})` : ""} • Cost:</span>
+           <span class="cost-label">💰 ต้นทุน${[opts && cur.nameTh, styles && curStyle.nameTh].filter(Boolean).length ? ` (${esc([opts && cur.nameTh, styles && curStyle.nameTh].filter(Boolean).join(" · "))})` : ""} • Cost:</span>
            <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
            ${isFinite(serves) && serves > 0
              ? `<span class="cost-label">≈ ${esc(fmtPrice(cost.total / serves))} / ที่ • per serve</span>` : ""}
@@ -1110,30 +1162,48 @@ function menuCardHtml(menu) {
       </form>`;
 
     let itemsHtml;
-    if (!opts) {
+    if (!opts && !styles) {
       itemsHtml = (menu.items || []).length
         ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", false)).join("")}</ul>`
         : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
       itemsHtml += addFormHtml("base", "ส่วนผสม • Ingredient");
     } else {
-      const optIds = new Set((cur.items || []).map(it => it.ingredientId));
+      // a later list overrides an earlier one for the same ingredient
+      const optIds = new Set(opts ? (cur.items || []).map(it => it.ingredientId) : []);
+      const styleIds = new Set(styles ? (curStyle.items || []).map(it => it.ingredientId) : []);
       const baseList = (menu.items || []).length
-        ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", optIds.has(it.ingredientId))).join("")}</ul>`
+        ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", optIds.has(it.ingredientId) || styleIds.has(it.ingredientId))).join("")}</ul>`
         : `<div class="empty-ing">ยังไม่มีส่วนผสมหลัก • No base ingredients yet</div>`;
-      const optList = (cur.items || []).length
-        ? `<ul class="ing-list">${cur.items.map(it => rowHtml(it, "opt", false)).join("")}</ul>`
-        : `<div class="empty-ing">ยังไม่มีส่วนผสมเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to ${esc(cur.nameEn || cur.nameTh)} yet</div>`;
       itemsHtml = `
-        <div class="list-head">🧾 ส่วนผสมหลัก <span class="en">• Base — ใช้ทุก option</span></div>
+        <div class="list-head">🧾 ส่วนผสมหลัก <span class="en">• Base — ใช้ทุกแบบ</span></div>
         ${baseList}
-        ${addFormHtml("base", "ส่วนผสมหลัก • Base ingredient")}
-        <div class="list-head" style="margin-top:14px">
-          🥩 เฉพาะ ${esc(cur.nameTh)} <span class="en">• ${esc(cur.nameEn || cur.nameTh)} only</span>
-          ${(cur.items || []).length > 1
-            ? `<button type="button" class="btn small ghost" style="margin-left:auto" onclick="promoteAll('${menu.id}')">⬆️ ย้ายทั้งหมดไปส่วนผสมหลัก</button>` : ""}
-        </div>
-        ${optList}
-        ${addFormHtml("opt", `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
+        ${addFormHtml("base", "ส่วนผสมหลัก • Base ingredient")}`;
+
+      if (opts) {
+        const optList = (cur.items || []).length
+          ? `<ul class="ing-list">${cur.items.map(it => rowHtml(it, "opt", styleIds.has(it.ingredientId))).join("")}</ul>`
+          : `<div class="empty-ing">ยังไม่มีส่วนผสมเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to ${esc(cur.nameEn || cur.nameTh)} yet</div>`;
+        itemsHtml += `
+          <div class="list-head" style="margin-top:14px">
+            🥩 เฉพาะ ${esc(cur.nameTh)} <span class="en">• ${esc(cur.nameEn || cur.nameTh)} only</span>
+            ${(cur.items || []).length > 1
+              ? `<button type="button" class="btn small ghost" style="margin-left:auto" onclick="promoteAll('${menu.id}')">⬆️ ย้ายทั้งหมดไปส่วนผสมหลัก</button>` : ""}
+          </div>
+          ${optList}
+          ${addFormHtml("opt", `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
+      }
+
+      if (styles) {
+        const styleList = (curStyle.items || []).length
+          ? `<ul class="ing-list">${curStyle.items.map(it => rowHtml(it, "style", false)).join("")}</ul>`
+          : `<div class="empty-ing">ยังไม่มีส่วนผสมเพิ่มของ ${esc(curStyle.nameTh)} • Nothing extra for ${esc(curStyle.nameEn || curStyle.nameTh)} yet</div>`;
+        itemsHtml += `
+          <div class="list-head" style="margin-top:14px">
+            🍚 เพิ่มเมื่อเสิร์ฟแบบ ${esc(curStyle.nameTh)} <span class="en">• Added for ${esc(curStyle.nameEn || curStyle.nameTh)}</span>
+          </div>
+          ${styleList}
+          ${addFormHtml("style", `เพิ่มสำหรับ ${curStyle.nameTh} • ${curStyle.nameEn || curStyle.nameTh}`)}`;
+      }
     }
 
     const rels = relatedMenus(menu);
@@ -1162,6 +1232,7 @@ function menuCardHtml(menu) {
         </span>
       </div>
       ${optsHtml}
+      ${stylesHtml}
       ${metaHtml}
       ${itemsHtml}
       ${costHtml}
@@ -1286,8 +1357,10 @@ function addItem(e, menuId, where) {
     toast(`สร้างส่วนผสมใหม่ "${name}" — เพิ่มประเภท/แบรนด์ได้ในแท็บส่วนผสม • New ingredient created`);
   }
 
-  const cur = currentOption(menu);
-  const list = (where === "opt" && cur) ? (cur.items = cur.items || []) : (menu.items = menu.items || []);
+  const cur = currentOption(menu), curStyle = currentStyle(menu);
+  const list = (where === "opt" && cur) ? (cur.items = cur.items || [])
+    : (where === "style" && curStyle) ? (curStyle.items = curStyle.items || [])
+    : (menu.items = menu.items || []);
   const existing = list.find(it => it.ingredientId === ing.id);
   if (existing) {
     existing.qty = qty; existing.unit = unit;
@@ -1296,8 +1369,9 @@ function addItem(e, menuId, where) {
     list.push({ ingredientId: ing.id, qty, unit });
   }
   save(); renderAll();
-  const forms = document.querySelectorAll(`#menu-${menuId} .add-ing-form .ing-input`);
-  const back = forms[where === "opt" ? forms.length - 1 : 0];
+  const forms = [...document.querySelectorAll(`#menu-${menuId} .add-ing-form`)];
+  const target = forms.find(f => f.getAttribute("onsubmit").includes(`'${where}'`)) || forms[0];
+  const back = target && target.querySelector(".ing-input");
   if (back) back.focus();
   return false;
 }
@@ -1305,8 +1379,9 @@ function addItem(e, menuId, where) {
 function removeItem(menuId, ingredientId, where) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu) return;
-  const cur = currentOption(menu);
+  const cur = currentOption(menu), curStyle = currentStyle(menu);
   if (where === "opt" && cur) cur.items = (cur.items || []).filter(it => it.ingredientId !== ingredientId);
+  else if (where === "style" && curStyle) curStyle.items = (curStyle.items || []).filter(it => it.ingredientId !== ingredientId);
   else menu.items = (menu.items || []).filter(it => it.ingredientId !== ingredientId);
   save(); renderAll();
 }
@@ -1514,6 +1589,7 @@ function openOptsEditor(menuId) {
   document.getElementById("editor-custom-th").value = "";
   document.getElementById("editor-custom-en").value = "";
   renderEditorChoices();
+  renderEditorStyles(menu);
   document.getElementById("opts-modal").classList.add("show");
 }
 function renderEditorChoices() {
@@ -1537,6 +1613,70 @@ function addEditorCustom() {
   document.getElementById("editor-custom-en").value = "";
   renderEditorChoices();
 }
+/* ---------- serve styles inside the variants modal ---------- */
+const DEFAULT_STYLES = [
+  { th: "เมนูเดี่ยว", en: "Main only" },
+  { th: "พร้อมข้าว", en: "With rice" },
+];
+let editorStyles = [];
+
+function renderEditorStyles(m) {
+  const existing = menuStyles(m) || [];
+  document.getElementById("editor-has-styles").checked = existing.length > 0;
+  document.getElementById("editor-styles-panel").style.display = existing.length > 0 ? "" : "none";
+  document.getElementById("editor-style-th").value = "";
+  document.getElementById("editor-style-en").value = "";
+  editorStyles = existing.length
+    ? existing.map(s => ({ id: s.id, th: s.nameTh, en: s.nameEn || "", priceAdd: s.priceAdd || "", count: (s.items || []).length }))
+    : DEFAULT_STYLES.map(d => ({ th: d.th, en: d.en, priceAdd: "", count: 0 }));
+  renderEditorStyleRows();
+}
+function renderEditorStyleRows() {
+  document.getElementById("editor-styles-rows").innerHTML = editorStyles.map((s, i) => `
+    <div class="form-row" style="margin-bottom:8px; align-items:flex-end">
+      <div class="field" style="flex:2 1 140px">
+        <label>ชื่อ (ไทย) • Name</label>
+        <input type="text" id="sty-th-${i}" value="${esc(s.th)}">
+      </div>
+      <div class="field" style="flex:2 1 130px">
+        <label>English</label>
+        <input type="text" id="sty-en-${i}" value="${esc(s.en)}">
+      </div>
+      <div class="field" style="flex:1 1 110px">
+        <label>ราคาบวกเพิ่ม (+$)</label>
+        <input type="number" min="0" step="0.01" id="sty-add-${i}" value="${esc(s.priceAdd)}" placeholder="0.00">
+      </div>
+      <button type="button" class="icon-btn" title="ลบแบบเสิร์ฟนี้ • Remove" onclick="removeEditorStyle(${i})">✕</button>
+      ${s.count ? `<span class="cnt" style="align-self:center">${s.count} ส่วนผสม</span>` : ""}
+    </div>`).join("");
+}
+function readEditorStyleInputs() {
+  editorStyles.forEach((s, i) => {
+    const v = id => (document.getElementById(id + i)?.value ?? "").trim();
+    if (document.getElementById("sty-th-" + i)) {
+      s.th = v("sty-th-"); s.en = v("sty-en-"); s.priceAdd = v("sty-add-");
+    }
+  });
+}
+function toggleEditorHasStyles(on) {
+  document.getElementById("editor-styles-panel").style.display = on ? "" : "none";
+}
+function addEditorStyle() {
+  readEditorStyleInputs();
+  const th = document.getElementById("editor-style-th").value.trim();
+  const en = document.getElementById("editor-style-en").value.trim();
+  if (!th && !en) return;
+  editorStyles.push({ th: th || en, en, priceAdd: "", count: 0 });
+  document.getElementById("editor-style-th").value = "";
+  document.getElementById("editor-style-en").value = "";
+  renderEditorStyleRows();
+}
+function removeEditorStyle(i) {
+  readEditorStyleInputs();
+  editorStyles.splice(i, 1);
+  renderEditorStyleRows();
+}
+
 function saveOptsModal() {
   const menu = state.menus.find(m => m.id === editingOptsMenuId);
   if (!menu) { closeOptsModal(); return; }
@@ -1561,9 +1701,34 @@ function saveOptsModal() {
     });
     delete selectedOpt[menu.id];
   }
+
+  // serve styles
+  readEditorStyleInputs();
+  const hasStyles = document.getElementById("editor-has-styles").checked;
+  const oldStyles = menuStyles(menu) || [];
+  if (!hasStyles) {
+    const lost = oldStyles.filter(s => (s.items || []).length);
+    if (lost.length && !confirm(
+      `ปิดแบบเสิร์ฟจะลบส่วนผสมใน ${lost.length} แบบด้วย ยืนยัน?\nTurning off serve styles deletes the ingredients inside them. Continue?`)) return;
+    delete menu.serveStyles;
+  } else {
+    const named = editorStyles.filter(s => (s.th || s.en).trim());
+    if (!named.length) { toast("ใส่แบบเสิร์ฟอย่างน้อย 1 แบบ • Add at least one serve style"); return; }
+    const removedWithItems = oldStyles.filter(s =>
+      (s.items || []).length && !named.some(n => n.id === s.id));
+    if (removedWithItems.length && !confirm(
+      `แบบเสิร์ฟที่เอาออก (${removedWithItems.map(s => s.nameTh).join(", ")}) มีส่วนผสมอยู่ จะถูกลบด้วย ยืนยัน?\nRemoved serve styles contain ingredients — they will be deleted. Continue?`)) return;
+    menu.serveStyles = named.map(n => {
+      const old = oldStyles.find(s => s.id === n.id);
+      const base = old || { id: uid(), items: [] };
+      return { ...base, nameTh: n.th || n.en, nameEn: n.en, priceAdd: n.priceAdd || "" };
+    });
+    delete selectedStyle[menu.id];
+  }
+
   save(); renderAll();
   closeOptsModal();
-  toast("บันทึก meat options แล้ว • Meat options saved");
+  toast("บันทึกตัวเลือกเมนูแล้ว • Menu variants saved");
 }
 function closeOptsModal() {
   editingOptsMenuId = null;
@@ -1753,8 +1918,8 @@ function allUsages() {
     // base ingredients are listed once (they apply to every option),
     // then each option's own ingredients are listed under that option
     (m.items || []).forEach(it => push(it, null, null));
-    const opts = menuOptions(m);
-    if (opts) opts.forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
+    (menuOptions(m) || []).forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
+    (menuStyles(m) || []).forEach(s => (s.items || []).forEach(it => push(it, s.nameTh, s.nameEn)));
   });
   return map;
 }
@@ -1841,7 +2006,7 @@ function buildMenuReport(ids) {
   const itemRows = (items, menuId, optIds) => items.map(it => {
     const ing = findIngredient(it.ingredientId);
     const c = itemCost(it);
-    const own = optIds && optIds.has(it.ingredientId) ? ` <span class="en">(เฉพาะ option นี้)</span>` : "";
+    const own = optIds && optIds.has(it.ingredientId) ? ` <span class="en">(เฉพาะแบบนี้)</span>` : "";
     return `<tr>
       <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${own}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${esc(fmtQty(it))}</td>
@@ -1849,14 +2014,14 @@ function buildMenuReport(ids) {
       <td>${othersFor(it.ingredientId, menuId)}</td>
     </tr>`;
   }).join("");
-  const costFoot = (items, prod) => {
+  const costFoot = (items, prod, style) => {
     const c = costOf(items);
     if (!c.priced) return "";
     const serves = parseFloat(prod.serves);
     const perServe = isFinite(serves) && serves > 0
       ? ` &nbsp;(${esc(fmtPrice(c.total / serves))} / ที่ • per serve)` : "";
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
-    const p = profitOf(c, prod);
+    const p = profitOf(c, prod, style);
     const profitRow = p
       ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; ${esc(fmtPrice(p.profit))} (${esc(fmtPct(p.marginPct))}) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
       : "";
@@ -1871,21 +2036,29 @@ function buildMenuReport(ids) {
       ...fmtMenuMeta(prodOf(m, null))
     ].filter(Boolean);
     const cat = metaBits.length ? `<div class="meta">${esc(metaBits.join("  |  "))}</div>` : "";
+    const styles = menuStyles(m);
     let content;
-    if (opts) {
-      content = opts.map(o => {
-        const items = effectiveItems(m, o);
+    if (opts || styles) {
+      // one complete recipe per meat-option × serve-style combination
+      const combos = [];
+      (opts || [null]).forEach(o => (styles || [null]).forEach(s => combos.push([o, s])));
+      content = combos.map(([o, s]) => {
+        const items = effectiveItems(m, o, s);
         const prod = prodOf(m, o);
+        const heading = [o && `🥩 ${o.nameTh}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${o.nameEn}` : ""}`,
+                         s && `🍚 ${s.nameTh}${s.nameEn && s.nameEn !== s.nameTh ? ` • ${s.nameEn}` : ""}`]
+                        .filter(Boolean).join("  ·  ");
         const optMeta = fmtMenuMeta(prod);
-        return `<h3>🥩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
+        const ownIds = new Set([...(o ? o.items || [] : []), ...(s ? s.items || [] : [])].map(x => x.ingredientId));
+        return `<h3>${esc(heading)}</h3>` +
           (optMeta.length ? `<div class="meta">${esc(optMeta.join("  |  "))}</div>` : "") +
           (items.length
-            ? `<table>${tableHead}<tbody>${itemRows(items, m.id, new Set((o.items || []).map(x => x.ingredientId)))}</tbody>${costFoot(items, prod)}</table>`
+            ? `<table>${tableHead}<tbody>${itemRows(items, m.id, ownIds)}</tbody>${costFoot(items, prod, s)}</table>`
             : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
       }).join("");
     } else {
       content = (m.items || []).length
-        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, prodOf(m, null))}</table>`
+        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, prodOf(m, null), null)}</table>`
         : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
     }
     return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
