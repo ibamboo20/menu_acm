@@ -40,6 +40,7 @@
 
   nav.tabs {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 8px;
     background: linear-gradient(135deg, #2a1a11, #3c271d);
@@ -88,6 +89,7 @@
     background: #fff;
     color: var(--ink);
     width: 100%;
+    min-width: 0; /* form controls otherwise refuse to shrink on narrow screens */
   }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
   .btn {
@@ -120,7 +122,14 @@
     transform: translateY(-50%); font-size: .9rem; opacity: .6;
   }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  /* min(320px, 100%) keeps a card from forcing a track wider than the screen;
+     minmax(0, …) stops form controls' intrinsic width doing the same */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+    gap: 16px;
+  }
+  .grid > * { min-width: 0; }
 
   .group-header {
     display: flex; align-items: baseline; gap: 10px;
@@ -147,6 +156,15 @@
 
   .menu-card { display: flex; flex-direction: column; }
   .menu-card .menu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  /* the title must be able to shrink, or a long name pushes the action
+     buttons past the card's rounded corner */
+  .menu-card .menu-head > h3 { flex: 1 1 auto; min-width: 0; }
+  .head-actions {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 2px;
+    margin: 2px 2px 0 0;
+  }
+  .head-actions .icon-btn { padding: 4px 5px; line-height: 1; }
   .menu-card h3 { font-size: 1.1rem; }
   .menu-card .name-en { color: var(--muted); font-size: .88rem; font-weight: 400; }
 
@@ -321,7 +339,7 @@
   .toast.show { opacity: .95; }
 
   @media (max-width: 480px) {
-    .grid { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
     header h1 { font-size: 1.25rem; }
   }
 </style>
@@ -1049,7 +1067,7 @@ function menuCardHtml(menu) {
             ${MENU_TYPES.map(t => `<option value="${esc(t.value)}"${menu.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("")}
           </select>
         </h3>
-        <span style="white-space:nowrap">
+        <span class="head-actions">
           <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
           <button class="icon-btn" title="เพิ่ม/แก้ไข meat options • Edit meat options" onclick="openOptsEditor('${menu.id}')">🥩</button>
           <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
