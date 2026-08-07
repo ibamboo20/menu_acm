@@ -675,7 +675,7 @@
 <div class="modal-overlay" id="opts-modal">
   <div class="modal-card">
     <div class="modal-head">
-      <h3>🥩 Meat options
+      <h3>🥩 ตัวเลือกของเมนู <span class="modal-en">• Meat options &amp; serve styles</span>
         <div class="modal-sub" id="opts-modal-sub"></div>
       </h3>
       <button class="icon-btn" title="ปิด • Close" onclick="closeOptsModal()">✕</button>
@@ -701,7 +701,10 @@
           🍚 มีแบบเสิร์ฟ <span class="en">• Has serve styles (Main only / With rice)</span>
         </label>
         <div id="editor-styles-panel" style="display:none">
-          <div class="hint" style="margin-bottom:8px">แต่ละแบบใส่ส่วนผสมเพิ่มและราคาบวกเพิ่มได้ ส่วนผสมแก้ไขได้บนการ์ดเมนู • Each style adds its own ingredients and an optional surcharge</div>
+          <div class="hint" style="margin-bottom:8px">
+            ใส่ <b>ราคาขาย</b> ของแบบนั้นตรงๆ หรือเว้นว่างแล้วใส่ <b>บวกเพิ่ม</b> เพื่อบวกทับราคาของเมนู/เนื้อสัตว์ (เหมาะเมื่อแต่ละเนื้อสัตว์ราคาไม่เท่ากัน)<br>
+            <span class="en">Enter a price for the style, or leave it blank and use the surcharge to add on top of the menu/meat price. Ingredients are edited on the menu card.</span>
+          </div>
           <div id="editor-styles-rows"></div>
           <div class="add-custom-opt" style="margin-bottom:10px">
             <input type="text" id="editor-style-th" placeholder="เพิ่มแบบเสิร์ฟ (ไทย)">
@@ -968,20 +971,28 @@ function prodOf(menu, opt) {
 }
 /* profit from the cost of one serve against its selling price;
    null when anything needed (cost, serves, price) is missing */
+/* the price actually charged for a combination:
+   a serve style's own price wins outright; otherwise the option/menu price
+   plus that style's surcharge */
+function priceOf(prod, style) {
+  const own = parseFloat(style && style.sellPrice);
+  if (isFinite(own) && own > 0) return { price: own, from: "style" };
+  const base = parseFloat(prod.sellPrice);
+  if (!isFinite(base) || base <= 0) return null;
+  const add = parseFloat(style && style.priceAdd);
+  return { price: base + (isFinite(add) ? add : 0), from: "base", base, add: isFinite(add) ? add : 0 };
+}
 function profitOf(cost, prod, style) {
   const serves = parseFloat(prod.serves);
-  const base = parseFloat(prod.sellPrice);
-  if (!cost.priced || !isFinite(serves) || serves <= 0 || !isFinite(base) || base <= 0) return null;
-  const add = parseFloat(style && style.priceAdd);
-  const price = base + (isFinite(add) ? add : 0);
-  if (price <= 0) return null;
+  const pr = priceOf(prod, style);
+  if (!cost.priced || !isFinite(serves) || serves <= 0 || !pr || pr.price <= 0) return null;
   const costPerServe = cost.total / serves;
-  const profit = price - costPerServe;
+  const profit = pr.price - costPerServe;
   return {
-    costPerServe, price, profit,
-    priceAdd: isFinite(add) ? add : 0,
-    marginPct: profit / price * 100,      // กำไร ÷ ราคาขาย
-    foodCostPct: costPerServe / price * 100,
+    costPerServe, price: pr.price, profit,
+    from: pr.from, basePrice: pr.base, priceAdd: pr.add || 0,
+    marginPct: profit / pr.price * 100,      // กำไร ÷ ราคาขาย
+    foodCostPct: costPerServe / pr.price * 100,
   };
 }
 function fmtPct(n) { return (n >= 0 ? "" : "-") + Math.abs(n).toFixed(1) + "%"; }
@@ -1096,7 +1107,7 @@ function menuCardHtml(menu) {
     const stylesHtml = styles
       ? `<div class="opt-tabs">
            <div class="opt-label">🍚 แบบเสิร์ฟ • Serve style:</div>
-           ${styles.map(s => `<button type="button" class="opt-tab style-tab${curStyle.id === s.id ? " active" : ""}" onclick="selectStyle('${menu.id}','${s.id}')">${esc(s.nameTh)}${s.nameEn && s.nameEn !== s.nameTh ? ` • ${esc(s.nameEn)}` : ""}${parseFloat(s.priceAdd) > 0 ? ` (+${esc(fmtPrice(s.priceAdd))})` : ""}</button>`).join("")}
+           ${styles.map(s => `<button type="button" class="opt-tab style-tab${curStyle.id === s.id ? " active" : ""}" onclick="selectStyle('${menu.id}','${s.id}')">${esc(s.nameTh)}${s.nameEn && s.nameEn !== s.nameTh ? ` • ${esc(s.nameEn)}` : ""}${parseFloat(s.sellPrice) > 0 ? ` (${esc(fmtPrice(s.sellPrice))})` : parseFloat(s.priceAdd) > 0 ? ` (+${esc(fmtPrice(s.priceAdd))})` : ""}</button>`).join("")}
          </div>`
       : "";
     const shownItems = effectiveItems(menu, cur, curStyle);
@@ -1112,7 +1123,9 @@ function menuCardHtml(menu) {
     const sellPrice = parseFloat(prod.sellPrice);
     const profitHtml = profit
       ? `<div class="cost-rule"></div>
-         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่${profit.priceAdd ? ` <span class="en">(${esc(fmtPrice(profit.price - profit.priceAdd))} + ${esc(fmtPrice(profit.priceAdd))} ${esc(curStyle.nameTh)})</span>` : ""}</span>
+         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่${
+           profit.from === "style" ? ` <span class="en">(ราคาของ ${esc(curStyle.nameTh)})</span>`
+           : profit.priceAdd ? ` <span class="en">(${esc(fmtPrice(profit.basePrice))} + ${esc(fmtPrice(profit.priceAdd))} ${esc(curStyle.nameTh)})</span>` : ""}</span>
          <span class="cost-label">📈 กำไร • Profit:</span>
          <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
          <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
@@ -1227,7 +1240,7 @@ function menuCardHtml(menu) {
         </h3>
         <span class="head-actions">
           <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
-          <button class="icon-btn" title="เพิ่ม/แก้ไข meat options • Edit meat options" onclick="openOptsEditor('${menu.id}')">🥩</button>
+          <button class="icon-btn" title="เพิ่ม/แก้ไขตัวเลือกเมนู • Edit meat options &amp; serve styles" onclick="openOptsEditor('${menu.id}')">🥩</button>
           <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
         </span>
       </div>
@@ -1627,8 +1640,8 @@ function renderEditorStyles(m) {
   document.getElementById("editor-style-th").value = "";
   document.getElementById("editor-style-en").value = "";
   editorStyles = existing.length
-    ? existing.map(s => ({ id: s.id, th: s.nameTh, en: s.nameEn || "", priceAdd: s.priceAdd || "", count: (s.items || []).length }))
-    : DEFAULT_STYLES.map(d => ({ th: d.th, en: d.en, priceAdd: "", count: 0 }));
+    ? existing.map(s => ({ id: s.id, th: s.nameTh, en: s.nameEn || "", sellPrice: s.sellPrice || "", priceAdd: s.priceAdd || "", count: (s.items || []).length }))
+    : DEFAULT_STYLES.map(d => ({ th: d.th, en: d.en, sellPrice: "", priceAdd: "", count: 0 }));
   renderEditorStyleRows();
 }
 function renderEditorStyleRows() {
@@ -1643,7 +1656,11 @@ function renderEditorStyleRows() {
         <input type="text" id="sty-en-${i}" value="${esc(s.en)}">
       </div>
       <div class="field" style="flex:1 1 110px">
-        <label>ราคาบวกเพิ่ม (+$)</label>
+        <label>ราคาขาย ($)</label>
+        <input type="number" min="0" step="0.01" id="sty-sp-${i}" value="${esc(s.sellPrice)}" placeholder="ใช้ราคาเมนู">
+      </div>
+      <div class="field" style="flex:1 1 110px">
+        <label>หรือบวกเพิ่ม (+$)</label>
         <input type="number" min="0" step="0.01" id="sty-add-${i}" value="${esc(s.priceAdd)}" placeholder="0.00">
       </div>
       <button type="button" class="icon-btn" title="ลบแบบเสิร์ฟนี้ • Remove" onclick="removeEditorStyle(${i})">✕</button>
@@ -1654,7 +1671,8 @@ function readEditorStyleInputs() {
   editorStyles.forEach((s, i) => {
     const v = id => (document.getElementById(id + i)?.value ?? "").trim();
     if (document.getElementById("sty-th-" + i)) {
-      s.th = v("sty-th-"); s.en = v("sty-en-"); s.priceAdd = v("sty-add-");
+      s.th = v("sty-th-"); s.en = v("sty-en-");
+      s.sellPrice = v("sty-sp-"); s.priceAdd = v("sty-add-");
     }
   });
 }
@@ -1666,7 +1684,7 @@ function addEditorStyle() {
   const th = document.getElementById("editor-style-th").value.trim();
   const en = document.getElementById("editor-style-en").value.trim();
   if (!th && !en) return;
-  editorStyles.push({ th: th || en, en, priceAdd: "", count: 0 });
+  editorStyles.push({ th: th || en, en, sellPrice: "", priceAdd: "", count: 0 });
   document.getElementById("editor-style-th").value = "";
   document.getElementById("editor-style-en").value = "";
   renderEditorStyleRows();
@@ -1721,7 +1739,7 @@ function saveOptsModal() {
     menu.serveStyles = named.map(n => {
       const old = oldStyles.find(s => s.id === n.id);
       const base = old || { id: uid(), items: [] };
-      return { ...base, nameTh: n.th || n.en, nameEn: n.en, priceAdd: n.priceAdd || "" };
+      return { ...base, nameTh: n.th || n.en, nameEn: n.en, sellPrice: n.sellPrice || "", priceAdd: n.priceAdd || "" };
     });
     delete selectedStyle[menu.id];
   }
