@@ -617,6 +617,20 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>💵 รายงานต้นทุนและกำไร <span class="en">• Cost &amp; Profit Report</span></h2>
+      <p class="hint">สรุปเป็นตารางแยกตามประเภทเมนู เทียบต้นทุนต่อเสิร์ฟกับราคาขาย พร้อมกำไรและเปอร์เซ็นต์ • A table per menu type comparing cost per serve against the selling price, with profit and percentages</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('cost', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('cost', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-cost-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeCostReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeCostReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
   </section>
 
 </main>
@@ -1918,8 +1932,10 @@ function deleteIngredient(id) {
 }
 
 /* ---------- reports ---------- */
-const reportIngSel = new Set();
-const reportMenuSel = new Set();
+/* three independent pickers; "menu" and "cost" both choose menus */
+const reportSel = { ing: new Set(), menu: new Set(), cost: new Set() };
+const reportIngSel = reportSel.ing;
+const reportMenuSel = reportSel.menu;
 
 /* ingredients grouped by category, groups sorted by name with the
    uncategorised ones last */
@@ -1938,46 +1954,64 @@ function groupedIngredients() {
     return a.localeCompare(b, "th");
   });
 }
-
-function renderReports() {
-  const groups = groupedIngredients();
-  document.getElementById("report-ing-choices").innerHTML = state.ingredients.length
-    ? groups.map(([cat, list], gi) => {
-        const allOn = list.every(i => reportIngSel.has(i.id));
-        return `<div class="pick-group">
-          <div class="pick-head">
-            <span class="pick-name">${esc(cat || "ไม่ระบุประเภท • Uncategorized")}</span>
-            <span class="pick-count">${list.filter(i => reportIngSel.has(i.id)).length}/${list.length}</span>
-            <button type="button" class="btn small ghost" onclick="toggleReportGroup(${gi}, ${!allOn})">${allOn ? "ล้างกลุ่มนี้ • Clear" : "เลือกทั้งกลุ่ม • All"}</button>
-          </div>
-          ${list.map(i =>
-            `<label class="opt-choice${reportIngSel.has(i.id) ? " on" : ""}">
-               <input type="checkbox"${reportIngSel.has(i.id) ? " checked" : ""} onchange="toggleReportSel('ing','${i.id}',this.checked)">
-               ${esc(i.nameTh)}${i.nameEn ? ` • ${esc(i.nameEn)}` : ""}
-             </label>`).join("")}
-        </div>`;
-      }).join("")
-    : `<span class="brand-txt">ยังไม่มีส่วนผสม • No ingredients yet</span>`;
-  document.getElementById("report-menu-choices").innerHTML = state.menus.length ? state.menus.map(m =>
-    `<label class="opt-choice${reportMenuSel.has(m.id) ? " on" : ""}">
-       <input type="checkbox"${reportMenuSel.has(m.id) ? " checked" : ""} onchange="toggleReportSel('menu','${m.id}',this.checked)">
-       ${esc(m.nameTh)}${m.nameEn ? ` • ${esc(m.nameEn)}` : ""}
-     </label>`).join("")
-    : `<span class="brand-txt">ยังไม่มีเมนู • No menus yet</span>`;
+/* menus grouped by menu type, in the order the type list defines */
+function groupedMenus() {
+  const groups = new Map();
+  state.menus.forEach(m => {
+    const key = (m.category || "").trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  });
+  return [...groups.entries()].sort(([a], [b]) =>
+    catOrder(a) - catOrder(b) || a.localeCompare(b, "th"));
 }
+function pickerGroups(kind) { return kind === "ing" ? groupedIngredients() : groupedMenus(); }
+function groupTitle(kind, cat) {
+  return kind === "ing" ? (cat || "ไม่ระบุประเภท • Uncategorized") : menuCatLabel(cat);
+}
+
+function renderPicker(kind) {
+  const box = document.getElementById(`report-${kind}-choices`);
+  if (!box) return;
+  const sel = reportSel[kind];
+  const groups = pickerGroups(kind);
+  const empty = kind === "ing"
+    ? "ยังไม่มีส่วนผสม • No ingredients yet"
+    : "ยังไม่มีเมนู • No menus yet";
+  if (!groups.length) { box.innerHTML = `<span class="brand-txt">${empty}</span>`; return; }
+  box.innerHTML = groups.map(([cat, list], gi) => {
+    const allOn = list.every(x => sel.has(x.id));
+    return `<div class="pick-group">
+      <div class="pick-head">
+        <span class="pick-name">${esc(groupTitle(kind, cat))}</span>
+        <span class="pick-count">${list.filter(x => sel.has(x.id)).length}/${list.length}</span>
+        <button type="button" class="btn small ghost" onclick="toggleReportGroup('${kind}',${gi},${!allOn})">${allOn ? "ล้างกลุ่มนี้ • Clear" : "เลือกทั้งกลุ่ม • All"}</button>
+      </div>
+      ${list.map(x =>
+        `<label class="opt-choice${sel.has(x.id) ? " on" : ""}">
+           <input type="checkbox"${sel.has(x.id) ? " checked" : ""} onchange="toggleReportSel('${kind}','${x.id}',this.checked)">
+           ${esc(x.nameTh)}${x.nameEn ? ` • ${esc(x.nameEn)}` : ""}
+         </label>`).join("")}
+    </div>`;
+  }).join("");
+}
+
+function renderReports() { ["ing", "menu", "cost"].forEach(renderPicker); }
+
 function toggleReportSel(kind, id, v) {
-  const s = kind === "ing" ? reportIngSel : reportMenuSel;
+  const s = reportSel[kind];
   if (v) s.add(id); else s.delete(id);
   renderReports();
 }
-function toggleReportGroup(groupIndex, on) {
-  const group = groupedIngredients()[groupIndex];
+function toggleReportGroup(kind, groupIndex, on) {
+  const group = pickerGroups(kind)[groupIndex];
   if (!group) return;
-  group[1].forEach(i => on ? reportIngSel.add(i.id) : reportIngSel.delete(i.id));
+  const s = reportSel[kind];
+  group[1].forEach(x => on ? s.add(x.id) : s.delete(x.id));
   renderReports();
 }
 function setAllReportSel(kind, on) {
-  const s = kind === "ing" ? reportIngSel : reportMenuSel;
+  const s = reportSel[kind];
   s.clear();
   if (on) (kind === "ing" ? state.ingredients : state.menus).forEach(x => s.add(x.id));
   renderReports();
@@ -2039,6 +2073,18 @@ function reportShell(title, sub, body) {
   td { padding: 7px 8px; border-bottom: 1px solid #f0e7de; vertical-align: top; }
   tfoot td { font-weight: 700; background: #fff1e6; border-bottom: none; }
   .en { color: #94806f; font-size: .82rem; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* the cost table has many numeric columns: scroll it rather than squeeze the names */
+  .table-scroll { overflow-x: auto; }
+  .table-scroll table { min-width: 660px; }
+  @media print { .table-scroll { overflow: visible; } .table-scroll table { min-width: 0; } }
+  b.pos { color: #2f7d55; }
+  b.neg { color: #b23a3a; }
+  .summary {
+    background: #fff1e6; border: 1px solid #ffd9bd; border-radius: 10px;
+    padding: 10px 14px; margin-top: 14px; font-size: .9rem;
+  }
+  .summary .en { margin-top: 2px; }
   .cat-block { margin-top: 30px; }
   .cat-block h2 { border-bottom: 0; }
   .cat-title {
@@ -2136,14 +2182,10 @@ function buildMenuReport(ids) {
       : "";
     return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr>${profitRow}</tfoot>`;
   };
-  const body = ids.map(id => {
-    const m = state.menus.find(x => x.id === id);
-    if (!m) return "";
+  const chosen = new Set(ids);
+  const sectionFor = m => {
     const opts = menuOptions(m);
-    const metaBits = [
-      m.category ? `ประเภท • Type: ${menuCatLabel(m.category)}` : "",
-      ...fmtMenuMeta(prodOf(m, null, "main"))
-    ].filter(Boolean);
+    const metaBits = fmtMenuMeta(prodOf(m, null, "main"));
     const cat = metaBits.length ? `<div class="meta">${esc(metaBits.join("  |  "))}</div>` : "";
     const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
     let content;
@@ -2171,11 +2213,106 @@ function buildMenuReport(ids) {
         : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
     }
     return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
-  }).join("");
+  };
+
+  // one section per menu type, in the same order as the picker
+  const body = groupedMenus()
+    .map(([cat, list]) => [cat, list.filter(m => chosen.has(m.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) =>
+      `<div class="cat-block">
+         <h2 class="cat-title">${esc(menuCatLabel(cat))}
+           <span class="cat-n">${list.length} เมนู</span></h2>
+         ${list.map(sectionFor).join("")}
+       </div>`).join("");
+
   return reportShell(
     "รายงานเมนู • Menu Report",
     `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
     body);
+}
+
+/* ---------- cost & profit summary ---------- */
+/* every priceable combination of a menu: [{label, cost, prod}] */
+function costRowsFor(m) {
+  const opts = menuOptions(m);
+  const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
+  const rows = [];
+  (opts || [null]).forEach(o => styleKeys.forEach(k => {
+    const label = [o && o.nameTh, hasRice(m) && styleLabel(k).th].filter(Boolean).join(" · ");
+    rows.push({ label, cost: costOf(effectiveItems(m, o, k)), prod: prodOf(m, o, k) });
+  }));
+  return rows;
+}
+
+function buildCostReport(ids) {
+  const chosen = new Set(ids);
+  const dash = `<span class="en">–</span>`;
+  let counted = 0, incomplete = 0, marginSum = 0;
+
+  const rowHtml = (name, r) => {
+    const serves = parseFloat(r.prod.serves);
+    const price = parseFloat(r.prod.sellPrice);
+    const costPerServe = r.cost.priced && isFinite(serves) && serves > 0 ? r.cost.total / serves : null;
+    const p = profitOf(r.cost, r.prod);
+    if (p) { counted++; marginSum += p.marginPct; } else { incomplete++; }
+    const need = [
+      !r.cost.priced && "ต้นทุนส่วนผสม",
+      !(isFinite(serves) && serves > 0) && "Serves",
+      !(isFinite(price) && price > 0) && "ราคาขาย",
+    ].filter(Boolean);
+    return `<tr>
+      <td>${esc(name)}</td>
+      <td class="num">${costPerServe === null ? dash : esc(fmtPrice(costPerServe))}</td>
+      <td class="num">${isFinite(price) && price > 0 ? esc(fmtPrice(price)) : dash}</td>
+      <td class="num">${p ? `<b class="${p.profit < 0 ? "neg" : "pos"}">${esc(fmtPrice(p.profit))}</b>` : dash}</td>
+      <td class="num">${p ? `<b class="${p.marginPct < 0 ? "neg" : "pos"}">${esc(fmtPct(p.marginPct))}</b>` : dash}</td>
+      <td class="num">${p ? esc(fmtPct(p.foodCostPct)) : dash}</td>
+      <td>${p ? (r.cost.missing ? `<span class="en">⚠️ ต้นทุนยังไม่ครบ ${r.cost.missing} รายการ</span>` : "") : `<span class="en">ยังขาด: ${esc(need.join(", "))}</span>`}</td>
+    </tr>`;
+  };
+
+  const head = `<thead><tr>
+    <th>เมนู • Menu</th>
+    <th class="num">ต้นทุน/ที่<br>Cost per serve</th>
+    <th class="num">ราคาขาย<br>Price</th>
+    <th class="num">กำไร<br>Profit</th>
+    <th class="num">กำไร %<br>Margin</th>
+    <th class="num">ต้นทุนอาหาร %<br>Food cost</th>
+    <th></th>
+  </tr></thead>`;
+
+  const body = groupedMenus()
+    .map(([cat, list]) => [cat, list.filter(m => chosen.has(m.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) => {
+      const before = counted, sumBefore = marginSum;
+      const rows = list.map(m => {
+        const combos = costRowsFor(m);
+        const nameOf = r => m.nameTh + (r.label ? ` (${r.label})` : "");
+        return combos.map(r => rowHtml(nameOf(r), r)).join("");
+      }).join("");
+      const n = counted - before;
+      const avg = n ? (marginSum - sumBefore) / n : null;
+      const foot = avg === null ? "" :
+        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average margin (${n} รายการ)</td><td></td><td></td><td></td><td class="num">${esc(fmtPct(avg))}</td><td class="num">${esc(fmtPct(100 - avg))}</td><td></td></tr></tfoot>`;
+      return `<div class="cat-block">
+        <h2 class="cat-title">${esc(menuCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
+        <div class="table-scroll"><table>${head}<tbody>${rows}</tbody>${foot}</table></div>
+      </div>`;
+    }).join("");
+
+  const avgAll = counted ? marginSum / counted : null;
+  const summary = `<div class="summary">
+    คำนวณได้ ${counted} รายการ${incomplete ? ` · ข้อมูลไม่ครบ ${incomplete} รายการ` : ""}${
+      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b>${esc(fmtPct(avgAll))}</b> (ต้นทุนอาหาร ${esc(fmtPct(100 - avgAll))})`}
+    <div class="en">เมนูที่มีตัวเลือกจะแยกบรรทัดตามเนื้อสัตว์และแบบเสิร์ฟ เพราะต้นทุนและราคาต่างกัน</div>
+  </div>`;
+
+  return reportShell(
+    "รายงานต้นทุนและกำไร • Cost & Profit Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
+    summary + body);
 }
 
 function downloadHtml(filename, html) {
@@ -2204,6 +2341,13 @@ function makeMenuReport(mode) {
   if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
   const html = buildMenuReport(ids);
   if (mode === "download") { downloadHtml(`menu-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeCostReport(mode) {
+  const ids = state.menus.filter(m => reportSel.cost.has(m.id)).map(m => m.id);
+  if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
+  const html = buildCostReport(ids);
+  if (mode === "download") { downloadHtml(`cost-profit-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
   else openPrint(html);
 }
 
