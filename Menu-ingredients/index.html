@@ -466,6 +466,21 @@
             </div>
           </div>
         </div>
+        <div style="flex-basis:100%">
+          <label class="chk-row">
+            <input type="checkbox" id="menu-has-rice">
+            🍚 มีแบบพร้อมข้าว <span class="en">• Also offer a "with rice" version</span>
+          </label>
+          <div id="rice-builder" style="display:none">
+            <div class="form-row" style="margin-top:8px">
+              <div class="field" style="flex:1 1 200px">
+                <label><b>ราคาขาย/ที่ เมื่อพร้อมข้าว ($)</b> • With-rice price per serve</label>
+                <input type="number" id="menu-rice-price" min="0" step="0.01" placeholder="เว้นว่าง = ใช้ราคาเมนูเดี่ยว">
+              </div>
+            </div>
+            <div class="hint" style="margin-top:4px">ส่วนผสมที่เพิ่ม (เช่น ข้าวสวย) ใส่ได้บนการ์ดเมนูหลังเพิ่มเมนูแล้ว • Add the extra ingredients on the menu card once the menu exists</div>
+          </div>
+        </div>
         <button type="submit" class="btn">+ เพิ่มเมนู • Add</button>
       </form>
     </div>
@@ -1336,12 +1351,22 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
       menu.options = chosen.map(o => ({ id: uid(), nameTh: o.th, nameEn: o.en, items: [] }));
     }
   }
+  if (document.getElementById("menu-has-rice").checked) {
+    menu.withRice = {
+      enabled: true, items: [],
+      sellPrice: document.getElementById("menu-rice-price").value.trim(),
+    };
+  }
   state.menus.unshift(menu);
   save(); renderAll();
   e.target.reset();
   resetBuilder();
   document.getElementById("menu-name-th").focus();
-  toast(`เพิ่มเมนู "${th}" แล้ว${menu.options ? ` (${menu.options.length} meat options)` : ""} • Menu added`);
+  const extras = [
+    menu.options && `${menu.options.length} meat options`,
+    menu.withRice && RICE_TH,
+  ].filter(Boolean).join(" + ");
+  toast(`เพิ่มเมนู "${th}" แล้ว${extras ? ` (${extras})` : ""} • Menu added`);
 });
 
 function changeMenuCategory(menuId, val) {
@@ -1468,6 +1493,9 @@ function resetBuilder() {
   builderOpts = DEFAULT_MEAT_OPTS.map(o => ({ ...o, checked: true }));
   document.getElementById("menu-has-opts").checked = false;
   document.getElementById("opts-builder").style.display = "none";
+  document.getElementById("menu-has-rice").checked = false;
+  document.getElementById("menu-rice-price").value = "";
+  document.getElementById("rice-builder").style.display = "none";
   renderBuilderChoices();
 }
 function renderBuilderChoices() {
@@ -1481,6 +1509,9 @@ function toggleBuilderOpt(i, v) { builderOpts[i].checked = v; renderBuilderChoic
 
 document.getElementById("menu-has-opts").addEventListener("change", e => {
   document.getElementById("opts-builder").style.display = e.target.checked ? "" : "none";
+});
+document.getElementById("menu-has-rice").addEventListener("change", e => {
+  document.getElementById("rice-builder").style.display = e.target.checked ? "" : "none";
 });
 document.getElementById("add-custom-opt-btn").addEventListener("click", () => {
   const th = document.getElementById("custom-opt-th").value.trim();
