@@ -211,6 +211,20 @@
   .opt-choice input { width: auto; accent-color: var(--accent); }
   .opt-choice.on { border-color: var(--accent); background: var(--accent-soft); color: var(--blue); font-weight: 600; }
   .opt-choice .cnt { font-size: .75rem; color: var(--muted); }
+  /* grouped checkbox picker in the reports tab */
+  .pick-group { margin-bottom: 14px; }
+  .pick-head {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
+  }
+  .pick-head .pick-name { font-size: .88rem; font-weight: 600; color: var(--blue); }
+  .pick-head .pick-count {
+    font-size: .74rem; font-weight: 600; color: var(--muted);
+    background: var(--green-soft); border-radius: 999px; padding: 1px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pick-head .btn { margin-left: auto; }
+
   .add-custom-opt { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .add-custom-opt input { flex: 1 1 180px; }
 
@@ -1907,13 +1921,42 @@ function deleteIngredient(id) {
 const reportIngSel = new Set();
 const reportMenuSel = new Set();
 
+/* ingredients grouped by category, groups sorted by name with the
+   uncategorised ones last */
+function groupedIngredients() {
+  const groups = new Map();
+  [...state.ingredients]
+    .sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"))
+    .forEach(i => {
+      const key = (i.category || "").trim();
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(i);
+    });
+  return [...groups.entries()].sort(([a], [b]) => {
+    if (a === "") return 1;
+    if (b === "") return -1;
+    return a.localeCompare(b, "th");
+  });
+}
+
 function renderReports() {
-  const ings = [...state.ingredients].sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"));
-  document.getElementById("report-ing-choices").innerHTML = ings.length ? ings.map(i =>
-    `<label class="opt-choice${reportIngSel.has(i.id) ? " on" : ""}">
-       <input type="checkbox"${reportIngSel.has(i.id) ? " checked" : ""} onchange="toggleReportSel('ing','${i.id}',this.checked)">
-       ${esc(i.nameTh)}${i.nameEn ? ` • ${esc(i.nameEn)}` : ""}
-     </label>`).join("")
+  const groups = groupedIngredients();
+  document.getElementById("report-ing-choices").innerHTML = state.ingredients.length
+    ? groups.map(([cat, list], gi) => {
+        const allOn = list.every(i => reportIngSel.has(i.id));
+        return `<div class="pick-group">
+          <div class="pick-head">
+            <span class="pick-name">${esc(cat || "ไม่ระบุประเภท • Uncategorized")}</span>
+            <span class="pick-count">${list.filter(i => reportIngSel.has(i.id)).length}/${list.length}</span>
+            <button type="button" class="btn small ghost" onclick="toggleReportGroup(${gi}, ${!allOn})">${allOn ? "ล้างกลุ่มนี้ • Clear" : "เลือกทั้งกลุ่ม • All"}</button>
+          </div>
+          ${list.map(i =>
+            `<label class="opt-choice${reportIngSel.has(i.id) ? " on" : ""}">
+               <input type="checkbox"${reportIngSel.has(i.id) ? " checked" : ""} onchange="toggleReportSel('ing','${i.id}',this.checked)">
+               ${esc(i.nameTh)}${i.nameEn ? ` • ${esc(i.nameEn)}` : ""}
+             </label>`).join("")}
+        </div>`;
+      }).join("")
     : `<span class="brand-txt">ยังไม่มีส่วนผสม • No ingredients yet</span>`;
   document.getElementById("report-menu-choices").innerHTML = state.menus.length ? state.menus.map(m =>
     `<label class="opt-choice${reportMenuSel.has(m.id) ? " on" : ""}">
@@ -1925,6 +1968,12 @@ function renderReports() {
 function toggleReportSel(kind, id, v) {
   const s = kind === "ing" ? reportIngSel : reportMenuSel;
   if (v) s.add(id); else s.delete(id);
+  renderReports();
+}
+function toggleReportGroup(groupIndex, on) {
+  const group = groupedIngredients()[groupIndex];
+  if (!group) return;
+  group[1].forEach(i => on ? reportIngSel.add(i.id) : reportIngSel.delete(i.id));
   renderReports();
 }
 function setAllReportSel(kind, on) {
@@ -1990,8 +2039,23 @@ function reportShell(title, sub, body) {
   td { padding: 7px 8px; border-bottom: 1px solid #f0e7de; vertical-align: top; }
   tfoot td { font-weight: 700; background: #fff1e6; border-bottom: none; }
   .en { color: #94806f; font-size: .82rem; }
+  .cat-block { margin-top: 30px; }
+  .cat-block h2 { border-bottom: 0; }
+  .cat-title {
+    background: #3c271d; color: #fff; border-radius: 8px;
+    padding: 7px 14px; margin: 0 0 4px; font-size: 1rem;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .cat-title .cat-n { font-size: .75rem; font-weight: 400; opacity: .75; margin-left: auto; }
+  .cat-block > h2:not(.cat-title) { border-bottom: 2px solid #eadfd7; }
   .print-btn { position: fixed; top: 14px; right: 14px; background: #ff873c; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-family: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
-  @media print { .print-btn { display: none; } body { padding: 0; } }
+  @media print {
+    .print-btn { display: none; }
+    body { padding: 0; }
+    .cat-block { break-inside: auto; }
+    .cat-title { break-after: avoid; }
+    table { break-inside: avoid; }
+  }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">🖨️ พิมพ์ / Save as PDF</button>
 <h1>🍜 ${esc(title)}</h1>
@@ -2002,12 +2066,12 @@ ${body}
 
 function buildIngredientReport(ids) {
   const usages = allUsages();
-  const body = ids.map(id => {
+  const chosen = new Set(ids);
+  const sectionFor = id => {
     const ing = findIngredient(id);
     if (!ing) return "";
     const list = usages.get(id) || [];
     const meta = [
-      ing.category ? `ประเภท • Category: ${esc(ing.category)}` : "",
       ing.brand ? `แบรนด์ • Brand: ${esc(ing.brand)}` : "",
       fmtPack(ing) ? `ปริมาณ • Pack size: ${esc(fmtPack(ing))}` : "",
       ing.price ? `ราคา • Price: ${esc(fmtPrice(ing.price))}${fmtPack(ing) ? ` / ${esc(fmtPack(ing))}` : ""}` : "",
@@ -2021,7 +2085,19 @@ function buildIngredientReport(ids) {
          <tfoot><tr><td>รวมทุกเมนู • Total (${list.length} เมนู)</td><td>${esc(totalLine(list))}</td></tr></tfoot></table>`
       : `<div class="meta">ยังไม่มีเมนูที่ใช้ส่วนผสมนี้ • Not used in any menu yet</div>`;
     return `<h2>${esc(ing.nameTh)}${ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</h2>${meta ? `<div class="meta">${meta}</div>` : ""}${table}`;
-  }).join("");
+  };
+
+  // one section per category, in the same order as the picker
+  const body = groupedIngredients()
+    .map(([cat, list]) => [cat, list.filter(i => chosen.has(i.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) =>
+      `<div class="cat-block">
+         <h2 class="cat-title">${esc(cat || "ไม่ระบุประเภท • Uncategorized")}
+           <span class="cat-n">${list.length} รายการ</span></h2>
+         ${list.map(i => sectionFor(i.id)).join("")}
+       </div>`).join("");
+
   return reportShell(
     "รายงานส่วนผสม • Ingredient Report",
     `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} ส่วนผสม`,
