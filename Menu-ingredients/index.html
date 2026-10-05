@@ -392,6 +392,23 @@
   }
   .toast.show { opacity: .95; }
 
+  /* back to top — sits below the modals (z-index 40) so an open dialog covers it */
+  .to-top {
+    position: fixed; right: 18px; bottom: 18px;
+    width: 48px; height: 48px;
+    border: none; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 1.35rem; line-height: 1; font-family: inherit;
+    cursor: pointer; z-index: 30;
+    box-shadow: 0 4px 14px rgba(60,39,29,.3);
+    opacity: 0; transform: translateY(12px); pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease, filter .15s;
+  }
+  .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+  .to-top:hover { filter: brightness(1.08); }
+  .to-top:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
+
   @media (max-width: 480px) {
     .grid { grid-template-columns: minmax(0, 1fr); }
     header h1 { font-size: 1.25rem; }
@@ -759,6 +776,8 @@
   </div>
 </div>
 
+<button type="button" class="to-top" id="to-top" title="กลับขึ้นด้านบน • Back to top" aria-label="กลับขึ้นด้านบน • Back to top">↑</button>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1064,6 +1083,18 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
+/* ---------- back to top ---------- */
+(() => {
+  const btn = document.getElementById("to-top");
+  const sync = () => btn.classList.toggle("show", window.scrollY > 320);
+  window.addEventListener("scroll", sync, { passive: true });
+  sync();
+  btn.addEventListener("click", () => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  });
+})();
+
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -1087,6 +1118,7 @@ const MENU_TYPES = [
   { value: "Grilled",       th: "เมนูย่าง" },
   { value: "Deep Fried",    th: "เมนูทอด" },
   { value: "Soup",          th: "เมนูต้ม · ซุป" },
+  { value: "Fish Dishes",   th: "เมนูปลา" },
   { value: "Noodle",        th: "ก๋วยเตี๋ยว" },
   { value: "Special",       th: "เมนูพิเศษ" },
   { value: "Special Lanna", th: "เมนูพิเศษล้านนา" },
