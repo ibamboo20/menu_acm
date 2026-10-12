@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@Chiang Mai — FAQ | คำถามที่พบบ่อย</title>
+  <link rel="icon" href="/img/placeholder.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prata&family=Poppins:wght@300;400;500;600&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF873C;
+      --cocoa: #3c271d;
+      --cream: #fbf6ef;
+      --card: #ffffff;
+      --line: #eadfd2;
+      --muted: #7a6558;
+      --yes: #2f8a4e;   --yes-bg: #e5f4ea;
+      --cond: #b46a00;  --cond-bg: #fff1dc;
+      --no: #c0392b;    --no-bg: #fbe5e2;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--cream); color: var(--cocoa);
+      font-family: 'Poppins', 'Kanit', sans-serif; line-height: 1.55;
+    }
+    header {
+      background: var(--cocoa); color: var(--cream); text-align: center;
+      padding: 22px 16px 26px;
+    }
+    header img { height: 74px; display: block; margin: 0 auto 8px; }
+    header h1 { font-family: 'Prata', 'Kanit', serif; font-weight: 400; margin: 0; font-size: 28px; }
+    header p { margin: 4px 0 0; opacity: .8; font-family: 'Kanit'; font-weight: 300; }
+    header .links { margin-top: 10px; font-size: 13px; }
+    header .links a { color: var(--orange); text-decoration: none; margin: 0 8px; }
+
+    main { max-width: 880px; margin: 0 auto; padding: 20px 16px 80px; }
+
+    .search { position: sticky; top: 0; z-index: 5; background: var(--cream); padding: 10px 0; }
+    .search input {
+      width: 100%; padding: 12px 16px; border: 1.5px solid var(--line); border-radius: 999px;
+      font: inherit; background: var(--card); color: var(--cocoa);
+    }
+    .search input:focus { outline: none; border-color: var(--orange); }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .chips a {
+      font-size: 13px; padding: 5px 12px; border-radius: 999px; text-decoration: none;
+      background: var(--card); border: 1px solid var(--line); color: var(--cocoa);
+    }
+    .chips a:hover { border-color: var(--orange); color: var(--orange); }
+
+    h2 {
+      font-family: 'Prata', 'Kanit', serif; font-weight: 400; font-size: 22px;
+      margin: 34px 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--orange);
+      scroll-margin-top: 110px;
+    }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; margin: 8px 0 4px; }
+
+    .badge {
+      display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .yes  { color: var(--yes);  background: var(--yes-bg); }
+    .cond { color: var(--cond); background: var(--cond-bg); }
+    .no   { color: var(--no);   background: var(--no-bg); }
+
+    /* Q&A cards */
+    .qa {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .qa summary {
+      list-style: none; cursor: pointer; padding: 14px 16px; display: flex; gap: 12px;
+      align-items: flex-start; font-weight: 500;
+    }
+    .qa summary::-webkit-details-marker { display: none; }
+    .qa summary .q { flex: 1; }
+    .qa summary .q small { display: block; font-weight: 300; color: var(--muted); font-family: 'Kanit'; }
+    .qa summary::after { content: '+'; color: var(--orange); font-size: 20px; line-height: 1; }
+    .qa[open] summary::after { content: '–'; }
+    .qa .a { padding: 0 16px 16px; border-top: 1px dashed var(--line); padding-top: 12px; }
+    .qa .a p { margin: 0 0 6px; }
+    .qa .a .th { font-family: 'Kanit'; font-weight: 300; color: var(--muted); }
+
+    /* tables */
+    /* overflow: clip (not auto) so the sticky header follows the page scroll */
+    .table-wrap { overflow: clip; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { background: #f4ebe0; font-weight: 600; font-size: 13px; }
+    thead th { position: sticky; top: var(--search-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--line); }
+    tr:last-child td { border-bottom: 0; }
+    td .th { display: block; font-family: 'Kanit'; font-weight: 300; color: var(--muted); font-size: 13px; }
+    td .note { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* GF grid */
+    .gf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .gf-cat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+    .gf-cat h3 { margin: 0 0 8px; font-size: 15px; color: var(--orange); font-weight: 600; }
+    .gf-cat ul { list-style: none; padding: 0; margin: 0; }
+    .gf-cat li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 14px; }
+    .gf-cat li:last-child { border-bottom: 0; }
+    .gf-cat li .note { display: block; font-size: 12px; color: var(--muted); }
+
+    /* Khantoke */
+    .khantoke { background: var(--cocoa); color: var(--cream); border-radius: 16px; padding: 20px; }
+    .khantoke ol { columns: 2; column-gap: 24px; margin: 0; padding-left: 22px; }
+    .khantoke li { margin-bottom: 8px; break-inside: avoid; }
+    .khantoke li span { display: block; font-size: 13px; opacity: .7; }
+
+    .tip {
+      background: var(--cond-bg); border-left: 4px solid var(--orange); border-radius: 8px;
+      padding: 10px 14px; font-size: 14px; margin: 12px 0;
+    }
+    .hidden { display: none !important; }
+    #empty { text-align: center; color: var(--muted); padding: 20px; }
+
+    #top {
+      position: fixed; right: 16px; bottom: 16px; width: 44px; height: 44px; border-radius: 50%;
+      background: var(--orange); color: #fff; border: 0; font-size: 20px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    @media (max-width: 560px) {
+      header h1 { font-size: 23px; }
+      .khantoke ol { columns: 1; }
+      th, td { padding: 8px; }
+    }
+    .warn {
+      background: var(--no-bg); border-left: 4px solid var(--no); border-radius: 8px;
+      padding: 12px 14px; font-size: 14px; margin: 12px 0;
+    }
+    .warn strong { color: var(--no); }
+    .qa .a ul { margin: 4px 0 8px; padding-left: 20px; }
+    .qa .a li { margin-bottom: 3px; }
+    td.c { text-align: center; }
+    tr.cat td { background: var(--cocoa); color: var(--cream); font-family: 'Prata', 'Kanit', serif; font-size: 14px; letter-spacing: .5px; padding: 7px 12px; }
+    #diet-filter a.on { background: var(--orange); border-color: var(--orange); color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/img/logo.png" alt="@Chiang Mai">
+    <h1>Frequently Asked Questions</h1>
+    <p>คำถามที่พบบ่อย · ข้อมูลเมนู & อาหารพิเศษ</p>
+    <div class="links"><a href="/">MENU</a> · <a href="/dashboard.html">DASHBOARD</a></div>
+  </header>
+
+  <main>
+    <div class="search">
+      <input id="q" type="search" placeholder="🔍 Search a dish or question… / ค้นหาเมนู หรือคำถาม">
+      <div class="chips">
+        <a href="#quick">⚡ Quick answers</a>
+        <a href="#diet">🥗 Dietary chart</a>
+        <a href="#gf">🌾 Gluten-free</a>
+        <a href="#khantoke">🍱 Khantoke</a>
+      </div>
+    </div>
+
+    <!-- ============ QUICK ANSWERS ============ -->
+    <h2 id="quick">⚡ Quick Answers</h2>
+    <p class="sub">Tap a question to see the answer · แตะที่คำถามเพื่อดูคำตอบ</p>
+
+    <details class="qa" data-search="nuea yang grilled beef เนื้อย่าง cut porterhouse">
+      <summary><span class="q">What cut of beef is used for Grilled Beef?<small>เนื้อย่าง ใช้เนื้อส่วนไหน</small></span></summary>
+      <div class="a">
+        <p><strong>Porterhouse</strong> 🥩</p>
+        <p class="th">ใช้เนื้อส่วน Porterhouse</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="pad thai ผัดไทย vegan no egg ไข่">
+      <summary><span class="q">Can Pad Thai be vegan or no egg?<small>ผัดไทย ทำ vegan หรือ no egg ได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">No egg ✓</span> <span class="badge no">Vegan ✗</span></p>
+        <p><strong>No egg — yes.</strong> Vegan — <strong>no</strong>. (Vegetarian Veg &amp; Tofu is available.)</p>
+        <p class="th">ไม่ใส่ไข่ได้ แต่ทำ vegan ไม่ได้ (มีแบบ vegetarian ผัก &amp; เต้าหู้)</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="pad see ew ผัดซีอิ๊ว vegan no egg ไข่">
+      <summary><span class="q">Can Pad See Ew be vegan or no egg?<small>ผัดซีอิ๊ว ทำ vegan หรือ no egg ได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">No egg ✓</span> <span class="badge yes">Vegan ✓ on request</span></p>
+        <p>Yes, both.</p>
+        <p class="th">ได้ทั้งสองแบบ</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="kuaitiao khua kai kua gai ก๋วยเตี๋ยวคั่วไก่ no egg ไข่">
+      <summary><span class="q">Can Kuaitiao Khua Kai be no egg?<small>ก๋วยเตี๋ยวคั่วไก่ no egg ได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">Yes</span></p>
+        <p>Yes, no egg is fine.</p>
+        <p class="th">ได้</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="fried rice ข้าวผัด vegan no egg ไข่">
+      <summary><span class="q">Can Fried Rice be vegan or no egg?<small>ข้าวผัด ทำ vegan หรือ no egg ได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">No egg ✓</span> <span class="badge yes">Vegan ✓ on request</span></p>
+        <p>Yes, both.</p>
+        <p class="th">ได้ทั้งสองแบบ</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="stir fried mixed vegetables mix veg ผัดผัก vegan">
+      <summary><span class="q">Can Mixed Veg be vegan?<small>ผัดผัก ทำ vegan ได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">Yes · on request</span></p>
+        <p>Yes.</p>
+        <p class="th">ได้</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="tom yum ต้มยำ prawn shrimp กุ้ง only change price ราคา seafood">
+      <summary><span class="q">Can the Tom Yum be prawn only?<small>ต้มยำ เปลี่ยนเป็นแค่ต้มยำกุ้งได้ไหม</small></span></summary>
+      <div class="a">
+        <p><span class="badge yes">Yes</span> <span class="badge cond">💲 Seafood price</span></p>
+        <p>Yes — charged at the <strong>same price as the seafood</strong> Tom Yum.</p>
+        <p class="th">ได้ ราคาเท่ากับต้มยำ seafood</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="gluten free gf gluten coeliac celiac wheat allergy เมนูไหน spring rolls fried rice kaprao กะเพรา">
+      <summary><span class="q">Which dishes can be gluten-free?<small>เมนูไหนบ้างที่ทำ GF ได้</small></span></summary>
+      <div class="a">
+        <ul>
+          <li><strong>Spring Rolls</strong> — gluten-free <span class="badge yes">GF</span></li>
+          <li><strong>Fried Rice</strong> &amp; <strong>Pad Kaprao</strong> — GF <em>on request only</em> <span class="badge cond">On request</span></li>
+        </ul>
+        <p>⚠️ <strong>We cannot serve customers with Coeliac disease or a wheat allergy</strong> — no exceptions, because our cooking utensils may be cross-contaminated.</p>
+        <p class="th">ระวังเรื่อง cross-contamination · ไม่รับลูกค้าที่เป็น Celiac หรือแพ้ข้าวสาลี ไม่มีข้อยกเว้น</p>
+        <p><a href="#gf">See the gluten-free guide ↓</a></p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="khantoke ขันโตก set what's in">
+      <summary><span class="q">What comes in the Khantoke set?<small>ในเมนูขันโตกมีอะไรบ้าง</small></span></summary>
+      <div class="a">
+        <p>6 Northern Thai items — <a href="#khantoke">see the Khantoke set ↓</a></p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="hang lay haeng lay ฮังเล red curry แกงแดง difference ต่างกัน coconut กะทิ">
+      <summary><span class="q">What's the difference between Hang Lay and Red Curry?<small>แกงฮังเลกับแกงแดงต่างกันยังไง</small></span></summary>
+      <div class="a">
+        <ul>
+          <li><strong>Hang Lay has no coconut milk</strong> 🥥✗ — Red Curry does.</li>
+          <li>The <strong>curry paste is different</strong>.</li>
+        </ul>
+        <p class="th">หลักๆ ฮังเลไม่มีกะทิ และเครื่องแกงต่างกัน</p>
+      </div>
+    </details>
+
+    <details class="qa" data-search="vegetarian มังสวิรัติ veg tofu เต้าหู้ เมนู">
+      <summary><span class="q">Do you have vegetarian dishes?<small>มีเมนู vegetarian ไหม</small></span></summary>
+      <div class="a">
+        <ul>
+          <li>Pad Thai — Veg &amp; Tofu</li>
+          <li>Pad See Ew — Veg &amp; Tofu</li>
+          <li>Fried Rice — Veg &amp; Tofu</li>
+          <li>Mixed Veg</li>
+          <li>Veg Spring Rolls</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="qa" data-search="vegan วีแกน เจ เมนู stir fried">
+      <summary><span class="q">Which dishes can be vegan?<small>เมนูที่ทำ vegan ได้</small></span></summary>
+      <div class="a">
+        <p>Only <strong>stir-fried dishes, on request</strong>:</p>
+        <ul>
+          <li>Pad See Ew</li>
+          <li>Fried Rice</li>
+          <li>Pad Kaprao</li>
+          <li>Mixed Veg</li>
+        </ul>
+        <p>Plus <strong>Vegetarian Spring Rolls</strong> — already vegan 🌱</p>
+        <p class="th">ทำ vegan ได้เฉพาะเมนูผัด (ต้องขอ) · ปอเปี๊ยะผักเป็น vegan อยู่แล้ว · ผัดไทยทำ vegan ไม่ได้</p>
+      </div>
+    </details>
+
+    <p id="empty" class="hidden">No matching questions · ไม่พบคำถามที่ค้นหา</p>
+
+    <!-- ============ DIETARY CHART ============ -->
+    <h2 id="diet">🥗 Dietary Chart — full menu</h2>
+    <p class="sub">Every dish on the menu · ทุกเมนูในร้าน</p>
+    <div class="legend">
+      <span><span class="badge yes">✓</span> yes / already</span>
+      <span><span class="badge cond">Request</span> customer must ask</span>
+      <span><span class="badge no">✗</span> cannot</span>
+      <span>— check with kitchen</span>
+      <span>🥜 peanut · 🌰 cashew</span>
+    </div>
+    <div class="chips" id="diet-filter" style="margin:12px 0 10px">
+      <a href="#" data-col="all" class="on">All dishes</a>
+      <a href="#" data-col="1">🥚 No egg</a>
+      <a href="#" data-col="2">🥕 Vegetarian</a>
+      <a href="#" data-col="3">🌱 Vegan</a>
+      <a href="#" data-col="4">🌾 Gluten-free</a>
+      <a href="#" data-col="nuts">🚫🥜 Nut-free</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dish</th><th class="c">No egg</th><th class="c">Vegetarian</th><th class="c">Vegan</th><th class="c">Gluten-free</th><th class="c">Nuts</th></tr></thead>
+        <tbody id="diet-body"></tbody>
+      </table>
+    </div>
+    <p id="diet-empty" class="hidden" style="text-align:center;color:var(--muted)">No dishes match · ไม่พบเมนู</p>
+    <div class="warn" style="margin-top:12px">⚠️ <strong>Coeliac / wheat allergy — we cannot serve, no exceptions.</strong> The GF column is only for customers who <em>prefer</em> gluten-free.</div>
+
+    <!-- ============ GLUTEN FREE ============ -->
+    <h2 id="gf">🌾 Gluten-Free Guide</h2>
+    <div class="warn">
+      <strong>⚠️ Coeliac / wheat allergy: we cannot serve — no exceptions.</strong><br>
+      Our cooking utensils may be cross-contaminated with gluten.
+      <span class="th" style="display:block;margin-top:4px;font-family:'Kanit';font-weight:300">ไม่รับลูกค้าที่เป็น Celiac หรือแพ้ข้าวสาลี ไม่มีข้อยกเว้น เพราะอุปกรณ์ทำอาหารอาจปนเปื้อน (cross-contamination)</span>
+    </div>
+    <p class="sub">For customers who simply <em>prefer</em> gluten-free, only these dishes are offered:</p>
+    <div class="gf-grid">
+      <div class="gf-cat">
+        <h3>Already gluten-free</h3>
+        <ul>
+          <li><span>Veg Spring Rolls<span class="note">ปอเปี๊ยะผัก</span></span><span class="badge yes">GF</span></li>
+          <li><span>Prawn Spring Rolls<span class="note">ปอเปี๊ยะกุ้ง</span></span><span class="badge yes">GF</span></li>
+        </ul>
+      </div>
+      <div class="gf-cat">
+        <h3>Gluten-free on request</h3>
+        <ul>
+          <li><span>Fried Rice<span class="note">ข้าวผัด</span></span><span class="badge cond">On request</span></li>
+          <li><span>Pad Kaprao<span class="note">ผัดกะเพรา</span></span><span class="badge cond">On request</span></li>
+        </ul>
+      </div>
+      <div class="gf-cat">
+        <h3>Everything else</h3>
+        <ul>
+          <li><span>All other dishes<span class="note">เมนูอื่นๆ ทั้งหมด</span></span><span class="badge no">Not GF</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ KHANTOKE ============ -->
+    <h2 id="khantoke">🍱 What's in the Khantoke Set?</h2>
+    <p class="sub">ในเมนูขันโตกมีอะไรบ้าง — 6 items</p>
+    <div class="khantoke">
+      <ol>
+        <li>Nam Prik Noom<span>น้ำพริกหนุ่ม · green chilli dip</span></li>
+        <li>Nam Prik Ong<span>น้ำพริกอ่อง · pork &amp; tomato chilli dip</span></li>
+        <li>Blanched Vegetables<span>ผักลวก · for dipping</span></li>
+        <li>Haeng Lay Pork<span>แกงฮังเล · Northern pork curry</span></li>
+        <li>Khaep Moo (Homemade)<span>แคบหมู · pork crackling</span></li>
+        <li>Sai Aua<span>ไส้อั่ว · Northern Thai sausage</span></li>
+      </ol>
+    </div>
+  </main>
+
+  <button id="top" title="Back to top" aria-label="Back to top">↑</button>
+
+  <script>
+    const input = document.getElementById('q');
+    const cards = [...document.querySelectorAll('.qa')];
+    const empty = document.getElementById('empty');
+    input.addEventListener('input', () => {
+      const term = input.value.trim().toLowerCase();
+      let shown = 0;
+      cards.forEach(c => {
+        const hay = (c.dataset.search + ' ' + c.textContent).toLowerCase();
+        const match = !term || hay.includes(term);
+        c.classList.toggle('hidden', !match);
+        c.open = !!term && match;
+        if (match) shown++;
+      });
+      empty.classList.toggle('hidden', shown > 0);
+    });
+
+    // ---- Dietary chart data (from the A3 menu) ----
+    // columns: [name, thai, noEgg, vegetarian, vegan, glutenFree, nuts, note]
+    // y = yes, r = on request, n = no, - = check with kitchen · nuts: P = peanut, C = cashew
+    const MENU = {
+      'Entrée': [
+        ['Kolae Chicken', 'ไก่กอและ', '-', 'n', 'n', 'n'],
+        ['Fish Cake', 'ทอดมันปลา', '-', 'n', 'n', 'n'],
+        ['Prawn Spring Rolls', 'ปอเปี๊ยะกุ้ง', '-', 'n', 'n', 'y'],
+        ['Veg Spring Rolls', 'ปอเปี๊ยะผัก', '-', 'y', 'y', 'y'],
+        ['Prawn Donuts', 'โดนัทกุ้ง', '-', 'n', 'n', 'n'],
+      ],
+      'Grilled': [
+        ['Gai Yang', 'ไก่ย่าง', '-', 'n', 'n', 'n'],
+        ['Muek Yang', 'หมึกย่าง', '-', 'n', 'n', 'n'],
+        ['Kor Moo Yang', 'คอหมูย่าง', '-', 'n', 'n', 'n'],
+        ['Neua Yang', 'เนื้อย่าง', '-', 'n', 'n', 'n', '', 'Porterhouse cut'],
+        ['Grilled Ox Tongue', 'ลิ้นวัวย่าง', '-', 'n', 'n', 'n'],
+      ],
+      'Deep-Fried': [
+        ['At Chiang Mai Fried Chicken', 'ไก่ทอด', '-', 'n', 'n', 'n'],
+        ['At Chiang Mai Fried Pork', 'หมูทอด', '-', 'n', 'n', 'n'],
+        ['Kor Moo Tod Nam Pla', 'คอหมูทอดน้ำปลา', '-', 'n', 'n', 'n'],
+        ['Sun-dried Pork', 'หมูแดดเดียว', '-', 'n', 'n', 'n'],
+        ['Sun-dried Beef', 'เนื้อแดดเดียว', '-', 'n', 'n', 'n'],
+        ['Deep Fried Calamari', 'ปลาหมึกทอด', '-', 'n', 'n', 'n'],
+        ['Sai Tod', 'ไส้ทอด', '-', 'n', 'n', 'n'],
+      ],
+      'Stir-Fry': [
+        ['Pad Thai', 'ผัดไทย', 'y', 'y', 'n', 'n', 'P', 'Vegetarian = Veg & Tofu'],
+        ['Pad See Ew', 'ผัดซีอิ๊ว', 'y', 'y', 'r', 'n', '', 'Vegetarian = Veg & Tofu'],
+        ['Kuaitiao Khua Kai', 'ก๋วยเตี๋ยวคั่วไก่', 'y', 'n', 'n', 'n'],
+        ['Fried Rice', 'ข้าวผัด', 'y', 'y', 'r', 'r', '', 'Vegetarian = Veg & Tofu'],
+        ['Pad Kaprao', 'ผัดกะเพรา', '-', 'r', 'r', 'r'],
+        ['Mix Veg', 'ผัดผัก', '-', 'y', 'r', 'n'],
+        ['Pipi with Chilli Paste', 'หอยผัดน้ำพริกเผา', '-', 'n', 'n', 'n'],
+        ['Pipi with Spicy Herbs', 'หอยผัดฉ่า', '-', 'n', 'n', 'n'],
+      ],
+      'Curry': [
+        ['Green Curry Chicken', 'แกงเขียวหวานไก่', '-', 'n', 'n', 'n'],
+        ['Red Curry Stewed Beef', 'แกงแดงเนื้อตุ๋น', '-', 'n', 'n', 'n'],
+        ['Haeng Lay Pork', 'แกงฮังเล', '-', 'n', 'n', 'n', 'P', 'No coconut milk'],
+        ['Massaman Beef', 'แกงมัสมั่นเนื้อ', '-', 'n', 'n', 'n', 'C'],
+      ],
+      'Soup': [
+        ['Tom Jued', 'ต้มจืด', '-', 'n', 'n', 'n'],
+        ['Super Nam Daeng', 'ซุปเปอร์น้ำแดง', '-', 'n', 'n', 'n'],
+        ['Teen Gai Toon', 'ตีนไก่ตุ๋น', '-', 'n', 'n', 'n'],
+        ['Premium Beef Hot Pot', 'หม้อไฟเนื้อ', '-', 'n', 'n', 'n'],
+        ['Tom Zaab Beef', 'ต้มแซ่บเนื้อ', '-', 'n', 'n', 'n'],
+        ['Tom Yum Seafood', 'ต้มยำทะเล', '-', 'n', 'n', 'n', '', 'Prawn only OK — same price'],
+      ],
+      'Salad': [
+        ['Somtum Thai', 'ส้มตำไทย', '-', 'n', 'n', 'n', 'P'],
+        ['Somtum Puplara', 'ส้มตำปูปลาร้า', '-', 'n', 'n', 'n'],
+        ['Nam Tok Kor Moo Yang', 'น้ำตกคอหมูย่าง', '-', 'n', 'n', 'n'],
+        ['Nam Tok Beef', 'น้ำตกเนื้อ', '-', 'n', 'n', 'n'],
+        ['Yum Moo Yor', 'ยำหมูยอ', '-', 'n', 'n', 'n'],
+        ['Yum Moo Yor Plara', 'ยำหมูยอปลาร้า', '-', 'n', 'n', 'n'],
+        ['Yum Woon Sen', 'ยำวุ้นเส้น', '-', 'n', 'n', 'n'],
+        ['Yum Mix Seafood', 'ยำรวมมิตรทะเล', '-', 'n', 'n', 'n'],
+        ['Yum Luk Chin Pla', 'ยำลูกชิ้นปลา', '-', 'n', 'n', 'n'],
+      ],
+      'Fish Dishes': [
+        ['Pla Sam Rod', 'ปลาสามรส', '-', 'n', 'n', 'n'],
+        ['Pla Tod Krathiam', 'ปลาทอดกระเทียม', '-', 'n', 'n', 'n'],
+        ['Pla Tod Nam Pla', 'ปลาทอดน้ำปลา', '-', 'n', 'n', 'n', 'C'],
+      ],
+      'Special Lanna': [
+        ['Khantoke Platter', 'ขันโตก', '-', 'n', 'n', 'n', 'P', 'Includes Haeng Lay Pork'],
+        ['Jin Neung Nam Prik Kha', 'จิ๊นนึ่งน้ำพริกข่า', '-', 'n', 'n', 'n'],
+        ['Haeng Lay Pork', 'แกงฮังเล', '-', 'n', 'n', 'n', 'P', 'No coconut milk'],
+        ['Sai Aua', 'ไส้อั่ว', '-', 'n', 'n', 'n'],
+        ['Nam Prik Noom', 'น้ำพริกหนุ่ม', '-', 'n', 'n', 'n'],
+        ['Nam Prik Ong', 'น้ำพริกอ่อง', '-', 'n', 'n', 'n'],
+        ['Khaep Moo (Homemade)', 'แคบหมู', '-', 'n', 'n', 'n'],
+      ],
+      'Add-On': [
+        ['Jasmine Rice', 'ข้าวสวย', 'y', 'y', 'y', '-'],
+        ['Sticky Rice', 'ข้าวเหนียว', 'y', 'y', 'y', '-'],
+        ['Fried Egg', 'ไข่ดาว', 'n', 'y', 'n', '-'],
+      ],
+    };
+
+    const BADGE = {
+      y: '<span class="badge yes">✓</span>',
+      r: '<span class="badge cond">Request</span>',
+      n: '<span class="badge no">✗</span>',
+      '-': '—',
+    };
+    const NUTS = { P: '🥜 Peanut', C: '🌰 Cashew', '': '' };
+    // Keep the chart header pinned just below the sticky search bar
+    const searchBar = document.querySelector('.search');
+    const setSearchH = () => document.documentElement.style.setProperty('--search-h', searchBar.offsetHeight + 'px');
+    setSearchH();
+    window.addEventListener('resize', setSearchH);
+
+    const dietBody = document.getElementById('diet-body');
+    dietBody.innerHTML = Object.entries(MENU).map(([cat, dishes]) =>
+      `<tr class="cat"><td colspan="6">${cat}</td></tr>` +
+      dishes.map(([name, thai, egg, veg, vegan, gf, nuts = '', note = '']) =>
+        `<tr class="dish" data-v="${egg}${veg}${vegan}${gf}" data-nuts="${nuts}">
+          <td>${name}<span class="th">${thai}</span>${note ? `<span class="note">${note}</span>` : ''}</td>
+          <td class="c">${BADGE[egg]}</td><td class="c">${BADGE[veg]}</td>
+          <td class="c">${BADGE[vegan]}</td><td class="c">${BADGE[gf]}</td>
+          <td class="c">${NUTS[nuts]}</td>
+        </tr>`).join('')
+    ).join('');
+
+    // Filter chips: show dishes that are ✓ or on request for the chosen column
+    document.querySelectorAll('#diet-filter a').forEach(chip => chip.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('#diet-filter a').forEach(c => c.classList.toggle('on', c === chip));
+      const col = chip.dataset.col;
+      let shown = 0;
+      dietBody.querySelectorAll('tr').forEach(tr => {
+        if (tr.classList.contains('cat')) return;
+        const ok = col === 'all' ? true
+          : col === 'nuts' ? !tr.dataset.nuts
+          : 'yr'.includes(tr.dataset.v[col - 1]);
+        tr.classList.toggle('hidden', !ok);
+        if (ok) shown++;
+      });
+      // hide section headers with no visible dishes
+      dietBody.querySelectorAll('tr.cat').forEach(cat => {
+        let next = cat.nextElementSibling, any = false;
+        while (next && !next.classList.contains('cat')) { if (!next.classList.contains('hidden')) any = true; next = next.nextElementSibling; }
+        cat.classList.toggle('hidden', !any);
+      });
+      document.getElementById('diet-empty').classList.toggle('hidden', shown > 0);
+    }));
+
+    document.getElementById('top').onclick = () => window.scrollTo({ top: 0 });
+  </script>
+</body>
+</html>
