@@ -102,9 +102,10 @@
     .gf-cat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
     .gf-cat h3 { margin: 0 0 8px; font-size: 15px; color: var(--orange); font-weight: 600; }
     .gf-cat ul { list-style: none; padding: 0; margin: 0; }
-    .gf-cat li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 14px; }
+    .gf-cat li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 14px; }
     .gf-cat li:last-child { border-bottom: 0; }
     .gf-cat li .note { display: block; font-size: 12px; color: var(--muted); }
+    .gf-cat li .badge { flex-shrink: 0; }
 
     /* Khantoke */
     .khantoke { background: var(--cocoa); color: var(--cream); border-radius: 16px; padding: 20px; }
@@ -124,10 +125,23 @@
       background: var(--orange); color: #fff; border: 0; font-size: 20px; cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
+    .sm { display: none; } /* short labels, shown on phones only */
     @media (max-width: 560px) {
       header h1 { font-size: 23px; }
       .khantoke ol { columns: 1; }
-      th, td { padding: 8px; }
+      /* compact dietary chart so all 6 columns fit a phone screen */
+      th, td { padding: 8px 4px; }
+      th:first-child, td:first-child { padding-left: 10px; }
+      table { font-size: 13px; }
+      th { font-size: 11px; }
+      td .th, td .note { font-size: 11px; }
+      .badge { font-size: 11px; padding: 2px 6px; }
+      .lg { display: none; }
+      .sm { display: inline; }
+      /* one swipeable row of shortcut chips so the sticky bar stays short */
+      .search .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+      .search .chips::-webkit-scrollbar { display: none; }
+      .search .chips a { flex-shrink: 0; }
     }
     .warn {
       background: var(--no-bg); border-left: 4px solid var(--no); border-radius: 8px;
@@ -136,7 +150,7 @@
     .warn strong { color: var(--no); }
     .qa .a ul { margin: 4px 0 8px; padding-left: 20px; }
     .qa .a li { margin-bottom: 3px; }
-    td.c { text-align: center; }
+    td.c, th.c { text-align: center; }
     tr.cat td { background: var(--cocoa); color: var(--cream); font-family: 'Prata', 'Kanit', serif; font-size: 14px; letter-spacing: .5px; padding: 7px 12px; }
     #diet-filter a.on { background: var(--orange); border-color: var(--orange); color: #fff; }
   </style>
@@ -292,7 +306,7 @@
     <p class="sub">Every dish on the menu · ทุกเมนูในร้าน</p>
     <div class="legend">
       <span><span class="badge yes">✓</span> yes / already</span>
-      <span><span class="badge cond">Request</span> customer must ask</span>
+      <span><span class="badge cond"><span class="lg">Request</span><span class="sm">Req.</span></span> on request (customer must ask)</span>
       <span><span class="badge no">✗</span> cannot</span>
       <span>— check with kitchen</span>
       <span>🥜 peanut · 🌰 cashew</span>
@@ -307,7 +321,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Dish</th><th class="c">No egg</th><th class="c">Vegetarian</th><th class="c">Vegan</th><th class="c">Gluten-free</th><th class="c">Nuts</th></tr></thead>
+        <thead><tr><th>Dish</th><th class="c">No egg</th><th class="c"><span class="lg">Vegetarian</span><span class="sm">Veg</span></th><th class="c">Vegan</th><th class="c"><span class="lg">Gluten-free</span><span class="sm">GF</span></th><th class="c">Nuts</th></tr></thead>
         <tbody id="diet-body"></tbody>
       </table>
     </div>
@@ -464,11 +478,15 @@
 
     const BADGE = {
       y: '<span class="badge yes">✓</span>',
-      r: '<span class="badge cond">Request</span>',
+      r: '<span class="badge cond"><span class="lg">Request</span><span class="sm">Req.</span></span>',
       n: '<span class="badge no">✗</span>',
       '-': '—',
     };
-    const NUTS = { P: '🥜 Peanut', C: '🌰 Cashew', '': '' };
+    const NUTS = {
+      P: '<span title="Peanut">🥜<span class="lg"> Peanut</span></span>',
+      C: '<span title="Cashew">🌰<span class="lg"> Cashew</span></span>',
+      '': '',
+    };
     // Keep the chart header pinned just below the sticky search bar
     const searchBar = document.querySelector('.search');
     const setSearchH = () => document.documentElement.style.setProperty('--search-h', searchBar.offsetHeight + 'px');
