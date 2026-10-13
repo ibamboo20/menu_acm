@@ -612,7 +612,7 @@
             <th>ปริมาณ<br>Pack size</th>
             <th>ราคา<br>Price</th>
             <th>แหล่งจัดจำหน่าย<br>Supplier</th>
-            <th>มีในเมนู • Used in menus</th>
+            <th>มีในเมนู / ซอส • Used in</th>
             <th></th>
           </tr>
         </thead>
@@ -1047,6 +1047,9 @@ function menuUnionItems(menu) {
 function menusUsing(ingId) {
   return state.menus.filter(m => menuUnionItems(m).some(it => it.ingredientId === ingId));
 }
+function saucesUsing(ingId) {
+  return (state.sauces || []).filter(s => (s.items || []).some(it => it.ingredientId === ingId));
+}
 function matchIngredientByName(text) {
   const t = text.trim().toLowerCase();
   return state.ingredients.find(i =>
@@ -1462,8 +1465,10 @@ function renderIngredients() {
 
   tbody.innerHTML = list.map(ing => {
     const used = menusUsing(ing.id);
-    const usedHtml = used.length
+    const inSauces = saucesUsing(ing.id);
+    const usedHtml = (used.length || inSauces.length)
       ? used.map(m => `<span class="chip blue" onclick="jumpToMenu('${m.id}')">${esc(m.nameTh)}${m.nameEn ? ` • ${esc(m.nameEn)}` : ""}</span>`).join("")
+        + inSauces.map(s => `<span class="chip" title="ซอส • Sauce" onclick="jumpToSauce('${s.id}')">🥣 ${esc(s.nameTh)}${s.nameEn ? ` • ${esc(s.nameEn)}` : ""}</span>`).join("")
       : `<span class="chip plain">ยังไม่มีเมนูที่ใช้ • Not used yet</span>`;
     const dash = `<span class="brand-txt">–</span>`;
     return `<tr>
@@ -1634,6 +1639,21 @@ function jumpToMenu(menuId) {
   renderMenus();
   setTimeout(() => {
     const el = document.getElementById("menu-" + menuId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("highlight-flash");
+      void el.offsetWidth;
+      el.classList.add("highlight-flash");
+    }
+  }, 0);
+}
+
+function jumpToSauce(sauceId) {
+  switchTab("sauces");
+  document.getElementById("sauce-search").value = "";
+  renderSauces();
+  setTimeout(() => {
+    const el = document.getElementById("sauce-" + sauceId);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.remove("highlight-flash");
@@ -2055,13 +2075,24 @@ document.getElementById("ing-cancel-edit").addEventListener("click", cancelEdit)
 function deleteIngredient(id) {
   const ing = findIngredient(id);
   if (!ing) return;
-  const used = menusUsing(id);
-  const warn = used.length
-    ? `\n⚠️ ส่วนผสมนี้ถูกใช้ใน ${used.length} เมนู จะถูกลบออกจากเมนูด้วย\nUsed in ${used.length} menu(s) — it will be removed from them too.`
+  const used = menusUsing(id), inSauces = saucesUsing(id);
+  const where = [
+    used.length && `${used.length} เมนู`,
+    inSauces.length && `${inSauces.length} ซอส`,
+  ].filter(Boolean).join(" และ ");
+  const warn = where
+    ? `\n⚠️ ส่วนผสมนี้ถูกใช้ใน ${where} จะถูกลบออกจากที่นั่นด้วย\nIt is used in ${where} — it will be removed from them too.`
     : "";
   if (!confirm(`ลบส่วนผสม "${ing.nameTh}" ?${warn}`)) return;
   state.ingredients = state.ingredients.filter(i => i.id !== id);
-  state.menus.forEach(m => { m.items = m.items.filter(it => it.ingredientId !== id); });
+  // strip it from every list that can hold it, not just a menu's base list
+  const strip = list => (list || []).filter(it => it.ingredientId !== id);
+  state.menus.forEach(m => {
+    m.items = strip(m.items);
+    (m.options || []).forEach(o => o.items = strip(o.items));
+    if (m.withRice) m.withRice.items = strip(m.withRice.items);
+  });
+  (state.sauces || []).forEach(s => s.items = strip(s.items));
   if (editingId === id) cancelEdit();
   save(); renderAll();
   toast(`ลบส่วนผสมแล้ว • Ingredient deleted`);
@@ -2087,9 +2118,13 @@ function renderSauces() {
   grid.innerHTML = list.map(s => {
     const rows = (s.items || []).length
       ? `<ul class="ing-list">${s.items.map((it, i) => {
+          // rows carry an ingredientId; a legacy row keeps its own text
+          const ing = it.ingredientId ? findIngredient(it.ingredientId) : null;
+          const nameTh = ing ? ing.nameTh : (it.nameTh || "(ถูกลบ • deleted)");
+          const nameEn = ing ? ing.nameEn : (it.nameEn || "");
           const qty = [it.qty, it.unit].filter(Boolean).join(" ");
           return `<li>
-            <span class="ing-name">${esc(it.nameTh)}${it.nameEn ? ` <span class="en">• ${esc(it.nameEn)}</span>` : ""}</span>
+            <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
             ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
             <button class="icon-btn" title="ลบส่วนผสม • Remove" onclick="removeSauceItem('${s.id}',${i})">✕</button>
           </li>`;
@@ -2117,8 +2152,7 @@ function renderSauces() {
       </div>
       ${rows}
       <form class="add-ing-form" onsubmit="return addSauceItem(event,'${s.id}')">
-        <input class="ing-input" placeholder="ส่วนผสม (ไทย) • Ingredient" required>
-        <input class="ing-input" placeholder="English">
+        <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
         <input class="qty-input" placeholder="ปริมาณ • Qty">
         <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
         <button type="submit" class="btn small secondary">+ ใส่</button>
@@ -2152,18 +2186,27 @@ function addSauceItem(e, sauceId) {
   e.preventDefault();
   const s = state.sauces.find(x => x.id === sauceId);
   if (!s) return false;
-  const f = e.target.querySelectorAll("input");
-  const nameTh = f[0].value.trim(), nameEn = f[1].value.trim();
-  const qty = f[2].value.trim(), unit = f[3].value.trim();
-  if (!nameTh) return false;
+  const form = e.target;
+  const name = form.querySelector(".ing-input").value.trim();
+  const qty = form.querySelector(".qty-input").value.trim();
+  const unit = form.querySelector(".unit-input").value.trim();
+  if (!name) return false;
+
+  // every sauce ingredient is a row in the ingredient table
+  let ing = matchIngredientByName(name);
+  if (!ing) {
+    ing = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
+    state.ingredients.push(ing);
+    toast(`สร้างส่วนผสมใหม่ "${name}" — เพิ่มราคา/แหล่งซื้อได้ในแท็บส่วนผสม • New ingredient created`);
+  }
+
   s.items = s.items || [];
-  const existing = s.items.find(it => it.nameTh.trim() === nameTh);
+  const existing = s.items.find(it => it.ingredientId === ing.id);
   if (existing) {
-    existing.nameEn = nameEn || existing.nameEn;
     existing.qty = qty; existing.unit = unit;
-    toast(`อัปเดต "${nameTh}" แล้ว • Updated`);
+    toast(`อัปเดตปริมาณ "${ing.nameTh}" แล้ว • Quantity updated`);
   } else {
-    s.items.push({ nameTh, nameEn, qty, unit });
+    s.items.push({ ingredientId: ing.id, qty, unit });
   }
   save(); renderAll();
   const back = document.querySelector(`#sauce-${sauceId} .add-ing-form .ing-input`);
@@ -2329,6 +2372,19 @@ function allUsages() {
     (menuOptions(m) || []).forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
     riceItems(m).forEach(it => push(it, RICE_TH, RICE_EN));
   });
+  // sauces use the same ingredient table, so they belong in the usage list
+  (state.sauces || []).forEach(s => {
+    (s.items || []).forEach(it => {
+      const arr = map.get(it.ingredientId) || [];
+      arr.push({
+        menuId: "sauce-" + s.id,
+        label: `🥣 ${s.nameTh}`,
+        labelEn: s.nameEn || "",
+        qty: it.qty, unit: it.unit,
+      });
+      map.set(it.ingredientId, arr);
+    });
+  });
   return map;
 }
 function fmtQty(it) { return [it.qty, it.unit].filter(Boolean).join(" ") || "–"; }
@@ -2418,10 +2474,10 @@ function buildIngredientReport(ids) {
     const rows = list.map(u =>
       `<tr><td>${esc(u.label)}${u.labelEn ? `<br><span class="en">${esc(u.labelEn)}</span>` : ""}</td><td>${esc(fmtQty(u))}</td></tr>`).join("");
     const table = list.length
-      ? `<table><thead><tr><th>เมนู • Menu</th><th>ปริมาณที่ใช้ • Quantity used</th></tr></thead>
+      ? `<table><thead><tr><th>เมนู / ซอส • Menu or sauce</th><th>ปริมาณที่ใช้ • Quantity used</th></tr></thead>
          <tbody>${rows}</tbody>
-         <tfoot><tr><td>รวมทุกเมนู • Total (${list.length} เมนู)</td><td>${esc(totalLine(list))}</td></tr></tfoot></table>`
-      : `<div class="meta">ยังไม่มีเมนูที่ใช้ส่วนผสมนี้ • Not used in any menu yet</div>`;
+         <tfoot><tr><td>รวมทั้งหมด • Total (${list.length} รายการ)</td><td>${esc(totalLine(list))}</td></tr></tfoot></table>`
+      : `<div class="meta">ยังไม่มีเมนูหรือซอสที่ใช้ส่วนผสมนี้ • Not used in any menu or sauce yet</div>`;
     return `<h2>${esc(ing.nameTh)}${ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</h2>${meta ? `<div class="meta">${meta}</div>` : ""}${table}`;
   };
 
