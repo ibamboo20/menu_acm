@@ -225,6 +225,27 @@
   }
   .pick-head .btn { margin-left: auto; }
 
+  textarea {
+    font-family: inherit; font-size: .95rem; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); color: var(--ink); width: 100%; resize: vertical;
+    line-height: 1.5;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+
+  .method-box {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    background: var(--green-soft); border: 1px solid var(--chip-border);
+    font-size: .88rem;
+  }
+  .method-box .m-title { font-size: .76rem; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .method-box .m-body { white-space: pre-wrap; }
+  .method-box .m-en { color: var(--muted); font-size: .83rem; margin-top: 6px; }
+  .sauce-note {
+    display: inline-block; background: var(--accent-soft); color: var(--blue);
+    font-size: .75rem; padding: 2px 9px; border-radius: 999px; font-weight: 600; margin-top: 4px;
+  }
+
   .add-custom-opt { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .add-custom-opt input { flex: 1 1 180px; }
 
@@ -424,10 +445,12 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
   <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
+  <button class="tab-btn" data-tab="sauces">🥣 ซอส &amp; เบส • Sauces</button>
   <button class="tab-btn" data-tab="reports">📊 รายงาน • Reports</button>
   <select class="tab-select" id="tab-select" aria-label="เลือกหน้า • Choose section">
     <option value="menus">🍽️ เมนูอาหาร • Menus</option>
     <option value="ingredients">🥕 ส่วนผสม • Ingredients</option>
+    <option value="sauces">🥣 ซอส &amp; เบส • Sauces &amp; Bases</option>
     <option value="reports">📊 รายงาน • Reports</option>
   </select>
 </nav>
@@ -603,6 +626,41 @@
 
   </section>
 
+  <!-- ================= SAUCES TAB ================= -->
+  <section class="panel" id="panel-sauces">
+
+    <div class="card">
+      <h2>เพิ่มซอสใหม่ <span class="en">• Add New Sauce or Base</span></h2>
+      <p class="hint">ใส่ชื่อซอส แล้วค่อยเพิ่มส่วนผสมและวิธีทำบนการ์ด • Name it here, then add ingredients and the method on its card</p>
+      <form class="form-row" id="add-sauce-form">
+        <div class="field">
+          <label><b>ชื่อซอส (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="sauce-name-th" placeholder="เช่น ซอสผัด" required>
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="sauce-name-en" placeholder="e.g. Stir-fry Sauce">
+        </div>
+        <div class="field">
+          <label><b>หมายเหตุ / ขนาดสูตร</b> • Batch note <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="sauce-note" placeholder="เช่น 50 ml/serve">
+        </div>
+        <button type="submit" class="btn">+ เพิ่มซอส • Add</button>
+      </form>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="sauce-search" placeholder="ค้นหาซอส หรือส่วนผสมในซอส… • Search sauces or their ingredients…">
+    </div>
+
+    <div class="grid" id="sauce-grid"></div>
+    <div id="sauce-empty" class="empty-state" style="display:none">
+      <div class="big">🥣</div>
+      <p>ยังไม่มีซอส เริ่มเพิ่มซอสแรกได้เลย<br>No sauces yet — add your first one above</p>
+    </div>
+
+  </section>
+
   <!-- ================= REPORTS TAB ================= -->
   <section class="panel" id="panel-reports">
 
@@ -658,6 +716,8 @@
   <option value="ลิตร (L)"><option value="ช้อนชา (tsp)"><option value="ช้อนโต๊ะ (tbsp)">
   <option value="ถ้วย (cup)"><option value="ฟอง"><option value="ลูก"><option value="หัว">
   <option value="กลีบ"><option value="ใบ"><option value="ต้น"><option value="ชิ้น"><option value="แผ่น">
+  <option value="กระบวย (250ml)"><option value="ทัพพี (50ml)">
+  <option value="กระป๋อง"><option value="ซอง"><option value="กล่อง"><option value="กระปุก"><option value="ขวด">
 </datalist>
 
 <div class="modal-overlay" id="modal-overlay">
@@ -776,6 +836,45 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="sauce-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>✏️ แก้ไขซอส <span class="modal-en">• Edit sauce</span>
+        <div class="modal-sub" id="sauce-modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeSauceEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="margin-top:8px">
+        <div class="field">
+          <label><b>ชื่อซอส (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="edit-sauce-th">
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="edit-sauce-en">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>หมายเหตุ / ขนาดสูตร</b> • Batch note</label>
+          <input type="text" id="edit-sauce-note" placeholder="เช่น 50 ml/serve">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>วิธีทำ (ไทย)</b> • Method (Thai)</label>
+          <textarea id="edit-sauce-method-th" rows="4"></textarea>
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>วิธีทำ (อังกฤษ)</b> • Method (English)</label>
+          <textarea id="edit-sauce-method-en" rows="4"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeSauceEditor()">ยกเลิก • Cancel</button>
+      <button class="btn small" onclick="saveSauceEditor()">💾 บันทึก • Save</button>
+    </div>
+  </div>
+</div>
+
 <button type="button" class="to-top" id="to-top" title="กลับขึ้นด้านบน • Back to top" aria-label="กลับขึ้นด้านบน • Back to top">↑</button>
 
 <div class="toast" id="toast"></div>
@@ -789,13 +888,15 @@ const LEGACY_CATS = {
   "ต้ม": "Soup", "ผัด": "Stir Fry", "แกง": "Curry", "ทอด": "Deep Fried",
   "ยำ": "Salad", "ย่าง": "Grilled", "ก๋วยเตี๋ยว": "Noodle"
 };
-let state = { menus: [], ingredients: [] };
+let state = { menus: [], ingredients: [], sauces: [] };
 let version = 0;
 
 function migrate(s) {
   if (!s || typeof s !== "object") s = {};
   s.menus = Array.isArray(s.menus) ? s.menus : [];
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
+  s.sauces = Array.isArray(s.sauces) ? s.sauces : [];
+  s.sauces.forEach(x => { if (!Array.isArray(x.items)) x.items = []; });
   // packSize used to be one free-text field ("800 กรัม") -> split into number + unit
   s.ingredients.forEach(i => {
     if (i.packSize && i.packQty == null) {
@@ -983,6 +1084,8 @@ const UNIT_BASE = {
   "กรัม (g)": ["w", 1], "กิโลกรัม (kg)": ["w", 1000],
   "มล. (ml)": ["v", 1], "ลิตร (L)": ["v", 1000],
   "ช้อนชา (tsp)": ["v", 5], "ช้อนโต๊ะ (tbsp)": ["v", 15], "ถ้วย (cup)": ["v", 250],
+  // kitchen ladles used in the recipe book
+  "กระบวย (250ml)": ["v", 250], "ทัพพี (50ml)": ["v", 50],
 };
 /* accept hand-typed variants of the same unit, e.g. "g", "กรัม", "kg." */
 const UNIT_ALIAS = {
@@ -993,6 +1096,7 @@ const UNIT_ALIAS = {
   "tsp": "ช้อนชา (tsp)", "ช้อนชา": "ช้อนชา (tsp)",
   "tbsp": "ช้อนโต๊ะ (tbsp)", "ช้อนโต๊ะ": "ช้อนโต๊ะ (tbsp)",
   "cup": "ถ้วย (cup)", "ถ้วย": "ถ้วย (cup)",
+  "กระบวย": "กระบวย (250ml)", "ทัพพี": "ทัพพี (50ml)", "ทับพี": "ทัพพี (50ml)",
 };
 function normUnit(u) {
   const raw = String(u ?? "").trim();
@@ -1387,7 +1491,7 @@ function renderDatalists() {
   document.getElementById("supplier-list").innerHTML = opts(state.ingredients.map(i => i.supplier));
 }
 
-function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); renderReports(); }
+function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); renderSauces(); renderReports(); }
 
 /* ---------- actions: menus ---------- */
 document.getElementById("add-menu-form").addEventListener("submit", e => {
@@ -1878,7 +1982,7 @@ document.getElementById("modal-overlay").addEventListener("click", e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeModal(); closeOptsModal(); closeMenuEditor(); }
+  if (e.key === "Escape") { closeModal(); closeOptsModal(); closeMenuEditor(); closeSauceEditor(); }
 });
 
 /* ---------- actions: ingredients ---------- */
@@ -1962,6 +2066,162 @@ function deleteIngredient(id) {
   save(); renderAll();
   toast(`ลบส่วนผสมแล้ว • Ingredient deleted`);
 }
+
+/* ---------- sauces & bases ---------- */
+/* self-contained recipes: each ingredient row carries its own bilingual name,
+   so a sauce can be written up without first adding every item to the
+   ingredient list */
+function renderSauces() {
+  const grid = document.getElementById("sauce-grid");
+  const q = document.getElementById("sauce-search").value.trim().toLowerCase();
+  const hit = s =>
+    !q ||
+    s.nameTh.toLowerCase().includes(q) ||
+    (s.nameEn || "").toLowerCase().includes(q) ||
+    (s.items || []).some(it =>
+      it.nameTh.toLowerCase().includes(q) || (it.nameEn || "").toLowerCase().includes(q));
+
+  const list = state.sauces.filter(hit);
+  document.getElementById("sauce-empty").style.display = state.sauces.length ? "none" : "";
+
+  grid.innerHTML = list.map(s => {
+    const rows = (s.items || []).length
+      ? `<ul class="ing-list">${s.items.map((it, i) => {
+          const qty = [it.qty, it.unit].filter(Boolean).join(" ");
+          return `<li>
+            <span class="ing-name">${esc(it.nameTh)}${it.nameEn ? ` <span class="en">• ${esc(it.nameEn)}</span>` : ""}</span>
+            ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
+            <button class="icon-btn" title="ลบส่วนผสม • Remove" onclick="removeSauceItem('${s.id}',${i})">✕</button>
+          </li>`;
+        }).join("")}</ul>`
+      : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
+
+    // the text lives in its own element so pre-wrap cannot pick up the
+    // indentation of this template
+    const method = (s.methodTh || s.methodEn)
+      ? `<div class="method-box"><div class="m-title">👨‍🍳 วิธีทำ • Method</div>` +
+        (s.methodTh ? `<div class="m-body">${esc(s.methodTh)}</div>` : "") +
+        (s.methodEn ? `<div class="m-body m-en">${esc(s.methodEn)}</div>` : "") +
+        `</div>`
+      : "";
+
+    return `<div class="card menu-card" id="sauce-${s.id}">
+      <div class="menu-head">
+        <h3>${esc(s.nameTh)}${s.nameEn ? `<div class="name-en">${esc(s.nameEn)}</div>` : ""}
+          ${s.note ? `<div><span class="sauce-note">${esc(s.note)}</span></div>` : ""}
+        </h3>
+        <span class="head-actions">
+          <button class="icon-btn" title="แก้ไขซอส • Edit sauce" style="color:var(--blue)" onclick="openSauceEditor('${s.id}')">✏️</button>
+          <button class="icon-btn" title="ลบซอส • Delete sauce" onclick="deleteSauce('${s.id}')">🗑️</button>
+        </span>
+      </div>
+      ${rows}
+      <form class="add-ing-form" onsubmit="return addSauceItem(event,'${s.id}')">
+        <input class="ing-input" placeholder="ส่วนผสม (ไทย) • Ingredient" required>
+        <input class="ing-input" placeholder="English">
+        <input class="qty-input" placeholder="ปริมาณ • Qty">
+        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+        <button type="submit" class="btn small secondary">+ ใส่</button>
+      </form>
+      ${method}
+    </div>`;
+  }).join("");
+}
+
+document.getElementById("add-sauce-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const th = document.getElementById("sauce-name-th").value.trim();
+  if (!th) return;
+  if (state.sauces.some(s => s.nameTh.trim() === th)) {
+    toast(`"${th}" มีอยู่แล้ว • Already exists`);
+    return;
+  }
+  state.sauces.unshift({
+    id: uid(), nameTh: th,
+    nameEn: document.getElementById("sauce-name-en").value.trim(),
+    note: document.getElementById("sauce-note").value.trim(),
+    items: [], methodTh: "", methodEn: "",
+  });
+  save(); renderAll();
+  e.target.reset();
+  document.getElementById("sauce-name-th").focus();
+  toast(`เพิ่มซอส "${th}" แล้ว • Sauce added`);
+});
+
+function addSauceItem(e, sauceId) {
+  e.preventDefault();
+  const s = state.sauces.find(x => x.id === sauceId);
+  if (!s) return false;
+  const f = e.target.querySelectorAll("input");
+  const nameTh = f[0].value.trim(), nameEn = f[1].value.trim();
+  const qty = f[2].value.trim(), unit = f[3].value.trim();
+  if (!nameTh) return false;
+  s.items = s.items || [];
+  const existing = s.items.find(it => it.nameTh.trim() === nameTh);
+  if (existing) {
+    existing.nameEn = nameEn || existing.nameEn;
+    existing.qty = qty; existing.unit = unit;
+    toast(`อัปเดต "${nameTh}" แล้ว • Updated`);
+  } else {
+    s.items.push({ nameTh, nameEn, qty, unit });
+  }
+  save(); renderAll();
+  const back = document.querySelector(`#sauce-${sauceId} .add-ing-form .ing-input`);
+  if (back) back.focus();
+  return false;
+}
+
+function removeSauceItem(sauceId, index) {
+  const s = state.sauces.find(x => x.id === sauceId);
+  if (!s) return;
+  s.items.splice(index, 1);
+  save(); renderAll();
+}
+
+function deleteSauce(sauceId) {
+  const s = state.sauces.find(x => x.id === sauceId);
+  if (!s) return;
+  if (!confirm(`ลบซอส "${s.nameTh}" ?\nDelete sauce "${s.nameEn || s.nameTh}"?`)) return;
+  state.sauces = state.sauces.filter(x => x.id !== sauceId);
+  save(); renderAll();
+  toast("ลบซอสแล้ว • Sauce deleted");
+}
+
+let editingSauceId = null;
+function openSauceEditor(sauceId) {
+  const s = state.sauces.find(x => x.id === sauceId);
+  if (!s) return;
+  editingSauceId = sauceId;
+  document.getElementById("sauce-modal-sub").textContent = s.nameTh + (s.nameEn ? " • " + s.nameEn : "");
+  document.getElementById("edit-sauce-th").value = s.nameTh || "";
+  document.getElementById("edit-sauce-en").value = s.nameEn || "";
+  document.getElementById("edit-sauce-note").value = s.note || "";
+  document.getElementById("edit-sauce-method-th").value = s.methodTh || "";
+  document.getElementById("edit-sauce-method-en").value = s.methodEn || "";
+  document.getElementById("sauce-modal").classList.add("show");
+}
+function saveSauceEditor() {
+  const s = state.sauces.find(x => x.id === editingSauceId);
+  if (!s) { closeSauceEditor(); return; }
+  const th = document.getElementById("edit-sauce-th").value.trim();
+  if (!th) { toast("ต้องใส่ชื่อซอสภาษาไทย • Thai name is required"); return; }
+  s.nameTh = th;
+  s.nameEn = document.getElementById("edit-sauce-en").value.trim();
+  s.note = document.getElementById("edit-sauce-note").value.trim();
+  s.methodTh = document.getElementById("edit-sauce-method-th").value.trim();
+  s.methodEn = document.getElementById("edit-sauce-method-en").value.trim();
+  save(); renderAll();
+  closeSauceEditor();
+  toast("บันทึกซอสแล้ว • Sauce saved");
+}
+function closeSauceEditor() {
+  editingSauceId = null;
+  document.getElementById("sauce-modal").classList.remove("show");
+}
+document.getElementById("sauce-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeSauceEditor();
+});
+document.getElementById("sauce-search").addEventListener("input", renderSauces);
 
 /* ---------- reports ---------- */
 /* three independent pickers; "menu" and "cost" both choose menus */
