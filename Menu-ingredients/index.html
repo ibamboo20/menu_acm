@@ -136,6 +136,9 @@
   .btn:hover { filter: brightness(1.08); }
   .btn.secondary { background: var(--green); }
   .btn.ghost { background: transparent; color: var(--blue); border: 1px dashed var(--accent); font-weight: 500; }
+  /* destructive, so it reads differently from Save and sits apart from it */
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); margin-left: auto; }
+  .btn.danger:hover { background: var(--danger); color: #fff; filter: none; }
   .btn.small { padding: 6px 12px; font-size: .85rem; }
   .icon-btn {
     background: none; border: none; cursor: pointer;
@@ -595,6 +598,7 @@
         </div>
         <button type="submit" class="btn secondary" id="ing-submit-btn">+ เพิ่มส่วนผสม • Add</button>
         <button type="button" class="btn ghost" id="ing-cancel-edit" style="display:none">ยกเลิก • Cancel</button>
+        <button type="button" class="btn danger" id="ing-delete-edit" style="display:none">🗑️ ลบส่วนผสม • Delete</button>
       </form>
     </div>
 
@@ -2058,6 +2062,7 @@ function editIngredient(id) {
     `แก้ไขส่วนผสม <span class="en">• Edit Ingredient</span>`;
   document.getElementById("ing-submit-btn").textContent = "💾 บันทึก • Save";
   document.getElementById("ing-cancel-edit").style.display = "";
+  document.getElementById("ing-delete-edit").style.display = "";
   document.getElementById("ing-name-th").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -2069,8 +2074,13 @@ function cancelEdit() {
     `เพิ่มข้อมูลส่วนผสม <span class="en">• Add Ingredient</span>`;
   document.getElementById("ing-submit-btn").textContent = "+ เพิ่มส่วนผสม • Add";
   document.getElementById("ing-cancel-edit").style.display = "none";
+  document.getElementById("ing-delete-edit").style.display = "none";
 }
 document.getElementById("ing-cancel-edit").addEventListener("click", cancelEdit);
+/* deleteIngredient asks for confirmation and says where it is used */
+document.getElementById("ing-delete-edit").addEventListener("click", () => {
+  if (editingId) deleteIngredient(editingId);
+});
 
 function deleteIngredient(id) {
   const ing = findIngredient(id);
