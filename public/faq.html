@@ -153,6 +153,34 @@
     td.c, th.c { text-align: center; }
     tr.cat td { background: var(--cocoa); color: var(--cream); font-family: 'Prata', 'Kanit', serif; font-size: 14px; letter-spacing: .5px; padding: 7px 12px; }
     #diet-filter a.on { background: var(--orange); border-color: var(--orange); color: #fff; }
+    #export-pdf {
+      margin-left: auto; font: inherit; font-size: 13px; font-weight: 600; padding: 5px 14px;
+      border-radius: 999px; border: 0; background: var(--cocoa); color: var(--cream); cursor: pointer;
+    }
+    .print-only { display: none; }
+
+    /* Export PDF: print only the dietary chart (with the active filter) */
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: #fff; }
+      body.print-diet header, body.print-diet .search, body.print-diet #top,
+      body.print-diet main > :not(#diet-section),
+      body.print-diet #diet-filter, body.print-diet #diet-section h2 { display: none !important; }
+      body.print-diet main { max-width: none; padding: 0; }
+      .print-only { display: block; }
+      .print-title { font-family: 'Prata', 'Kanit', serif; font-size: 20px; margin: 0 0 4px; }
+      .print-title span { display: block; font-family: 'Poppins', 'Kanit', sans-serif; font-size: 12px; color: var(--muted); }
+      .table-wrap { border-radius: 0; overflow: visible; }
+      thead { display: table-header-group; }
+      thead th { position: static; box-shadow: none; }
+      tr { break-inside: avoid; }
+      tr.cat { break-after: avoid; }
+      table { font-size: 12px; }
+      th, td { padding: 5px 8px; }
+      .lg { display: inline !important; }
+      .sm { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -302,6 +330,8 @@
     <p id="empty" class="hidden">No matching questions · ไม่พบคำถามที่ค้นหา</p>
 
     <!-- ============ DIETARY CHART ============ -->
+    <section id="diet-section">
+    <p class="print-only print-title">@Chiang Mai — Dietary Chart <span id="print-meta"></span></p>
     <h2 id="diet">🥗 Dietary Chart — full menu</h2>
     <p class="sub">Every dish on the menu · ทุกเมนูในร้าน</p>
     <div class="legend">
@@ -318,6 +348,7 @@
       <a href="#" data-col="3">🌱 Vegan</a>
       <a href="#" data-col="4">🌾 Gluten-free</a>
       <a href="#" data-col="nuts">🚫🥜 Nut-free</a>
+      <button type="button" id="export-pdf">⬇ Export PDF</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -327,6 +358,8 @@
     </div>
     <p id="diet-empty" class="hidden" style="text-align:center;color:var(--muted)">No dishes match · ไม่พบเมนู</p>
     <div class="warn" style="margin-top:12px">⚠️ <strong>Coeliac / wheat allergy — we cannot serve, no exceptions.</strong> The GF column is only for customers who <em>prefer</em> gluten-free.</div>
+
+    </section>
 
     <!-- ============ GLUTEN FREE ============ -->
     <h2 id="gf">🌾 Gluten-Free Guide</h2>
@@ -527,6 +560,23 @@
       });
       document.getElementById('diet-empty').classList.toggle('hidden', shown > 0);
     }));
+
+    // Export PDF: print just the chart; the browser's "Save as PDF" makes the file.
+    // The document title becomes the suggested PDF file name.
+    document.getElementById('export-pdf').addEventListener('click', () => {
+      const active = document.querySelector('#diet-filter a.on');
+      const filter = active.dataset.col === 'all' ? 'All dishes' : active.textContent.replace(/[^\p{L}\s-]/gu, '').trim();
+      const date = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      document.getElementById('print-meta').textContent = `${filter} · ${date}`;
+      const title = document.title;
+      document.title = `ACM Dietary Chart - ${filter}`;
+      document.body.classList.add('print-diet');
+      window.addEventListener('afterprint', () => {
+        document.body.classList.remove('print-diet');
+        document.title = title;
+      }, { once: true });
+      window.print();
+    });
 
     document.getElementById('top').onclick = () => window.scrollTo({ top: 0 });
   </script>
