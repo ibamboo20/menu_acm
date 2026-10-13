@@ -645,9 +645,21 @@
           <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
           <input type="text" id="sauce-name-en" placeholder="e.g. Stir-fry Sauce">
         </div>
-        <div class="field">
-          <label><b>หมายเหตุ / ขนาดสูตร</b> • Batch note <span style="color:#bbb">(optional)</span></label>
-          <input type="text" id="sauce-note" placeholder="เช่น 50 ml/serve">
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ขนาดสูตร</b> • Batch yield <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="sauce-yield-qty" min="0" step="any" placeholder="เช่น 4000">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="sauce-yield-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ต่อเสิร์ฟ</b> • Per serve <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="sauce-serve-qty" min="0" step="any" placeholder="เช่น 50">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="sauce-serve-unit" list="unit-list" placeholder="เช่น มล. (ml)">
         </div>
         <button type="submit" class="btn">+ เพิ่มซอส • Add</button>
       </form>
@@ -858,9 +870,25 @@
           <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
           <input type="text" id="edit-sauce-en">
         </div>
+        <div class="field" style="flex:1 1 100px">
+          <label><b>ขนาดสูตร</b> • Batch yield</label>
+          <input type="number" id="edit-sauce-yield-qty" min="0" step="any" placeholder="เช่น 4000">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-sauce-yield-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex:1 1 100px">
+          <label><b>ต่อเสิร์ฟ</b> • Per serve</label>
+          <input type="number" id="edit-sauce-serve-qty" min="0" step="any" placeholder="เช่น 50">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-sauce-serve-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
         <div class="field" style="flex-basis:100%">
-          <label><b>หมายเหตุ / ขนาดสูตร</b> • Batch note</label>
-          <input type="text" id="edit-sauce-note" placeholder="เช่น 50 ml/serve">
+          <label><b>หมายเหตุ</b> • Note</label>
+          <input type="text" id="edit-sauce-note" placeholder="เช่น เก็บได้ 7 วัน">
         </div>
         <div class="field" style="flex-basis:100%">
           <label><b>วิธีทำ (ไทย)</b> • Method (Thai)</label>
@@ -900,7 +928,14 @@ function migrate(s) {
   s.menus = Array.isArray(s.menus) ? s.menus : [];
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
   s.sauces = Array.isArray(s.sauces) ? s.sauces : [];
-  s.sauces.forEach(x => { if (!Array.isArray(x.items)) x.items = []; });
+  s.sauces.forEach(x => {
+    if (!Array.isArray(x.items)) x.items = [];
+    // the batch note used to be free text ("50 ml/serve") -> number + unit
+    if (x.note && x.serveQty == null && x.yieldQty == null) {
+      const m = String(x.note).trim().match(/^([\d.,]+)\s*([^\/]*?)\s*\/\s*serve$/i);
+      if (m) { x.serveQty = m[1].replace(/,/g, ""); x.serveUnit = normUnit(m[2]); x.note = ""; }
+    }
+  });
   // packSize used to be one free-text field ("800 กรัม") -> split into number + unit
   s.ingredients.forEach(i => {
     if (i.packSize && i.packQty == null) {
@@ -2109,6 +2144,30 @@ function deleteIngredient(id) {
 }
 
 /* ---------- sauces & bases ---------- */
+/* what a batch of this sauce costs, and what that works out to per unit of
+   yield and per serve when those are filled in */
+function sauceCost(s) {
+  const cost = costOf(s.items || []);
+  const yq = parseFloat(s.yieldQty), sq = parseFloat(s.serveQty);
+  const out = { cost, perUnit: null, perServe: null, serveNote: null };
+  if (!cost.priced) return out;
+  if (isFinite(yq) && yq > 0) {
+    out.perUnit = { value: cost.total / yq, unit: s.yieldUnit || "" };
+    if (isFinite(sq) && sq > 0) {
+      // express one serve in the yield's unit before pricing it
+      const inYieldUnits = convertQty(sq, s.serveUnit, s.yieldUnit);
+      if (inYieldUnits === null) out.serveNote = "หน่วยต่อเสิร์ฟกับขนาดสูตรแปลงกันไม่ได้";
+      else out.perServe = cost.total / yq * inYieldUnits;
+    }
+  }
+  return out;
+}
+function fmtSmallPrice(n) {
+  // a per-ml figure is often a fraction of a cent
+  if (!isFinite(n)) return "–";
+  if (n >= 0.1) return fmtPrice(n);
+  return "$" + n.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
 /* self-contained recipes: each ingredient row carries its own bilingual name,
    so a sauce can be written up without first adding every item to the
    ingredient list */
@@ -2150,10 +2209,33 @@ function renderSauces() {
         `</div>`
       : "";
 
+    const yieldTxt = [s.yieldQty, s.yieldUnit].filter(Boolean).join(" ");
+    const serveTxt = [s.serveQty, s.serveUnit].filter(Boolean).join(" ");
+    const pills = [
+      yieldTxt && `ขนาดสูตร • Yield: ${yieldTxt}`,
+      serveTxt && `ต่อเสิร์ฟ • Per serve: ${serveTxt}`,
+      s.note,
+    ].filter(Boolean);
+
+    const c = sauceCost(s);
+    const costHtml = c.cost.priced
+      ? `<div class="cost-box">
+           <span class="cost-label">💰 ต้นทุนทั้งสูตร • Batch cost:</span>
+           <span class="cost-main">${esc(fmtPrice(c.cost.total))}</span>
+           ${c.perUnit ? `<span class="cost-label">≈ ${esc(fmtSmallPrice(c.perUnit.value))} / ${esc(c.perUnit.unit || "หน่วย")}</span>` : ""}
+           ${c.perServe !== null ? `<span class="cost-label">≈ <b class="profit-main" style="font-size:.95rem">${esc(fmtPrice(c.perServe))}</b> / เสิร์ฟ • per serve</span>` : ""}
+           ${c.serveNote ? `<span class="cost-note">* ${esc(c.serveNote)}</span>` : ""}
+           ${!c.perUnit ? `<span class="cost-note">ใส่ "ขนาดสูตร" เพื่อดูต้นทุนต่อหน่วยและต่อเสิร์ฟ • Add the batch yield to get a per-unit and per-serve cost</span>` : ""}
+           ${c.cost.missing ? `<span class="cost-note">* คำนวณจาก ${c.cost.priced} ใน ${c.cost.priced + c.cost.missing} ส่วนผสม — อีก ${c.cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
+         </div>`
+      : ((s.items || []).length
+        ? `<div class="cost-box"><span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุของส่วนผสมในแท็บส่วนผสมก่อน • Add ingredient price &amp; pack size to see cost</span></div>`
+        : "");
+
     return `<div class="card menu-card" id="sauce-${s.id}">
       <div class="menu-head">
         <h3>${esc(s.nameTh)}${s.nameEn ? `<div class="name-en">${esc(s.nameEn)}</div>` : ""}
-          ${s.note ? `<div><span class="sauce-note">${esc(s.note)}</span></div>` : ""}
+          ${pills.length ? `<div class="menu-meta">${pills.map(p => `<span class="sauce-note">${esc(p)}</span>`).join("")}</div>` : ""}
         </h3>
         <span class="head-actions">
           <button class="icon-btn" title="แก้ไขซอส • Edit sauce" style="color:var(--blue)" onclick="openSauceEditor('${s.id}')">✏️</button>
@@ -2167,6 +2249,7 @@ function renderSauces() {
         <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
         <button type="submit" class="btn small secondary">+ ใส่</button>
       </form>
+      ${costHtml}
       ${method}
     </div>`;
   }).join("");
@@ -2183,8 +2266,11 @@ document.getElementById("add-sauce-form").addEventListener("submit", e => {
   state.sauces.unshift({
     id: uid(), nameTh: th,
     nameEn: document.getElementById("sauce-name-en").value.trim(),
-    note: document.getElementById("sauce-note").value.trim(),
-    items: [], methodTh: "", methodEn: "",
+    yieldQty: document.getElementById("sauce-yield-qty").value.trim(),
+    yieldUnit: document.getElementById("sauce-yield-unit").value.trim(),
+    serveQty: document.getElementById("sauce-serve-qty").value.trim(),
+    serveUnit: document.getElementById("sauce-serve-unit").value.trim(),
+    note: "", items: [], methodTh: "", methodEn: "",
   });
   save(); renderAll();
   e.target.reset();
@@ -2248,6 +2334,10 @@ function openSauceEditor(sauceId) {
   document.getElementById("sauce-modal-sub").textContent = s.nameTh + (s.nameEn ? " • " + s.nameEn : "");
   document.getElementById("edit-sauce-th").value = s.nameTh || "";
   document.getElementById("edit-sauce-en").value = s.nameEn || "";
+  document.getElementById("edit-sauce-yield-qty").value = s.yieldQty || "";
+  document.getElementById("edit-sauce-yield-unit").value = s.yieldUnit || "";
+  document.getElementById("edit-sauce-serve-qty").value = s.serveQty || "";
+  document.getElementById("edit-sauce-serve-unit").value = s.serveUnit || "";
   document.getElementById("edit-sauce-note").value = s.note || "";
   document.getElementById("edit-sauce-method-th").value = s.methodTh || "";
   document.getElementById("edit-sauce-method-en").value = s.methodEn || "";
@@ -2260,6 +2350,10 @@ function saveSauceEditor() {
   if (!th) { toast("ต้องใส่ชื่อซอสภาษาไทย • Thai name is required"); return; }
   s.nameTh = th;
   s.nameEn = document.getElementById("edit-sauce-en").value.trim();
+  s.yieldQty = document.getElementById("edit-sauce-yield-qty").value.trim();
+  s.yieldUnit = document.getElementById("edit-sauce-yield-unit").value.trim();
+  s.serveQty = document.getElementById("edit-sauce-serve-qty").value.trim();
+  s.serveUnit = document.getElementById("edit-sauce-serve-unit").value.trim();
   s.note = document.getElementById("edit-sauce-note").value.trim();
   s.methodTh = document.getElementById("edit-sauce-method-th").value.trim();
   s.methodEn = document.getElementById("edit-sauce-method-en").value.trim();
