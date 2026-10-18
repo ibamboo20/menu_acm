@@ -762,7 +762,8 @@
 
     <div class="card">
       <h2>เพิ่มเมนูเครื่องดื่ม <span class="en">• Add Drink Menu</span></h2>
-      <p class="hint">ใส่ชื่อและประเภทที่นี่ แล้วค่อยเพิ่มวัตถุดิบบนการ์ด • Name it here, then add its ingredients on the card</p>
+      <p class="hint">ใส่ชื่อและประเภทที่นี่ แล้วค่อยเพิ่มวัตถุดิบบนการ์ด • Name it here, then add its ingredients on the card<br>
+      ถ้าเป็นสูตรที่ผสมเป็นแบตช์ไว้ล่วงหน้า ให้ใส่ "ขนาดแบตช์" กับ "ตักต่อแก้ว" ระบบจะหารต้นทุนลงมาเป็นต่อแก้วให้เอง • For a drink mixed ahead in a batch, fill in the batch size and the per-glass pour and the cost is divided down for you</p>
       <form class="form-row" id="add-drink-form">
         <div class="field">
           <label><b>ชื่อเครื่องดื่ม (ไทย)</b> • Name (Thai) *</label>
@@ -779,6 +780,22 @@
         <div class="field" style="flex:1 1 130px">
           <label><b>ราคาขาย ($ AUD)</b> • Sell price <span style="color:#bbb">(optional)</span></label>
           <input type="number" id="drink-sellprice" min="0" step="0.01" placeholder="เช่น 6.50">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ขนาดแบตช์</b> • Batch size <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="drink-yield-qty" min="0" step="any" placeholder="เช่น 5000">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="drink-yield-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ตักต่อแก้ว</b> • Per glass <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="drink-serve-qty" min="0" step="any" placeholder="เช่น 350">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="drink-serve-unit" list="unit-list" placeholder="เช่น มล. (ml)">
         </div>
         <button type="submit" class="btn">+ เพิ่มเครื่องดื่ม • Add</button>
       </form>
@@ -1046,12 +1063,23 @@
           <input type="number" id="edit-drink-sellprice" min="0" step="0.01" placeholder="เช่น 6.50">
         </div>
         <div class="field" style="flex:1 1 110px">
-          <label><b>ขนาดแก้ว</b> • Glass size</label>
+          <label><b>ขนาดแบตช์</b> • Batch size</label>
+          <input type="number" id="edit-drink-yield-qty" min="0" step="any" placeholder="เช่น 5000">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-drink-yield-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ตักต่อแก้ว</b> • Per glass</label>
           <input type="number" id="edit-drink-serve-qty" min="0" step="any" placeholder="เช่น 350">
         </div>
         <div class="field" style="flex:1 1 120px">
           <label><b>หน่วย</b> • Unit</label>
           <input type="text" id="edit-drink-serve-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <p class="hint" style="margin:0">ใส่ "ขนาดแบตช์" เมื่อสูตรด้านล่างเป็นปริมาณของทั้งหม้อ/ทั้งเหยือก ระบบจะหารต้นทุนลงมาเป็นต่อแก้วให้ • Fill in the batch size when the recipe below is for a whole jug; the cost is then divided down per glass</p>
         </div>
         <div class="field" style="flex-basis:100%">
           <label><b>หมายเหตุ</b> • Note</label>
@@ -1851,15 +1879,43 @@ function drinkCostOf(items) {
   });
   return { total, priced, missing: (items || []).length - priced };
 }
-/* a drink's recipe is one glass, so the cost is already per serve */
-function drinkProfit(cost, drink) {
+/* A drink is written up one of two ways:
+     - no batch yield: the recipe IS one glass, so its cost is already per glass
+     - with a batch yield: the recipe makes a jug/urn, and one glass costs
+       batchCost / yield x the amount poured per glass
+   Returns the batch figures alongside the per-glass one so a batch drink can
+   show both. */
+function drinkCost(d) {
+  const cost = drinkCostOf(d.items);
+  const out = { cost, batch: false, perGlass: null, glasses: null, note: null };
+  const yq = parseFloat(d.yieldQty), sq = parseFloat(d.serveQty);
+  if (!(isFinite(yq) && yq > 0)) {
+    out.perGlass = cost.priced ? cost.total : null;
+    return out;
+  }
+  out.batch = true;
+  if (!(isFinite(sq) && sq > 0)) {
+    out.note = "ใส่ปริมาณต่อแก้วด้วย จึงจะคิดต้นทุนต่อแก้วได้ • Add the per-glass amount to get a per-glass cost";
+    return out;
+  }
+  // express one glass in the batch's own unit before dividing the batch cost
+  const perGlassInYield = convertQty(sq, d.serveUnit, d.yieldUnit);
+  if (perGlassInYield === null || perGlassInYield <= 0) {
+    out.note = "หน่วยต่อแก้วกับขนาดแบตช์แปลงกันไม่ได้ • The per-glass unit can't be converted to the batch unit";
+    return out;
+  }
+  out.glasses = yq / perGlassInYield;
+  if (cost.priced) out.perGlass = cost.total / yq * perGlassInYield;
+  return out;
+}
+function drinkProfit(perGlass, drink) {
   const price = parseFloat(drink.sellPrice);
-  if (!cost.priced || !isFinite(price) || price <= 0) return null;
-  const profit = price - cost.total;
+  if (perGlass === null || !isFinite(perGlass) || !isFinite(price) || price <= 0) return null;
+  const profit = price - perGlass;
   return {
-    costPerServe: cost.total, price, profit,
+    costPerServe: perGlass, price, profit,
     marginPct: profit / price * 100,
-    foodCostPct: cost.total / price * 100,
+    foodCostPct: perGlass / price * 100,
   };
 }
 
@@ -1885,11 +1941,18 @@ function drinkCardHtml(d) {
       `</div>`
     : "";
 
+  const c = drinkCost(d);
+  const yieldTxt = [d.yieldQty, d.yieldUnit].filter(Boolean).join(" ");
   const serveTxt = [d.serveQty, d.serveUnit].filter(Boolean).join(" ");
-  const pills = [serveTxt && `ขนาดแก้ว • Glass: ${serveTxt}`, d.note].filter(Boolean);
+  const pills = [
+    c.batch && yieldTxt && `🧪 ผสมเป็นแบตช์ • Batch: ${yieldTxt}`,
+    serveTxt && `${c.batch ? "ตักต่อแก้ว • Per glass" : "ขนาดแก้ว • Glass"}: ${serveTxt}`,
+    c.glasses !== null && `≈ ${Math.floor(c.glasses)} แก้ว/แบตช์ • glasses per batch`,
+    d.note,
+  ].filter(Boolean);
 
-  const cost = drinkCostOf(d.items);
-  const profit = drinkProfit(cost, d);
+  const cost = c.cost;
+  const profit = drinkProfit(c.perGlass, d);
   const sellPrice = parseFloat(d.sellPrice);
   const profitHtml = profit
     ? `<div class="cost-rule"></div>
@@ -1902,13 +1965,22 @@ function drinkCardHtml(d) {
     : (isFinite(sellPrice) && sellPrice > 0
       ? `<div class="cost-rule"></div>
          <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(sellPrice))} / แก้ว</span>
-         <span class="cost-note">คำนวณกำไรไม่ได้ — ต้องมีราคาและขนาดบรรจุของวัตถุดิบก่อน • Needs beverage prices and pack sizes</span>`
+         <span class="cost-note">${c.note
+            ? esc(c.note)
+            : "คำนวณกำไรไม่ได้ — ต้องมีราคาและขนาดบรรจุของวัตถุดิบก่อน • Needs beverage prices and pack sizes"}</span>`
       : "");
 
   const costHtml = cost.priced
     ? `<div class="cost-box">
-         <span class="cost-label">💰 ต้นทุนต่อแก้ว • Cost per glass:</span>
-         <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+         ${c.batch
+            ? `<span class="cost-label">💰 ต้นทุนทั้งแบตช์ • Batch cost:</span>
+               <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+               ${c.perGlass !== null
+                  ? `<span class="cost-label">≈ <b class="profit-main" style="font-size:.95rem">${esc(fmtPrice(c.perGlass))}</b> / แก้ว • per glass</span>`
+                  : ""}`
+            : `<span class="cost-label">💰 ต้นทุนต่อแก้ว • Cost per glass:</span>
+               <span class="cost-main">${esc(fmtPrice(cost.total))}</span>`}
+         ${c.note ? `<span class="cost-note">* ${esc(c.note)}</span>` : ""}
          ${cost.missing ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} วัตถุดิบ — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
          ${profitHtml}
        </div>`
@@ -2688,7 +2760,11 @@ document.getElementById("add-drink-form").addEventListener("submit", e => {
     nameEn: document.getElementById("drink-name-en").value.trim(),
     category: document.getElementById("drink-category").value,
     sellPrice: document.getElementById("drink-sellprice").value.trim(),
-    serveQty: "", serveUnit: "", note: "", items: [], methodTh: "", methodEn: "",
+    yieldQty: document.getElementById("drink-yield-qty").value.trim(),
+    yieldUnit: document.getElementById("drink-yield-unit").value.trim(),
+    serveQty: document.getElementById("drink-serve-qty").value.trim(),
+    serveUnit: document.getElementById("drink-serve-unit").value.trim(),
+    note: "", items: [], methodTh: "", methodEn: "",
   });
   save(); renderAll();
   e.target.reset();
@@ -2769,6 +2845,8 @@ function openDrinkEditor(drinkId) {
   document.getElementById("edit-drink-en").value = d.nameEn || "";
   document.getElementById("edit-drink-category").innerHTML = drinkTypeOptions(d.category || "");
   document.getElementById("edit-drink-sellprice").value = d.sellPrice || "";
+  document.getElementById("edit-drink-yield-qty").value = d.yieldQty || "";
+  document.getElementById("edit-drink-yield-unit").value = d.yieldUnit || "";
   document.getElementById("edit-drink-serve-qty").value = d.serveQty || "";
   document.getElementById("edit-drink-serve-unit").value = d.serveUnit || "";
   document.getElementById("edit-drink-note").value = d.note || "";
@@ -2785,6 +2863,8 @@ function saveDrinkEditor() {
   d.nameEn = document.getElementById("edit-drink-en").value.trim();
   d.category = document.getElementById("edit-drink-category").value;
   d.sellPrice = document.getElementById("edit-drink-sellprice").value.trim();
+  d.yieldQty = document.getElementById("edit-drink-yield-qty").value.trim();
+  d.yieldUnit = document.getElementById("edit-drink-yield-unit").value.trim();
   d.serveQty = document.getElementById("edit-drink-serve-qty").value.trim();
   d.serveUnit = document.getElementById("edit-drink-serve-unit").value.trim();
   d.note = document.getElementById("edit-drink-note").value.trim();
