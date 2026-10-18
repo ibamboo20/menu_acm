@@ -449,12 +449,14 @@
   <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
   <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
   <button class="tab-btn" data-tab="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverages</button>
+  <button class="tab-btn" data-tab="drinks">🍹 เมนูเครื่องดื่ม • Drink Menus</button>
   <button class="tab-btn" data-tab="sauces">🥣 ซอส &amp; เบส • Sauces</button>
   <button class="tab-btn" data-tab="reports">📊 รายงาน • Reports</button>
   <select class="tab-select" id="tab-select" aria-label="เลือกหน้า • Choose section">
     <option value="menus">🍽️ เมนูอาหาร • Menus</option>
     <option value="ingredients">🥕 ส่วนผสม • Ingredients</option>
     <option value="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverage Ingredients</option>
+    <option value="drinks">🍹 เมนูเครื่องดื่ม • Drink Menus</option>
     <option value="sauces">🥣 ซอส &amp; เบส • Sauces &amp; Bases</option>
     <option value="reports">📊 รายงาน • Reports</option>
   </select>
@@ -693,6 +695,7 @@
             <th>ราคา<br>Price</th>
             <th>ราคาต่อหน่วย<br>Unit price</th>
             <th>แหล่งจัดจำหน่าย<br>Supplier</th>
+            <th>มีในเครื่องดื่ม • Used in</th>
             <th></th>
           </tr>
         </thead>
@@ -702,6 +705,45 @@
         <div class="big">🥤</div>
         <p>ยังไม่มีวัตถุดิบเครื่องดื่ม<br>No beverage ingredients yet</p>
       </div>
+    </div>
+
+  </section>
+
+  <!-- ================= DRINK MENUS TAB ================= -->
+  <section class="panel" id="panel-drinks">
+
+    <div class="card">
+      <h2>เพิ่มเมนูเครื่องดื่ม <span class="en">• Add Drink Menu</span></h2>
+      <p class="hint">ใส่ชื่อและประเภทที่นี่ แล้วค่อยเพิ่มวัตถุดิบบนการ์ด • Name it here, then add its ingredients on the card</p>
+      <form class="form-row" id="add-drink-form">
+        <div class="field">
+          <label><b>ชื่อเครื่องดื่ม (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="drink-name-th" placeholder="เช่น ชาไทยเย็น" required>
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="drink-name-en" placeholder="e.g. Thai Iced Tea">
+        </div>
+        <div class="field">
+          <label><b>ประเภท</b> • Type</label>
+          <select id="drink-category"></select>
+        </div>
+        <div class="field" style="flex:1 1 130px">
+          <label><b>ราคาขาย ($ AUD)</b> • Sell price <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="drink-sellprice" min="0" step="0.01" placeholder="เช่น 6.50">
+        </div>
+        <button type="submit" class="btn">+ เพิ่มเครื่องดื่ม • Add</button>
+      </form>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="drink-search" placeholder="ค้นหาเมนูเครื่องดื่ม หรือวัตถุดิบในนั้น… • Search drinks or their ingredients…">
+    </div>
+
+    <div id="drink-groups"></div>
+    <div id="drink-empty" class="empty-state" style="display:none">
+      <div class="big">🍹</div>
+      <p>ยังไม่มีเมนูเครื่องดื่ม เริ่มเพิ่มแก้วแรกได้เลย<br>No drink menus yet — add your first one above</p>
     </div>
 
   </section>
@@ -803,6 +845,7 @@
 </main>
 
 <datalist id="ingredient-list"></datalist>
+<datalist id="beverage-list"></datalist>
 <datalist id="unit-list">
   <option value="กรัม (g)"><option value="กิโลกรัม (kg)"><option value="มล. (ml)">
   <option value="ลิตร (L)"><option value="ช้อนชา (tsp)"><option value="ช้อนโต๊ะ (tbsp)">
@@ -928,6 +971,61 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="drink-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>✏️ แก้ไขเมนูเครื่องดื่ม <span class="modal-en">• Edit drink</span>
+        <div class="modal-sub" id="drink-modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeDrinkEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="margin-top:8px">
+        <div class="field">
+          <label><b>ชื่อเครื่องดื่ม (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="edit-drink-th">
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="edit-drink-en">
+        </div>
+        <div class="field">
+          <label><b>ประเภท</b> • Type</label>
+          <select id="edit-drink-category"></select>
+        </div>
+        <div class="field" style="flex:1 1 130px">
+          <label><b>ราคาขาย ($ AUD)</b> • Sell price</label>
+          <input type="number" id="edit-drink-sellprice" min="0" step="0.01" placeholder="เช่น 6.50">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ขนาดแก้ว</b> • Glass size</label>
+          <input type="number" id="edit-drink-serve-qty" min="0" step="any" placeholder="เช่น 350">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>หน่วย</b> • Unit</label>
+          <input type="text" id="edit-drink-serve-unit" list="unit-list" placeholder="เช่น มล. (ml)">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>หมายเหตุ</b> • Note</label>
+          <input type="text" id="edit-drink-note" placeholder="เช่น เสิร์ฟใส่แก้วสูง ไม่ใส่น้ำแข็งได้">
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>วิธีทำ (ไทย)</b> • Method (Thai)</label>
+          <textarea id="edit-drink-method-th" rows="4"></textarea>
+        </div>
+        <div class="field" style="flex-basis:100%">
+          <label><b>วิธีทำ (อังกฤษ)</b> • Method (English)</label>
+          <textarea id="edit-drink-method-en" rows="4"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeDrinkEditor()">ยกเลิก • Cancel</button>
+      <button class="btn small" onclick="saveDrinkEditor()">💾 บันทึก • Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="sauce-modal">
   <div class="modal-card">
     <div class="modal-head">
@@ -996,7 +1094,7 @@ const LEGACY_CATS = {
   "ต้ม": "Soup", "ผัด": "Stir Fry", "แกง": "Curry", "ทอด": "Deep Fried",
   "ยำ": "Salad", "ย่าง": "Grilled", "ก๋วยเตี๋ยว": "Noodle"
 };
-let state = { menus: [], ingredients: [], beverages: [], sauces: [] };
+let state = { menus: [], ingredients: [], beverages: [], drinks: [], sauces: [] };
 let version = 0;
 
 function migrate(s) {
@@ -1004,6 +1102,8 @@ function migrate(s) {
   s.menus = Array.isArray(s.menus) ? s.menus : [];
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
   s.beverages = Array.isArray(s.beverages) ? s.beverages : [];
+  s.drinks = Array.isArray(s.drinks) ? s.drinks : [];
+  s.drinks.forEach(d => { if (!Array.isArray(d.items)) d.items = []; });
   s.sauces = Array.isArray(s.sauces) ? s.sauces : [];
   s.sauces.forEach(x => {
     if (!Array.isArray(x.items)) x.items = [];
@@ -1082,7 +1182,7 @@ async function save() {
    (skipped while the user is typing in a form field) */
 setInterval(async () => {
   const ae = document.activeElement;
-  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search"];
+  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search", "drink-search"];
   if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && !SEARCH_BOXES.includes(ae.id)) return;
   try {
     const res = await fetch("/api/state");
@@ -1637,6 +1737,10 @@ function renderBeverages() {
   const dash = `<span class="brand-txt">–</span>`;
   tbody.innerHTML = list.map(bev => {
     const per = unitPrice(bev);
+    const used = drinksUsing(bev.id);
+    const usedHtml = used.length
+      ? used.map(d => `<span class="chip blue" onclick="jumpToDrink('${d.id}')">${esc(d.nameTh)}${d.nameEn ? ` • ${esc(d.nameEn)}` : ""}</span>`).join("")
+      : `<span class="chip plain">ยังไม่มีเมนูที่ใช้ • Not used yet</span>`;
     return `<tr>
       <td><b>${esc(bev.nameTh)}</b>${bev.nameEn ? `<br><span class="brand-txt">${esc(bev.nameEn)}</span>` : ""}</td>
       <td>${bev.category ? `<span class="cat-badge">${esc(bev.category)}</span>` : dash}</td>
@@ -1645,11 +1749,181 @@ function renderBeverages() {
       <td>${bev.price ? esc(fmtPrice(bev.price)) : dash}</td>
       <td>${per ? `<span class="brand-txt">${esc(per)}</span>` : dash}</td>
       <td>${bev.supplier ? `<span class="brand-txt">${esc(bev.supplier)}</span>` : dash}</td>
+      <td>${usedHtml}</td>
       <td style="white-space:nowrap">
         <button class="icon-btn" title="แก้ไข • Edit" style="color:var(--blue)" onclick="editBeverage('${bev.id}')">✏️</button>
         <button class="icon-btn" title="ลบ • Delete" onclick="deleteBeverage('${bev.id}')">🗑️</button>
       </td>
     </tr>`;
+  }).join("");
+}
+
+/* ---------- drink menus ---------- */
+const DRINK_TYPES = [
+  { value: "Spirit",      th: "เหล้า · สุรา" },
+  { value: "Cocktail",    th: "ค็อกเทล" },
+  { value: "Smoothies",   th: "สมูทตี้ · ปั่น" },
+  { value: "Refreshment", th: "เครื่องดื่มทั่วไป" },
+];
+function drinkCatLabel(cat) {
+  if (!cat) return "ไม่ระบุประเภท • Uncategorized";
+  const t = DRINK_TYPES.find(t => t.value === cat);
+  return t ? `${t.value} • ${t.th}` : cat;
+}
+function drinkCatOrder(key) {
+  if (key === "") return DRINK_TYPES.length + 1;
+  const i = DRINK_TYPES.findIndex(t => t.value === key);
+  return i === -1 ? DRINK_TYPES.length : i;
+}
+function bevDisplay(bev) {
+  if (!bev) return "(ถูกลบ • deleted)";
+  return bev.nameEn ? `${bev.nameTh} (${bev.nameEn})` : bev.nameTh;
+}
+/* which drink menus pour a given beverage ingredient */
+function drinksUsing(bevId) {
+  return state.drinks.filter(d => (d.items || []).some(it => it.beverageId === bevId));
+}
+/* drink items point at state.beverages, so they need their own cost pair
+   rather than itemCost/costOf, which look the ingredient up in state.ingredients */
+function drinkItemCost(it) {
+  const bev = findBeverage(it.beverageId);
+  if (!bev) return null;
+  const price = parseFloat(bev.price), packQty = parseFloat(bev.packQty), useQty = parseFloat(it.qty);
+  if (!isFinite(price) || !isFinite(packQty) || packQty <= 0 || !isFinite(useQty)) return null;
+  const converted = convertQty(useQty, it.unit, bev.packUnit);
+  if (converted === null) return null;
+  return price / packQty * converted;
+}
+function drinkCostOf(items) {
+  let total = 0, priced = 0;
+  (items || []).forEach(it => {
+    const c = drinkItemCost(it);
+    if (c === null) return;
+    total += c; priced++;
+  });
+  return { total, priced, missing: (items || []).length - priced };
+}
+/* a drink's recipe is one glass, so the cost is already per serve */
+function drinkProfit(cost, drink) {
+  const price = parseFloat(drink.sellPrice);
+  if (!cost.priced || !isFinite(price) || price <= 0) return null;
+  const profit = price - cost.total;
+  return {
+    costPerServe: cost.total, price, profit,
+    marginPct: profit / price * 100,
+    foodCostPct: cost.total / price * 100,
+  };
+}
+
+function drinkCardHtml(d) {
+  const rows = (d.items || []).length
+    ? `<ul class="ing-list">${d.items.map((it, i) => {
+        const bev = findBeverage(it.beverageId);
+        const nameTh = bev ? bev.nameTh : "(ถูกลบ • deleted)";
+        const nameEn = bev ? bev.nameEn : "";
+        const qty = [it.qty, it.unit].filter(Boolean).join(" ");
+        return `<li>
+          <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
+          ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
+          <button class="icon-btn" title="ลบวัตถุดิบ • Remove" onclick="removeDrinkItem('${d.id}',${i})">✕</button>
+        </li>`;
+      }).join("")}</ul>`
+    : `<div class="empty-ing">ยังไม่มีวัตถุดิบ • No ingredients yet</div>`;
+
+  const method = (d.methodTh || d.methodEn)
+    ? `<div class="method-box"><div class="m-title">🍸 วิธีทำ • Method</div>` +
+      (d.methodTh ? `<div class="m-body">${esc(d.methodTh)}</div>` : "") +
+      (d.methodEn ? `<div class="m-body m-en">${esc(d.methodEn)}</div>` : "") +
+      `</div>`
+    : "";
+
+  const serveTxt = [d.serveQty, d.serveUnit].filter(Boolean).join(" ");
+  const pills = [serveTxt && `ขนาดแก้ว • Glass: ${serveTxt}`, d.note].filter(Boolean);
+
+  const cost = drinkCostOf(d.items);
+  const profit = drinkProfit(cost, d);
+  const sellPrice = parseFloat(d.sellPrice);
+  const profitHtml = profit
+    ? `<div class="cost-rule"></div>
+       <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / แก้ว</span>
+       <span class="cost-label">📈 กำไร • Profit:</span>
+       <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
+       <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
+       <span class="cost-label">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(profit.foodCostPct))}</span>
+       ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกวัตถุดิบ</span>` : ""}`
+    : (isFinite(sellPrice) && sellPrice > 0
+      ? `<div class="cost-rule"></div>
+         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(sellPrice))} / แก้ว</span>
+         <span class="cost-note">คำนวณกำไรไม่ได้ — ต้องมีราคาและขนาดบรรจุของวัตถุดิบก่อน • Needs beverage prices and pack sizes</span>`
+      : "");
+
+  const costHtml = cost.priced
+    ? `<div class="cost-box">
+         <span class="cost-label">💰 ต้นทุนต่อแก้ว • Cost per glass:</span>
+         <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+         ${cost.missing ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} วัตถุดิบ — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
+         ${profitHtml}
+       </div>`
+    : ((d.items || []).length || (isFinite(sellPrice) && sellPrice > 0)
+      ? `<div class="cost-box"><span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนไม่ได้ — ใส่ราคาและขนาดบรรจุในแท็บวัตถุดิบเครื่องดื่มก่อน • Add beverage price &amp; pack size to see cost</span>${profitHtml}</div>`
+      : "");
+
+  return `<div class="card menu-card" id="drink-${d.id}">
+    <div class="menu-head">
+      <h3>${esc(d.nameTh)}${d.nameEn ? `<div class="name-en">${esc(d.nameEn)}</div>` : ""}
+        ${pills.length ? `<div class="menu-meta">${pills.map(p => `<span class="sauce-note">${esc(p)}</span>`).join("")}</div>` : ""}
+      </h3>
+      <span class="head-actions">
+        <button class="icon-btn" title="แก้ไข • Edit drink" style="color:var(--blue)" onclick="openDrinkEditor('${d.id}')">✏️</button>
+        <button class="icon-btn" title="ลบ • Delete drink" onclick="deleteDrink('${d.id}')">🗑️</button>
+      </span>
+    </div>
+    ${rows}
+    <form class="add-ing-form" onsubmit="return addDrinkItem(event,'${d.id}')">
+      <input class="ing-input" list="beverage-list" placeholder="วัตถุดิบ • Beverage ingredient" required>
+      <input class="qty-input" placeholder="ปริมาณ • Qty">
+      <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+      <button type="submit" class="btn small secondary">+ ใส่</button>
+    </form>
+    ${costHtml}
+    ${method}
+  </div>`;
+}
+
+function renderDrinks() {
+  const container = document.getElementById("drink-groups");
+  const q = document.getElementById("drink-search").value.trim().toLowerCase();
+  const hit = d =>
+    !q ||
+    d.nameTh.toLowerCase().includes(q) ||
+    (d.nameEn || "").toLowerCase().includes(q) ||
+    (d.category || "").toLowerCase().includes(q) ||
+    (d.items || []).some(it => {
+      const bev = findBeverage(it.beverageId);
+      return bev && (bev.nameTh.toLowerCase().includes(q) || (bev.nameEn || "").toLowerCase().includes(q));
+    });
+
+  const list = state.drinks.filter(hit);
+  document.getElementById("drink-empty").style.display = state.drinks.length ? "none" : "";
+
+  const groups = new Map();
+  list.forEach(d => {
+    const key = (d.category || "").trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(d);
+  });
+  const keys = [...groups.keys()].sort((a, b) =>
+    drinkCatOrder(a) - drinkCatOrder(b) || a.localeCompare(b, "th"));
+
+  container.innerHTML = keys.map(key => {
+    const group = groups.get(key);
+    return `
+      <div class="group-header">
+        <h2>${esc(drinkCatLabel(key))}</h2>
+        <span class="count">${group.length} เมนู</span>
+        <div class="rule"></div>
+      </div>
+      <div class="grid">${group.map(drinkCardHtml).join("")}</div>`;
   }).join("");
 }
 
@@ -1660,12 +1934,17 @@ function renderDatalists() {
   const opts = (vals) => [...new Set(vals.filter(Boolean))].map(v => `<option value="${esc(v)}">`).join("");
   document.getElementById("category-list").innerHTML = opts(state.ingredients.map(i => i.category));
   document.getElementById("bev-category-list").innerHTML = opts(state.beverages.map(b => b.category));
+  document.getElementById("beverage-list").innerHTML =
+    state.beverages.map(b => `<option value="${esc(bevDisplay(b))}">`).join("");
   // suppliers are shared: the same wholesaler delivers food and drinks
   document.getElementById("supplier-list").innerHTML =
     opts([...state.ingredients, ...state.beverages].map(r => r.supplier));
 }
 
-function renderAll() { renderMenus(); renderIngredients(); renderBeverages(); renderDatalists(); renderSauces(); renderReports(); }
+function renderAll() {
+  renderMenus(); renderIngredients(); renderBeverages(); renderDrinks();
+  renderDatalists(); renderSauces(); renderReports();
+}
 
 /* ---------- actions: menus ---------- */
 document.getElementById("add-menu-form").addEventListener("submit", e => {
@@ -2171,7 +2450,7 @@ document.getElementById("modal-overlay").addEventListener("click", e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeModal(); closeOptsModal(); closeMenuEditor(); closeSauceEditor(); }
+  if (e.key === "Escape") { closeModal(); closeOptsModal(); closeMenuEditor(); closeSauceEditor(); closeDrinkEditor(); }
 });
 
 /* ---------- actions: ingredients ---------- */
@@ -2342,11 +2621,146 @@ document.getElementById("bev-delete-edit").addEventListener("click", () => {
   if (editingBevId) deleteBeverage(editingBevId);
 });
 
+/* ---------- actions: drink menus ---------- */
+function drinkTypeOptions(selected) {
+  return `<option value="">— ไม่ระบุ • None —</option>` +
+    DRINK_TYPES.map(t => `<option value="${esc(t.value)}"${t.value === selected ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+}
+
+document.getElementById("add-drink-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const th = document.getElementById("drink-name-th").value.trim();
+  if (!th) return;
+  if (state.drinks.some(d => d.nameTh.trim() === th)) {
+    toast(`"${th}" มีอยู่แล้ว • Already exists`);
+    return;
+  }
+  state.drinks.unshift({
+    id: uid(), nameTh: th,
+    nameEn: document.getElementById("drink-name-en").value.trim(),
+    category: document.getElementById("drink-category").value,
+    sellPrice: document.getElementById("drink-sellprice").value.trim(),
+    serveQty: "", serveUnit: "", note: "", items: [], methodTh: "", methodEn: "",
+  });
+  save(); renderAll();
+  e.target.reset();
+  document.getElementById("drink-name-th").focus();
+  toast(`เพิ่มเครื่องดื่ม "${th}" แล้ว • Drink added`);
+});
+
+function addDrinkItem(e, drinkId) {
+  e.preventDefault();
+  const d = state.drinks.find(x => x.id === drinkId);
+  if (!d) return false;
+  const form = e.target;
+  const name = form.querySelector(".ing-input").value.trim();
+  const qty = form.querySelector(".qty-input").value.trim();
+  const unit = form.querySelector(".unit-input").value.trim();
+  if (!name) return false;
+
+  // every drink ingredient is a row in the beverage table
+  let bev = matchBeverageByName(name) || state.beverages.find(b => bevDisplay(b).toLowerCase() === name.toLowerCase());
+  if (!bev) {
+    bev = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
+    state.beverages.push(bev);
+    toast(`สร้างวัตถุดิบใหม่ "${name}" — เพิ่มราคาได้ในแท็บวัตถุดิบเครื่องดื่ม • New beverage ingredient created`);
+  }
+
+  d.items = d.items || [];
+  const existing = d.items.find(it => it.beverageId === bev.id);
+  if (existing) {
+    existing.qty = qty; existing.unit = unit;
+    toast(`อัปเดตปริมาณ "${bev.nameTh}" แล้ว • Quantity updated`);
+  } else {
+    d.items.push({ beverageId: bev.id, qty, unit });
+  }
+  save(); renderAll();
+  const back = document.querySelector(`#drink-${drinkId} .add-ing-form .ing-input`);
+  if (back) back.focus();
+  return false;
+}
+
+function removeDrinkItem(drinkId, index) {
+  const d = state.drinks.find(x => x.id === drinkId);
+  if (!d) return;
+  d.items.splice(index, 1);
+  save(); renderAll();
+}
+
+function deleteDrink(drinkId) {
+  const d = state.drinks.find(x => x.id === drinkId);
+  if (!d) return;
+  if (!confirm(`ลบเมนูเครื่องดื่ม "${d.nameTh}" ?\nDelete drink "${d.nameEn || d.nameTh}"?`)) return;
+  state.drinks = state.drinks.filter(x => x.id !== drinkId);
+  save(); renderAll();
+  toast("ลบเมนูเครื่องดื่มแล้ว • Drink deleted");
+}
+
+function jumpToDrink(drinkId) {
+  switchTab("drinks");
+  document.getElementById("drink-search").value = "";
+  renderDrinks();
+  setTimeout(() => {
+    const el = document.getElementById("drink-" + drinkId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("highlight-flash");
+      void el.offsetWidth;
+      el.classList.add("highlight-flash");
+    }
+  }, 0);
+}
+
+let editingDrinkId = null;
+function openDrinkEditor(drinkId) {
+  const d = state.drinks.find(x => x.id === drinkId);
+  if (!d) return;
+  editingDrinkId = drinkId;
+  document.getElementById("drink-modal-sub").textContent = d.nameTh + (d.nameEn ? " • " + d.nameEn : "");
+  document.getElementById("edit-drink-th").value = d.nameTh || "";
+  document.getElementById("edit-drink-en").value = d.nameEn || "";
+  document.getElementById("edit-drink-category").innerHTML = drinkTypeOptions(d.category || "");
+  document.getElementById("edit-drink-sellprice").value = d.sellPrice || "";
+  document.getElementById("edit-drink-serve-qty").value = d.serveQty || "";
+  document.getElementById("edit-drink-serve-unit").value = d.serveUnit || "";
+  document.getElementById("edit-drink-note").value = d.note || "";
+  document.getElementById("edit-drink-method-th").value = d.methodTh || "";
+  document.getElementById("edit-drink-method-en").value = d.methodEn || "";
+  document.getElementById("drink-modal").classList.add("show");
+}
+function saveDrinkEditor() {
+  const d = state.drinks.find(x => x.id === editingDrinkId);
+  if (!d) { closeDrinkEditor(); return; }
+  const th = document.getElementById("edit-drink-th").value.trim();
+  if (!th) { toast("ต้องใส่ชื่อเครื่องดื่มภาษาไทย • Thai name is required"); return; }
+  d.nameTh = th;
+  d.nameEn = document.getElementById("edit-drink-en").value.trim();
+  d.category = document.getElementById("edit-drink-category").value;
+  d.sellPrice = document.getElementById("edit-drink-sellprice").value.trim();
+  d.serveQty = document.getElementById("edit-drink-serve-qty").value.trim();
+  d.serveUnit = document.getElementById("edit-drink-serve-unit").value.trim();
+  d.note = document.getElementById("edit-drink-note").value.trim();
+  d.methodTh = document.getElementById("edit-drink-method-th").value.trim();
+  d.methodEn = document.getElementById("edit-drink-method-en").value.trim();
+  save(); renderAll();
+  closeDrinkEditor();
+  toast("บันทึกเมนูเครื่องดื่มแล้ว • Drink saved");
+}
+function closeDrinkEditor() {
+  editingDrinkId = null;
+  document.getElementById("drink-modal").classList.remove("show");
+}
+
 function deleteBeverage(id) {
   const bev = findBeverage(id);
   if (!bev) return;
-  if (!confirm(`ลบวัตถุดิบเครื่องดื่ม "${bev.nameTh}" ?`)) return;
+  const used = drinksUsing(id);
+  const warn = used.length
+    ? `\n⚠️ วัตถุดิบนี้ถูกใช้ใน ${used.length} เมนูเครื่องดื่ม จะถูกลบออกจากที่นั่นด้วย\nIt is used in ${used.length} drink menu(s) — it will be removed from them too.`
+    : "";
+  if (!confirm(`ลบวัตถุดิบเครื่องดื่ม "${bev.nameTh}" ?${warn}`)) return;
   state.beverages = state.beverages.filter(b => b.id !== id);
+  state.drinks.forEach(d => d.items = (d.items || []).filter(it => it.beverageId !== id));
   if (editingBevId === id) cancelBevEdit();
   save(); renderAll();
   toast(`ลบวัตถุดิบแล้ว • Beverage ingredient deleted`);
@@ -2578,6 +2992,10 @@ document.getElementById("sauce-modal").addEventListener("click", e => {
   if (e.target === e.currentTarget) closeSauceEditor();
 });
 document.getElementById("sauce-search").addEventListener("input", renderSauces);
+document.getElementById("drink-search").addEventListener("input", renderDrinks);
+document.getElementById("drink-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeDrinkEditor();
+});
 
 /* ---------- reports ---------- */
 /* three independent pickers; "menu" and "cost" both choose menus */
@@ -3081,6 +3499,9 @@ document.getElementById("load-sample").addEventListener("click", () => {
 document.getElementById("menu-category").innerHTML =
   `<option value="">— เลือกประเภท • Select type —</option>` +
   MENU_TYPES.map(t => `<option value="${esc(t.value)}">${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+
+/* populate drink-type dropdown in the add-drink form */
+document.getElementById("drink-category").innerHTML = drinkTypeOptions("");
 
 resetBuilder();
 
