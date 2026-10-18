@@ -448,11 +448,13 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
   <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
+  <button class="tab-btn" data-tab="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverages</button>
   <button class="tab-btn" data-tab="sauces">🥣 ซอส &amp; เบส • Sauces</button>
   <button class="tab-btn" data-tab="reports">📊 รายงาน • Reports</button>
   <select class="tab-select" id="tab-select" aria-label="เลือกหน้า • Choose section">
     <option value="menus">🍽️ เมนูอาหาร • Menus</option>
     <option value="ingredients">🥕 ส่วนผสม • Ingredients</option>
+    <option value="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverage Ingredients</option>
     <option value="sauces">🥣 ซอส &amp; เบส • Sauces &amp; Bases</option>
     <option value="reports">📊 รายงาน • Reports</option>
   </select>
@@ -625,6 +627,80 @@
       <div id="ing-empty" class="empty-state" style="display:none">
         <div class="big">🥬</div>
         <p>ยังไม่มีข้อมูลส่วนผสม<br>No ingredients yet</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= BEVERAGE INGREDIENTS TAB ================= -->
+  <section class="panel" id="panel-beverages">
+
+    <div class="card">
+      <h2 id="bev-form-title">เพิ่มวัตถุดิบเครื่องดื่ม <span class="en">• Add Beverage Ingredient</span></h2>
+      <p class="hint">สำหรับของที่ใช้ทำเครื่องดื่มโดยเฉพาะ เช่น ชา กาแฟ น้ำอัดลม เบียร์ • For drink supplies: tea, coffee, soft drinks, beer</p>
+      <form class="form-row" id="add-bev-form">
+        <div class="field">
+          <label><b>ชื่อวัตถุดิบ (ไทย)</b> • Name (Thai) *</label>
+          <input type="text" id="bev-name-th" placeholder="เช่น ชาไทย" required>
+        </div>
+        <div class="field">
+          <label><b>ชื่อ (อังกฤษ)</b> • Name (English)</label>
+          <input type="text" id="bev-name-en" placeholder="e.g. Thai tea leaves">
+        </div>
+        <div class="field">
+          <label><b>ประเภท</b> • Category <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="bev-category" list="bev-category-list" placeholder="เช่น ชา, น้ำอัดลม, แอลกอฮอล์">
+          <datalist id="bev-category-list"></datalist>
+        </div>
+        <div class="field">
+          <label><b>แบรนด์</b> • Brand <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="bev-brand" placeholder="เช่น ChaTraMue">
+        </div>
+        <div class="field" style="flex:1 1 110px">
+          <label><b>ปริมาณ</b> • Pack qty <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="bev-packqty" min="0" step="any" placeholder="เช่น 400">
+        </div>
+        <div class="field">
+          <label><b>หน่วย</b> • Unit <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="bev-packunit" list="unit-list" placeholder="เช่น กรัม (g)">
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label><b>ราคา ($ AUD)</b> • Price (AUD) <span style="color:#bbb">(optional)</span></label>
+          <input type="number" id="bev-price" min="0" step="0.01" placeholder="เช่น 12.50">
+        </div>
+        <div class="field">
+          <label><b>แหล่งจัดจำหน่าย</b> • Supplier <span style="color:#bbb">(optional)</span></label>
+          <input type="text" id="bev-supplier" list="supplier-list" placeholder="เช่น Best Food, SinghAus">
+        </div>
+        <button type="submit" class="btn secondary" id="bev-submit-btn">+ เพิ่มวัตถุดิบ • Add</button>
+        <button type="button" class="btn ghost" id="bev-cancel-edit" style="display:none">ยกเลิก • Cancel</button>
+        <button type="button" class="btn danger" id="bev-delete-edit" style="display:none">🗑️ ลบวัตถุดิบ • Delete</button>
+      </form>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="bev-search" placeholder="ค้นหาวัตถุดิบเครื่องดื่ม… • Search beverage ingredients…">
+    </div>
+
+    <div class="card table-wrap">
+      <table class="ing-table">
+        <thead>
+          <tr>
+            <th>วัตถุดิบ<br>Ingredient</th>
+            <th>ประเภท<br>Category</th>
+            <th>แบรนด์<br>Brand</th>
+            <th>ปริมาณ<br>Pack size</th>
+            <th>ราคา<br>Price</th>
+            <th>ราคาต่อหน่วย<br>Unit price</th>
+            <th>แหล่งจัดจำหน่าย<br>Supplier</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bev-tbody"></tbody>
+      </table>
+      <div id="bev-empty" class="empty-state" style="display:none">
+        <div class="big">🥤</div>
+        <p>ยังไม่มีวัตถุดิบเครื่องดื่ม<br>No beverage ingredients yet</p>
       </div>
     </div>
 
@@ -920,13 +996,14 @@ const LEGACY_CATS = {
   "ต้ม": "Soup", "ผัด": "Stir Fry", "แกง": "Curry", "ทอด": "Deep Fried",
   "ยำ": "Salad", "ย่าง": "Grilled", "ก๋วยเตี๋ยว": "Noodle"
 };
-let state = { menus: [], ingredients: [], sauces: [] };
+let state = { menus: [], ingredients: [], beverages: [], sauces: [] };
 let version = 0;
 
 function migrate(s) {
   if (!s || typeof s !== "object") s = {};
   s.menus = Array.isArray(s.menus) ? s.menus : [];
   s.ingredients = Array.isArray(s.ingredients) ? s.ingredients : [];
+  s.beverages = Array.isArray(s.beverages) ? s.beverages : [];
   s.sauces = Array.isArray(s.sauces) ? s.sauces : [];
   s.sauces.forEach(x => {
     if (!Array.isArray(x.items)) x.items = [];
@@ -1005,7 +1082,8 @@ async function save() {
    (skipped while the user is typing in a form field) */
 setInterval(async () => {
   const ae = document.activeElement;
-  if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && ae.id !== "menu-search" && ae.id !== "ing-search") return;
+  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search"];
+  if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && !SEARCH_BOXES.includes(ae.id)) return;
   try {
     const res = await fetch("/api/state");
     if (!res.ok) return;
@@ -1526,16 +1604,68 @@ function renderIngredients() {
   }).join("");
 }
 
+/* ---------- render: beverage ingredients ---------- */
+/* price per kg / per litre, so packs of different sizes can be compared */
+function unitPrice(row) {
+  const price = parseFloat(row.price), packQty = parseFloat(row.packQty);
+  if (!isFinite(price) || !isFinite(packQty) || packQty <= 0) return "";
+  const dim = (UNIT_BASE[normUnit(row.packUnit)] || [])[0];
+  if (!dim) return "";
+  const per = dim === "w" ? "กิโลกรัม (kg)" : "ลิตร (L)";
+  const inPer = convertQty(packQty, row.packUnit, per);
+  if (inPer === null || inPer <= 0) return "";
+  return `${fmtPrice(price / inPer)} / ${dim === "w" ? "kg" : "L"}`;
+}
+
+function renderBeverages() {
+  const tbody = document.getElementById("bev-tbody");
+  const q = document.getElementById("bev-search").value.trim().toLowerCase();
+
+  const list = state.beverages.filter(b => {
+    if (!q) return true;
+    return b.nameTh.toLowerCase().includes(q) ||
+      (b.nameEn || "").toLowerCase().includes(q) ||
+      (b.category || "").toLowerCase().includes(q) ||
+      (b.brand || "").toLowerCase().includes(q) ||
+      (b.supplier || "").toLowerCase().includes(q) ||
+      fmtPack(b).toLowerCase().includes(q);
+  }).sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"));
+
+  document.getElementById("bev-empty").style.display =
+    state.beverages.length === 0 ? "" : "none";
+
+  const dash = `<span class="brand-txt">–</span>`;
+  tbody.innerHTML = list.map(bev => {
+    const per = unitPrice(bev);
+    return `<tr>
+      <td><b>${esc(bev.nameTh)}</b>${bev.nameEn ? `<br><span class="brand-txt">${esc(bev.nameEn)}</span>` : ""}</td>
+      <td>${bev.category ? `<span class="cat-badge">${esc(bev.category)}</span>` : dash}</td>
+      <td>${bev.brand ? `<span class="brand-txt">${esc(bev.brand)}</span>` : dash}</td>
+      <td>${fmtPack(bev) ? esc(fmtPack(bev)) : dash}</td>
+      <td>${bev.price ? esc(fmtPrice(bev.price)) : dash}</td>
+      <td>${per ? `<span class="brand-txt">${esc(per)}</span>` : dash}</td>
+      <td>${bev.supplier ? `<span class="brand-txt">${esc(bev.supplier)}</span>` : dash}</td>
+      <td style="white-space:nowrap">
+        <button class="icon-btn" title="แก้ไข • Edit" style="color:var(--blue)" onclick="editBeverage('${bev.id}')">✏️</button>
+        <button class="icon-btn" title="ลบ • Delete" onclick="deleteBeverage('${bev.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
 /* ---------- render: shared datalists ---------- */
 function renderDatalists() {
   document.getElementById("ingredient-list").innerHTML =
     state.ingredients.map(i => `<option value="${esc(ingDisplay(i))}">`).join("");
   const opts = (vals) => [...new Set(vals.filter(Boolean))].map(v => `<option value="${esc(v)}">`).join("");
   document.getElementById("category-list").innerHTML = opts(state.ingredients.map(i => i.category));
-  document.getElementById("supplier-list").innerHTML = opts(state.ingredients.map(i => i.supplier));
+  document.getElementById("bev-category-list").innerHTML = opts(state.beverages.map(b => b.category));
+  // suppliers are shared: the same wholesaler delivers food and drinks
+  document.getElementById("supplier-list").innerHTML =
+    opts([...state.ingredients, ...state.beverages].map(r => r.supplier));
 }
 
-function renderAll() { renderMenus(); renderIngredients(); renderDatalists(); renderSauces(); renderReports(); }
+function renderAll() { renderMenus(); renderIngredients(); renderBeverages(); renderDatalists(); renderSauces(); renderReports(); }
 
 /* ---------- actions: menus ---------- */
 document.getElementById("add-menu-form").addEventListener("submit", e => {
@@ -2141,6 +2271,85 @@ function deleteIngredient(id) {
   if (editingId === id) cancelEdit();
   save(); renderAll();
   toast(`ลบส่วนผสมแล้ว • Ingredient deleted`);
+}
+
+/* ---------- actions: beverage ingredients ---------- */
+let editingBevId = null;
+function findBeverage(id) { return state.beverages.find(b => b.id === id); }
+function matchBeverageByName(text) {
+  const t = text.trim().toLowerCase();
+  return state.beverages.find(b =>
+    b.nameTh.toLowerCase() === t || (b.nameEn && b.nameEn.toLowerCase() === t));
+}
+
+document.getElementById("add-bev-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  const th = v("bev-name-th");
+  if (!th) return;
+  const data = {
+    nameTh: th, nameEn: v("bev-name-en"), category: v("bev-category"), brand: v("bev-brand"),
+    packQty: v("bev-packqty"), packUnit: v("bev-packunit"), price: v("bev-price"), supplier: v("bev-supplier"),
+  };
+
+  if (editingBevId) {
+    const bev = findBeverage(editingBevId);
+    if (bev) Object.assign(bev, data);
+    toast(`บันทึกการแก้ไข "${th}" แล้ว • Updated`);
+    cancelBevEdit();
+  } else {
+    if (matchBeverageByName(th)) {
+      toast(`"${th}" มีอยู่แล้ว • Already exists`);
+      return;
+    }
+    state.beverages.push({ id: uid(), ...data });
+    toast(`เพิ่มวัตถุดิบ "${th}" แล้ว • Beverage ingredient added`);
+    e.target.reset();
+    document.getElementById("bev-name-th").focus();
+  }
+  save(); renderAll();
+});
+
+function editBeverage(id) {
+  const bev = findBeverage(id);
+  if (!bev) return;
+  editingBevId = id;
+  const set = (el, val) => document.getElementById(el).value = val || "";
+  set("bev-name-th", bev.nameTh); set("bev-name-en", bev.nameEn);
+  set("bev-category", bev.category); set("bev-brand", bev.brand);
+  set("bev-packqty", bev.packQty); set("bev-packunit", bev.packUnit);
+  set("bev-price", bev.price); set("bev-supplier", bev.supplier);
+  document.getElementById("bev-form-title").innerHTML =
+    `แก้ไขวัตถุดิบเครื่องดื่ม <span class="en">• Edit Beverage Ingredient</span>`;
+  document.getElementById("bev-submit-btn").textContent = "💾 บันทึก • Save";
+  document.getElementById("bev-cancel-edit").style.display = "";
+  document.getElementById("bev-delete-edit").style.display = "";
+  document.getElementById("bev-name-th").focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelBevEdit() {
+  editingBevId = null;
+  document.getElementById("add-bev-form").reset();
+  document.getElementById("bev-form-title").innerHTML =
+    `เพิ่มวัตถุดิบเครื่องดื่ม <span class="en">• Add Beverage Ingredient</span>`;
+  document.getElementById("bev-submit-btn").textContent = "+ เพิ่มวัตถุดิบ • Add";
+  document.getElementById("bev-cancel-edit").style.display = "none";
+  document.getElementById("bev-delete-edit").style.display = "none";
+}
+document.getElementById("bev-cancel-edit").addEventListener("click", cancelBevEdit);
+document.getElementById("bev-delete-edit").addEventListener("click", () => {
+  if (editingBevId) deleteBeverage(editingBevId);
+});
+
+function deleteBeverage(id) {
+  const bev = findBeverage(id);
+  if (!bev) return;
+  if (!confirm(`ลบวัตถุดิบเครื่องดื่ม "${bev.nameTh}" ?`)) return;
+  state.beverages = state.beverages.filter(b => b.id !== id);
+  if (editingBevId === id) cancelBevEdit();
+  save(); renderAll();
+  toast(`ลบวัตถุดิบแล้ว • Beverage ingredient deleted`);
 }
 
 /* ---------- sauces & bases ---------- */
@@ -2806,6 +3015,7 @@ function makeCostReport(mode) {
 /* ---------- search ---------- */
 document.getElementById("menu-search").addEventListener("input", renderMenus);
 document.getElementById("ing-search").addEventListener("input", renderIngredients);
+document.getElementById("bev-search").addEventListener("input", renderBeverages);
 
 /* ---------- sample data ---------- */
 document.getElementById("load-sample").addEventListener("click", () => {
