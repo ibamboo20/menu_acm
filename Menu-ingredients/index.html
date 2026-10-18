@@ -47,6 +47,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: flex-start;
     gap: 8px;
     background: linear-gradient(135deg, #2a1a11, #3c271d);
     padding: 0 16px 18px;
@@ -65,11 +66,30 @@
   .tab-btn:hover { background: rgba(255,255,255,.22); }
   .tab-btn.active { background: var(--accent); color: #fff; font-weight: 600; border-color: var(--accent); }
 
-  /* the three pills need ~620px to sit on one row; below that they wrap into
-     tall ovals, so swap them for a single dropdown */
+  /* food and drink are separate halves of the business, so the nav is
+     grouped rather than one long row of pills */
+  .tab-group { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .tab-group-label {
+    color: rgba(255,255,255,.62);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .tab-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .tab-divider {
+    width: 1px;
+    align-self: stretch;
+    margin: 4px 6px 0;
+    background: rgba(255,255,255,.18);
+  }
+
+  /* the grouped pills need ~820px to sit on one row; below that they wrap
+     into a tall stack, so swap them for a single dropdown */
   .tab-select { display: none; }
-  @media (max-width: 640px) {
-    .tab-btn { display: none; }
+  @media (max-width: 860px) {
+    .tab-group, .tab-divider { display: none; }
     .tab-select {
       display: block;
       width: 100%;
@@ -446,19 +466,47 @@
   <p>Menu Ingredients Manager</p>
 </header>
 <nav class="tabs">
-  <button class="tab-btn active" data-tab="menus">🍽️ เมนูอาหาร • Menus</button>
-  <button class="tab-btn" data-tab="ingredients">🥕 ส่วนผสม • Ingredients</button>
-  <button class="tab-btn" data-tab="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverages</button>
-  <button class="tab-btn" data-tab="drinks">🍹 เมนูเครื่องดื่ม • Drink Menus</button>
-  <button class="tab-btn" data-tab="sauces">🥣 ซอส &amp; เบส • Sauces</button>
-  <button class="tab-btn" data-tab="reports">📊 รายงาน • Reports</button>
+  <div class="tab-group">
+    <span class="tab-group-label">🍽️ อาหาร • Food</span>
+    <div class="tab-pills">
+      <button class="tab-btn active" data-tab="menus">เมนูอาหาร • Menus</button>
+      <button class="tab-btn" data-tab="ingredients">ส่วนผสม • Ingredients</button>
+      <button class="tab-btn" data-tab="sauces">ซอส &amp; เบส • Sauces</button>
+    </div>
+  </div>
+
+  <div class="tab-divider"></div>
+
+  <div class="tab-group">
+    <span class="tab-group-label">🍹 เครื่องดื่ม • Drink</span>
+    <div class="tab-pills">
+      <button class="tab-btn" data-tab="drinks">เมนูเครื่องดื่ม • Drink Menus</button>
+      <button class="tab-btn" data-tab="beverages">วัตถุดิบ • Beverages</button>
+    </div>
+  </div>
+
+  <div class="tab-divider"></div>
+
+  <div class="tab-group">
+    <span class="tab-group-label">📊 ภาพรวม • Overview</span>
+    <div class="tab-pills">
+      <button class="tab-btn" data-tab="reports">รายงาน • Reports</button>
+    </div>
+  </div>
+
   <select class="tab-select" id="tab-select" aria-label="เลือกหน้า • Choose section">
-    <option value="menus">🍽️ เมนูอาหาร • Menus</option>
-    <option value="ingredients">🥕 ส่วนผสม • Ingredients</option>
-    <option value="beverages">🥤 วัตถุดิบเครื่องดื่ม • Beverage Ingredients</option>
-    <option value="drinks">🍹 เมนูเครื่องดื่ม • Drink Menus</option>
-    <option value="sauces">🥣 ซอส &amp; เบส • Sauces &amp; Bases</option>
-    <option value="reports">📊 รายงาน • Reports</option>
+    <optgroup label="🍽️ อาหาร • Food">
+      <option value="menus">เมนูอาหาร • Menus</option>
+      <option value="ingredients">ส่วนผสม • Ingredients</option>
+      <option value="sauces">ซอส &amp; เบส • Sauces &amp; Bases</option>
+    </optgroup>
+    <optgroup label="🍹 เครื่องดื่ม • Drink">
+      <option value="drinks">เมนูเครื่องดื่ม • Drink Menus</option>
+      <option value="beverages">วัตถุดิบเครื่องดื่ม • Beverage Ingredients</option>
+    </optgroup>
+    <optgroup label="📊 ภาพรวม • Overview">
+      <option value="reports">รายงาน • Reports</option>
+    </optgroup>
   </select>
 </nav>
 
