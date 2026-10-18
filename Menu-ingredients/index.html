@@ -1654,7 +1654,7 @@ function menuCardHtml(menu) {
       `<form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}','${where}')">
         <input class="ing-input" list="ingredient-list" placeholder="${ph}" required>
         <input class="qty-input" placeholder="ปริมาณ • Qty">
-        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit" title="เติมให้เองตามหน่วยในตารางวัตถุดิบ แก้ไขได้ • Filled from the ingredient table; you can still change it">
         <button type="submit" class="btn small secondary">+ ใส่</button>
       </form>`;
 
@@ -2002,7 +2002,7 @@ function drinkCardHtml(d) {
     <form class="add-ing-form" onsubmit="return addDrinkItem(event,'${d.id}')">
       <input class="ing-input" list="beverage-list" placeholder="วัตถุดิบ • Beverage ingredient" required>
       <input class="qty-input" placeholder="ปริมาณ • Qty">
-      <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+      <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit" title="เติมให้เองตามหน่วยในตารางวัตถุดิบ แก้ไขได้ • Filled from the ingredient table; you can still change it">
       <button type="submit" class="btn small secondary">+ ใส่</button>
     </form>
     ${costHtml}
@@ -2065,6 +2065,50 @@ function renderAll() {
   renderMenus(); renderIngredients(); renderBeverages(); renderDrinks();
   renderDatalists(); renderSauces(); renderReports();
 }
+
+/* ---------- picking an ingredient fills in its unit ---------- */
+/* A recipe is only costed when its unit converts to the one the ingredient is
+   bought in, so the unit box fills itself from the table as soon as a name is
+   chosen. It stays editable: a unit the user types by hand is never replaced
+   (data-auto marks the values we put there ourselves). */
+function lookupRow(input, name) {
+  const n = name.trim();
+  if (!n) return null;
+  if (input.getAttribute("list") === "beverage-list") {
+    return matchBeverageByName(n)
+      || state.beverages.find(b => bevDisplay(b).toLowerCase() === n.toLowerCase())
+      || null;
+  }
+  return matchIngredientByName(n) || null;
+}
+
+function fillUnitFor(ingInput) {
+  const form = ingInput.closest(".add-ing-form");
+  const unitInput = form && form.querySelector(".unit-input");
+  if (!unitInput) return;
+  // leave alone anything the user typed themselves
+  if (unitInput.value.trim() && unitInput.dataset.auto !== "1") return;
+
+  const row = lookupRow(ingInput, ingInput.value);
+  const unit = row && row.packUnit ? row.packUnit : "";
+  if (unit) {
+    unitInput.value = unit;
+    unitInput.dataset.auto = "1";
+  } else if (unitInput.dataset.auto === "1") {
+    unitInput.value = "";
+    delete unitInput.dataset.auto;
+  }
+}
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.classList && t.classList.contains("ing-input")) fillUnitFor(t);
+  // once the unit is edited by hand it is theirs to keep
+  else if (t.classList && t.classList.contains("unit-input")) delete t.dataset.auto;
+});
+document.addEventListener("change", e => {
+  if (e.target.classList && e.target.classList.contains("ing-input")) fillUnitFor(e.target);
+});
 
 /* ---------- actions: menus ---------- */
 document.getElementById("add-menu-form").addEventListener("submit", e => {
@@ -2997,7 +3041,7 @@ function renderSauces() {
       <form class="add-ing-form" onsubmit="return addSauceItem(event,'${s.id}')">
         <input class="ing-input" list="ingredient-list" placeholder="ส่วนผสม • Ingredient" required>
         <input class="qty-input" placeholder="ปริมาณ • Qty">
-        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit">
+        <input class="unit-input" list="unit-list" placeholder="หน่วย • Unit" title="เติมให้เองตามหน่วยในตารางวัตถุดิบ แก้ไขได้ • Filled from the ingredient table; you can still change it">
         <button type="submit" class="btn small secondary">+ ใส่</button>
       </form>
       ${costHtml}
