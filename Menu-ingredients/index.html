@@ -342,6 +342,9 @@
   }
   .from-sauce.has-recipe { background: #f2ece6; color: var(--muted); }
 
+  /* a figure the app works out rather than one you type */
+  input.auto-filled { background: var(--good-soft); color: var(--good); font-weight: 600; cursor: help; }
+
   .menu-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
   .meta-pill {
     background: var(--green-soft); color: var(--green); border: 1px solid var(--chip-border);
@@ -1477,13 +1480,34 @@ function prodOf(menu, opt, styleKey) {
   });
   return out;
 }
+/* How many serves a batch makes follows from the batch itself: the yield
+   divided by one portion. A figure typed by hand is still used when the two
+   cannot be compared — no yield, no portion, or units that will not convert
+   (a yield in grams against a portion in millilitres). */
+function computedServes(prod) {
+  const y = parseFloat(prod.yieldQty), p = parseFloat(prod.portionQty);
+  if (!isFinite(y) || y <= 0 || !isFinite(p) || p <= 0) return null;
+  const portionInYield = convertQty(p, prod.portionUnit, prod.yieldUnit);
+  if (portionInYield === null || portionInYield <= 0) return null;
+  return y / portionInYield;
+}
+function servesOf(prod) {
+  const auto = computedServes(prod);
+  if (auto !== null) return auto;
+  const typed = parseFloat(prod.serves);
+  return isFinite(typed) && typed > 0 ? typed : null;
+}
+function fmtServes(n) {
+  return String(Math.round(n * 100) / 100);
+}
+
 /* profit from the cost of one serve against its selling price;
    null when anything needed (cost, serves, price) is missing */
 /* prod already carries the price resolved for this combination */
 function profitOf(cost, prod) {
-  const serves = parseFloat(prod.serves);
+  const serves = servesOf(prod);
   const price = parseFloat(prod.sellPrice);
-  if (!cost.priced || !isFinite(serves) || serves <= 0 || !isFinite(price) || price <= 0) return null;
+  if (!cost.priced || serves === null || serves <= 0 || !isFinite(price) || price <= 0) return null;
   const costPerServe = cost.total / serves;
   const profit = price - costPerServe;
   return {
@@ -1500,7 +1524,9 @@ function fmtMenuMeta(prod) {
   const p = [prod.portionQty, prod.portionUnit].filter(v => v !== "" && v != null).join(" ");
   if (y) bits.push(`Yield: ${y}`);
   if (p) bits.push(`Portion: ${p}`);
-  if (prod.serves !== "" && prod.serves != null) bits.push(`Serves: ${prod.serves}`);
+  const auto = computedServes(prod);
+  if (auto !== null) bits.push(`Serves: ${fmtServes(auto)} (Yield ÷ Portion)`);
+  else if (prod.serves !== "" && prod.serves != null) bits.push(`Serves: ${prod.serves}`);
   return bits;
 }
 let toastTimer;
@@ -1633,7 +1659,7 @@ function menuCardHtml(menu) {
       : "";
 
     const cost = costOf(shownItems);
-    const serves = parseFloat(prod.serves);
+    const serves = servesOf(prod);
     const profit = profitOf(cost, prod);
     const sellPrice = parseFloat(prod.sellPrice);
     const profitHtml = profit
@@ -1654,7 +1680,7 @@ function menuCardHtml(menu) {
       ? `<div class="cost-box">
            <span class="cost-label">💰 ต้นทุน${[opts && cur.nameTh, rice && styleLabel(styleKey).th].filter(Boolean).length ? ` (${esc([opts && cur.nameTh, rice && styleLabel(styleKey).th].filter(Boolean).join(" · "))})` : ""} • Cost:</span>
            <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
-           ${isFinite(serves) && serves > 0
+           ${serves !== null && serves > 0
              ? `<span class="cost-label">≈ ${esc(fmtPrice(cost.total / serves))} / ที่ • per serve</span>` : ""}
            ${cost.missing
              ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} ส่วนผสม — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
@@ -2213,6 +2239,66 @@ function bevItemIssue(it) {
   return null;
 }
 
+/* ---------- Serves fills itself in from Yield ÷ Portion ---------- */
+/* An option that leaves yield or portion blank inherits the menu's, so the
+   boxes above it in the same dialog stand in for anything left empty. */
+const SERVES_GROUPS = [
+  { yq: "menu-yield-qty", yu: "menu-yield-unit", pq: "menu-portion-qty", pu: "menu-portion-unit", sv: "menu-serves" },
+  { yq: "edit-menu-yield-qty", yu: "edit-menu-yield-unit", pq: "edit-menu-portion-qty", pu: "edit-menu-portion-unit", sv: "edit-menu-serves" },
+];
+function servesGroupOf(id) {
+  const fixed = SERVES_GROUPS.find(g => [g.yq, g.yu, g.pq, g.pu].includes(id));
+  if (fixed) return fixed;
+  const m = id.match(/^opt-(?:yq|yu|pq|pu)-(\d+)$/);
+  return m ? { yq: `opt-yq-${m[1]}`, yu: `opt-yu-${m[1]}`, pq: `opt-pq-${m[1]}`,
+               pu: `opt-pu-${m[1]}`, sv: `opt-sv-${m[1]}`, inherits: SERVES_GROUPS[1] } : null;
+}
+function refreshServesBox(g) {
+  const el = id => document.getElementById(id);
+  const sv = el(g.sv);
+  if (!sv) return;
+  const pick = (own, parent) => {
+    const a = el(own);
+    if (a && a.value.trim()) return a.value.trim();
+    const b = parent && el(parent);
+    return b ? b.value.trim() : "";
+  };
+  const inh = g.inherits;
+  const auto = computedServes({
+    yieldQty:    pick(g.yq, inh && inh.yq), yieldUnit:   pick(g.yu, inh && inh.yu),
+    portionQty:  pick(g.pq, inh && inh.pq), portionUnit: pick(g.pu, inh && inh.pu),
+  });
+  if (auto === null) {
+    sv.readOnly = false;
+    sv.classList.remove("auto-filled");
+    sv.title = "ใส่ Yield และ Portion แล้วช่องนี้จะคำนวณให้เอง • fill in Yield and Portion and this is worked out for you";
+    return;
+  }
+  sv.value = fmtServes(auto);
+  sv.readOnly = true;
+  sv.classList.add("auto-filled");
+  sv.title = "คำนวณจาก Yield ÷ Portion • Yield ÷ Portion";
+}
+function refreshAllServesBoxes() {
+  SERVES_GROUPS.forEach(refreshServesBox);
+  document.querySelectorAll('[id^="opt-sv-"]').forEach(el => {
+    const g = servesGroupOf(el.id.replace("-sv-", "-yq-"));
+    if (g) refreshServesBox(g);
+  });
+}
+document.addEventListener("input", e => {
+  if (!e.target.id) return;
+  const g = servesGroupOf(e.target.id);
+  if (g) refreshServesBox(g);
+  // the menu's own yield/portion feed every option that leaves them blank
+  if ([SERVES_GROUPS[1].yq, SERVES_GROUPS[1].yu, SERVES_GROUPS[1].pq, SERVES_GROUPS[1].pu].includes(e.target.id)) {
+    document.querySelectorAll('[id^="opt-sv-"]').forEach(el => {
+      const og = servesGroupOf(el.id.replace("-sv-", "-yq-"));
+      if (og) refreshServesBox(og);
+    });
+  }
+});
+
 /* ---------- double-click a recipe line to edit it in place ---------- */
 /* Changing a quantity used to mean removing the line and adding it back.
    The row now turns into a small form that writes straight onto the same
@@ -2602,6 +2688,7 @@ function openMenuEditor(menuId) {
   renderMenuEditorStyleTabs(m);
   fillMenuEditorFields(m);
   document.getElementById("menu-modal").classList.add("show");
+  refreshAllServesBoxes();
 }
 
 function renderMenuEditorStyleTabs(m) {
@@ -3699,8 +3786,8 @@ function buildMenuReport(ids) {
   const costFoot = (items, prod) => {
     const c = costOf(items);
     if (!c.priced) return "";
-    const serves = parseFloat(prod.serves);
-    const perServe = isFinite(serves) && serves > 0
+    const serves = servesOf(prod);
+    const perServe = serves !== null && serves > 0
       ? ` &nbsp;(${esc(fmtPrice(c.total / serves))} / ที่ • per serve)` : "";
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
     const p = profitOf(c, prod);
@@ -3778,14 +3865,14 @@ function buildCostReport(ids) {
   let counted = 0, incomplete = 0, marginSum = 0;
 
   const rowHtml = (name, r) => {
-    const serves = parseFloat(r.prod.serves);
+    const serves = servesOf(r.prod);
     const price = parseFloat(r.prod.sellPrice);
-    const costPerServe = r.cost.priced && isFinite(serves) && serves > 0 ? r.cost.total / serves : null;
+    const costPerServe = r.cost.priced && serves !== null && serves > 0 ? r.cost.total / serves : null;
     const p = profitOf(r.cost, r.prod);
     if (p) { counted++; marginSum += p.marginPct; } else { incomplete++; }
     const need = [
       !r.cost.priced && "ต้นทุนส่วนผสม",
-      !(isFinite(serves) && serves > 0) && "Serves",
+      !(serves !== null && serves > 0) && "Serves",
       !(isFinite(price) && price > 0) && "ราคาขาย",
     ].filter(Boolean);
     return `<tr>
@@ -3950,6 +4037,8 @@ document.getElementById("menu-category").innerHTML =
 
 /* populate drink-type dropdown in the add-drink form */
 document.getElementById("drink-category").innerHTML = drinkTypeOptions("");
+
+refreshAllServesBoxes();
 
 resetBuilder();
 
