@@ -316,6 +316,32 @@
   ul.ing-list li.overridden { opacity: .45; }
   ul.ing-list li.overridden .ing-name { text-decoration: line-through; }
 
+  /* a line that cannot be costed yet, so it is obvious what is holding the
+     total back without opening the ingredient table */
+  ul.ing-list li.unpriced .ing-name { color: var(--danger); font-weight: 600; }
+  ul.ing-list li.unpriced .ing-name .en { color: var(--danger); opacity: .7; font-weight: 400; }
+  ul.ing-list li.unpriced .qty-badge { background: var(--danger-soft); color: var(--danger); }
+  ul.ing-list li.unpriced .warn-dot { color: var(--danger); font-size: .85rem; cursor: help; }
+
+  ul.ing-list li { cursor: default; }
+  ul.ing-list li[data-edit] { cursor: text; }
+  ul.ing-list li[data-edit]:hover { background: rgba(255,135,60,.06); border-radius: 8px; }
+
+  /* inline editor opened by double-clicking a row */
+  .row-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+  .row-edit input { flex: 1 1 110px; min-width: 0; padding: 7px 9px; font-size: .88rem;
+    border: 1px solid var(--line); border-radius: 8px; font-family: inherit; background: var(--card); color: var(--ink); }
+  .row-edit input.e-qty { flex: 0 1 78px; }
+  .row-edit input.e-unit { flex: 0 1 108px; }
+  .row-edit .e-cost { flex: 0 0 auto; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row-edit .e-cost.bad { color: var(--danger); }
+
+  .from-sauce {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+    background: var(--good-soft); color: var(--good); font-size: .7rem; font-weight: 600; white-space: nowrap;
+  }
+  .from-sauce.has-recipe { background: #f2ece6; color: var(--muted); }
+
   .menu-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
   .meta-pill {
     background: var(--green-soft); color: var(--green); border: 1px solid var(--chip-border);
@@ -1231,6 +1257,8 @@ async function fetchState() {
 }
 
 async function save() {
+  // sauce-derived ingredient rows are rebuilt before anything is persisted
+  syncSauceIngredients();
   try {
     const res = await fetch("/api/state", {
       method: "PUT",
@@ -1258,6 +1286,7 @@ async function save() {
    (skipped while the user is typing in a form field) */
 setInterval(async () => {
   const ae = document.activeElement;
+  if (openRowEditor) return;                     // a row is being edited in place
   const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search", "drink-search"];
   if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && !SEARCH_BOXES.includes(ae.id)) return;
   try {
@@ -1642,8 +1671,13 @@ function menuCardHtml(menu) {
     const rowHtml = (it, where, overridden) => {
       const ing = findIngredient(it.ingredientId);
       const qty = [it.qty, it.unit].filter(Boolean).join(" ");
-      return `<li${overridden ? ` class="overridden" title="option นี้กำหนดปริมาณของตัวเอง • overridden by this option"` : ""}>
+      const issue = overridden ? null : itemIssue(it);
+      const cls = [overridden && "overridden", issue && "unpriced"].filter(Boolean).join(" ");
+      const tip = overridden ? "option นี้กำหนดปริมาณของตัวเอง • overridden by this option"
+                             : "ดับเบิลคลิกเพื่อแก้ไข • double-click to edit";
+      return `<li${cls ? ` class="${cls}"` : ""} title="${esc(tip)}"${overridden ? "" : ` data-edit="menu" data-owner="${menu.id}" data-where="${where}" data-ing="${it.ingredientId}"`}>
         <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
+        ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
         ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
         ${where === "opt"
           ? `<button class="icon-btn" title="ย้ายไปส่วนผสมหลัก (ใช้ทุก option) • Move to base" onclick="promoteItem('${menu.id}','${it.ingredientId}')">⬆️</button>` : ""}
@@ -1765,7 +1799,9 @@ function renderIngredients() {
       : `<span class="chip plain">ยังไม่มีเมนูที่ใช้ • Not used yet</span>`;
     const dash = `<span class="brand-txt">–</span>`;
     return `<tr>
-      <td><b>${esc(ing.nameTh)}</b>${ing.nameEn ? `<br><span class="brand-txt">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td><b>${esc(ing.nameTh)}</b>${ing.fromSauceId ? (ing.priceFromSauce
+        ? `<span class="from-sauce" title="ราคาคิดจากสูตรในแท็บซอส แก้ที่นั่น • priced from its recipe in the Sauces tab">จากสูตร</span>`
+        : `<span class="from-sauce has-recipe" title="มีสูตรในแท็บซอส แต่ยังคิดราคาอัตโนมัติไม่ได้ — ต้องใส่ขนาดสูตร และส่วนผสมทุกตัวต้องมีราคา • has a recipe but cannot be costed yet">มีสูตร</span>`) : ""}${ing.nameEn ? `<br><span class="brand-txt">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${ing.category ? `<span class="cat-badge">${esc(ing.category)}</span>` : dash}</td>
       <td>${ing.brand ? `<span class="brand-txt">${esc(ing.brand)}</span>` : dash}</td>
       <td>${fmtPack(ing) ? esc(fmtPack(ing)) : dash}</td>
@@ -1926,8 +1962,10 @@ function drinkCardHtml(d) {
         const nameTh = bev ? bev.nameTh : "(ถูกลบ • deleted)";
         const nameEn = bev ? bev.nameEn : "";
         const qty = [it.qty, it.unit].filter(Boolean).join(" ");
-        return `<li>
+        const issue = bevItemIssue(it);
+        return `<li${issue ? ' class="unpriced"' : ""} title="ดับเบิลคลิกเพื่อแก้ไข • double-click to edit" data-edit="drink" data-owner="${d.id}" data-index="${i}">
           <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
+          ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
           ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
           <button class="icon-btn" title="ลบวัตถุดิบ • Remove" onclick="removeDrinkItem('${d.id}',${i})">✕</button>
         </li>`;
@@ -2062,9 +2100,236 @@ function renderDatalists() {
 }
 
 function renderAll() {
+  syncSauceIngredients();
   renderMenus(); renderIngredients(); renderBeverages(); renderDrinks();
   renderDatalists(); renderSauces(); renderReports();
 }
+
+/* ---------- a sauce is also an ingredient ---------- */
+/* Menus cook with the sauces, so every sauce owns a row in the ingredient
+   table. The row is rebuilt from its sauce, never by hand: its pack size is
+   the batch yield and its price the batch cost, so changing the recipe — or
+   the price of anything in it — flows straight through to the menus.
+   While the batch cannot be fully costed the row keeps its name only, with no
+   price, rather than quietly costing a menu off a partial figure. */
+const SAUCE_CAT = "ซอส & เบส";
+
+function trimNum(n) {
+  return String(Math.round(n * 1e4) / 1e4);
+}
+
+function syncSauceIngredients() {
+  const sauces = state.sauces || [];
+
+  sauces.forEach(s => {
+    let row = state.ingredients.find(i => i.fromSauceId === s.id);
+    if (!row) {
+      // adopt a row someone already created by hand under the same name
+      row = state.ingredients.find(i => !i.fromSauceId && i.nameTh.trim() === s.nameTh.trim());
+      if (row) row.fromSauceId = s.id;
+    }
+    if (!row) {
+      row = { id: uid(), fromSauceId: s.id, nameTh: s.nameTh, nameEn: s.nameEn || "",
+              category: SAUCE_CAT, brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
+      state.ingredients.push(row);
+    }
+    row.nameTh = s.nameTh;
+    row.nameEn = s.nameEn || "";
+    if (!row.category) row.category = SAUCE_CAT;
+  });
+
+  // a sauce that was deleted takes its ingredient row with it
+  state.ingredients = state.ingredients.filter(i =>
+    !i.fromSauceId || sauces.some(s => s.id === i.fromSauceId));
+
+  /* One sauce can contain another, so prices are settled by repeated passes
+     until nothing moves. A sauce that (directly or indirectly) contains
+     itself simply never resolves and keeps whatever price it had.
+
+     A price is only ever written, or cleared, when this function is the one
+     that put it there (priceFromSauce). A figure somebody worked out by hand
+     stays exactly as they left it: a sauce with no batch yield, or with an
+     ingredient still missing a price, cannot be costed, and silently blanking
+     their number would lose work and take every menu using it down with it. */
+  const derived = state.ingredients.filter(i => i.fromSauceId);
+  for (let pass = 0; pass <= derived.length; pass++) {
+    let changed = false;
+    derived.forEach(row => {
+      const s = sauces.find(x => x.id === row.fromSauceId);
+      if (!s) return;
+      const cost = costOf(s.items || []);
+      const y = parseFloat(s.yieldQty);
+      const canCost = (s.items || []).length > 0 && cost.missing === 0 && isFinite(y) && y > 0;
+
+      if (canCost) {
+        const price = trimNum(cost.total);
+        if (row.price !== price || row.packQty !== s.yieldQty || row.packUnit !== s.yieldUnit) {
+          // the first time the recipe takes over, put their own figure aside
+          if (!row.priceFromSauce && row.price !== "" && row.price != null) {
+            row.manual = { price: row.price, packQty: row.packQty, packUnit: row.packUnit };
+          }
+          row.price = price; row.packQty = s.yieldQty; row.packUnit = s.yieldUnit;
+          row.priceFromSauce = true;
+          changed = true;
+        }
+      } else if (row.priceFromSauce) {
+        // it was ours and the recipe can no longer be costed, so hand it back
+        const back = row.manual || { price: "", packQty: "", packUnit: "" };
+        if (row.price !== back.price || row.packQty !== back.packQty || row.packUnit !== back.packUnit) {
+          row.price = back.price; row.packQty = back.packQty; row.packUnit = back.packUnit;
+          changed = true;
+        }
+        delete row.priceFromSauce;
+        delete row.manual;
+      }
+      // otherwise: a hand-entered price, left untouched
+    });
+    if (!changed) break;
+  }
+}
+
+/* why a recipe line cannot be costed, or null when it can */
+function itemIssue(it) {
+  const ing = findIngredient(it.ingredientId);
+  if (!ing) return "ส่วนผสมนี้ถูกลบไปแล้ว • this ingredient was deleted";
+  const price = parseFloat(ing.price), packQty = parseFloat(ing.packQty);
+  if (!isFinite(price) || !isFinite(packQty) || packQty <= 0)
+    return ing.fromSauceId
+      ? "สูตรนี้ยังคิดต้นทุนไม่ครบ หรือยังไม่ได้ใส่ขนาดสูตร • its own recipe is not fully costed yet"
+      : "ยังไม่มีราคาหรือขนาดบรรจุ • no price or pack size yet";
+  if (!isFinite(parseFloat(it.qty))) return "ยังไม่ได้ใส่ปริมาณ • no quantity";
+  if (convertQty(parseFloat(it.qty), it.unit, ing.packUnit) === null)
+    return `หน่วยแปลงกันไม่ได้ — สูตรใช้ ${it.unit || "(ไม่มีหน่วย)"} แต่ซื้อเป็น ${ing.packUnit || "(ไม่มีหน่วย)"}`;
+  return null;
+}
+function bevItemIssue(it) {
+  const bev = findBeverage(it.beverageId);
+  if (!bev) return "วัตถุดิบนี้ถูกลบไปแล้ว • this ingredient was deleted";
+  const price = parseFloat(bev.price), packQty = parseFloat(bev.packQty);
+  if (!isFinite(price) || !isFinite(packQty) || packQty <= 0) return "ยังไม่มีราคาหรือขนาดบรรจุ • no price or pack size yet";
+  if (!isFinite(parseFloat(it.qty))) return "ยังไม่ได้ใส่ปริมาณ • no quantity";
+  if (convertQty(parseFloat(it.qty), it.unit, bev.packUnit) === null)
+    return `หน่วยแปลงกันไม่ได้ — สูตรใช้ ${it.unit || "(ไม่มีหน่วย)"} แต่ซื้อเป็น ${bev.packUnit || "(ไม่มีหน่วย)"}`;
+  return null;
+}
+
+/* ---------- double-click a recipe line to edit it in place ---------- */
+/* Changing a quantity used to mean removing the line and adding it back.
+   The row now turns into a small form that writes straight onto the same
+   item, so the ingredient keeps its place in the list, and the cost of the
+   line is shown as it is typed. */
+let openRowEditor = null;
+
+function readRowItem(li) {
+  const kind = li.dataset.edit, ownerId = li.dataset.owner;
+  if (kind === "sauce") {
+    const s = state.sauces.find(x => x.id === ownerId);
+    return s && { kind, item: (s.items || [])[+li.dataset.index], list: s.items };
+  }
+  if (kind === "drink") {
+    const d = state.drinks.find(x => x.id === ownerId);
+    return d && { kind, item: (d.items || [])[+li.dataset.index], list: d.items };
+  }
+  const menu = state.menus.find(m => m.id === ownerId);
+  if (!menu) return null;
+  const where = li.dataset.where, cur = currentOption(menu);
+  const list = (where === "opt" && cur) ? (cur.items = cur.items || [])
+    : (where === "style" && hasRice(menu)) ? (menu.withRice.items = menu.withRice.items || [])
+    : (menu.items = menu.items || []);
+  return { kind, item: list.find(it => it.ingredientId === li.dataset.ing), list };
+}
+
+function closeRowEditor() {
+  if (!openRowEditor) return;
+  openRowEditor = null;
+  renderAll();
+}
+
+function openRowEdit(li) {
+  if (li.querySelector(".row-edit")) return;
+  const found = readRowItem(li);
+  if (!found || !found.item) return;
+  const { kind, item } = found;
+  const isDrink = kind === "drink";
+  const row = isDrink ? findBeverage(item.beverageId) : findIngredient(item.ingredientId);
+  const listId = isDrink ? "beverage-list" : "ingredient-list";
+  const shown = isDrink ? (row ? bevDisplay(row) : "") : (row ? ingDisplay(row) : "");
+
+  openRowEditor = li;
+  li.innerHTML = `<form class="row-edit">
+      <input class="e-name" list="${listId}" value="${esc(shown)}" placeholder="ส่วนผสม • Ingredient" required>
+      <input class="e-qty qty-input" value="${esc(item.qty || "")}" placeholder="ปริมาณ • Qty">
+      <input class="e-unit unit-input" list="unit-list" value="${esc(item.unit || "")}" placeholder="หน่วย • Unit">
+      <span class="e-cost"></span>
+      <button type="submit" class="btn small secondary">💾</button>
+      <button type="button" class="btn small ghost e-cancel">ยกเลิก</button>
+    </form>`;
+
+  const form = li.querySelector(".row-edit");
+  const nameI = form.querySelector(".e-name"), qtyI = form.querySelector(".e-qty"),
+        unitI = form.querySelector(".e-unit"), costEl = form.querySelector(".e-cost");
+
+  /* live preview: what this line would cost as typed */
+  const preview = () => {
+    const name = nameI.value.trim();
+    const target = isDrink
+      ? (matchBeverageByName(name) || state.beverages.find(b => bevDisplay(b).toLowerCase() === name.toLowerCase()))
+      : matchIngredientByName(name);
+    if (!target) { costEl.textContent = "ส่วนผสมใหม่"; costEl.className = "e-cost"; return; }
+    const probe = isDrink ? { beverageId: target.id, qty: qtyI.value.trim(), unit: unitI.value.trim() }
+                          : { ingredientId: target.id, qty: qtyI.value.trim(), unit: unitI.value.trim() };
+    const issue = isDrink ? bevItemIssue(probe) : itemIssue(probe);
+    if (issue) { costEl.textContent = "คิดต้นทุนไม่ได้"; costEl.className = "e-cost bad"; costEl.title = issue; return; }
+    const c = isDrink ? drinkItemCost(probe) : itemCost(probe);
+    costEl.textContent = "= " + fmtPrice(c);
+    costEl.className = "e-cost"; costEl.title = "";
+  };
+  [nameI, qtyI, unitI].forEach(el => el.addEventListener("input", preview));
+  preview();
+
+  form.querySelector(".e-cancel").addEventListener("click", closeRowEditor);
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const live = readRowItem(li);          // re-read: the poll may have replaced state
+    if (!live || !live.item) { closeRowEditor(); return; }
+    const name = nameI.value.trim();
+    if (!name) return;
+
+    if (isDrink) {
+      let bev = matchBeverageByName(name) || state.beverages.find(b => bevDisplay(b).toLowerCase() === name.toLowerCase());
+      if (!bev) {
+        bev = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
+        state.beverages.push(bev);
+        toast(`สร้างวัตถุดิบใหม่ "${name}" • New beverage ingredient created`);
+      }
+      live.item.beverageId = bev.id;
+    } else {
+      let ing = matchIngredientByName(name);
+      if (!ing) {
+        ing = { id: uid(), nameTh: name, nameEn: "", category: "", brand: "", packQty: "", packUnit: "", price: "", supplier: "" };
+        state.ingredients.push(ing);
+        toast(`สร้างส่วนผสมใหม่ "${name}" • New ingredient created`);
+      }
+      live.item.ingredientId = ing.id;
+    }
+    live.item.qty = qtyI.value.trim();
+    live.item.unit = unitI.value.trim();
+    openRowEditor = null;
+    save(); renderAll();
+    toast("แก้ไขส่วนผสมแล้ว • Ingredient updated");
+  });
+
+  qtyI.focus(); qtyI.select();
+}
+
+document.addEventListener("dblclick", e => {
+  const li = e.target.closest && e.target.closest("li[data-edit]");
+  if (!li || li.querySelector(".row-edit")) return;
+  openRowEdit(li);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && openRowEditor) closeRowEditor();
+});
 
 /* ---------- picking an ingredient fills in its unit ---------- */
 /* A recipe is only costed when its unit converts to the one the ingredient is
@@ -2657,6 +2922,11 @@ document.getElementById("add-ing-form").addEventListener("submit", e => {
 function editIngredient(id) {
   const ing = findIngredient(id);
   if (!ing) return;
+  if (ing.fromSauceId && ing.priceFromSauce) {
+    jumpToSauce(ing.fromSauceId);
+    toast(`"${ing.nameTh}" คิดราคาจากสูตร — แก้ที่การ์ดซอส • edit it on its sauce card`);
+    return;
+  }
   editingId = id;
   document.getElementById("ing-name-th").value = ing.nameTh;
   document.getElementById("ing-name-en").value = ing.nameEn || "";
@@ -2693,6 +2963,10 @@ document.getElementById("ing-delete-edit").addEventListener("click", () => {
 function deleteIngredient(id) {
   const ing = findIngredient(id);
   if (!ing) return;
+  if (ing.fromSauceId) {
+    toast(`ลบที่นี่ไม่ได้ — แถวนี้มาจากสูตร "${ing.nameTh}" ให้ลบที่แท็บซอส • delete the sauce instead`);
+    return;
+  }
   const used = menusUsing(id), inSauces = saucesUsing(id);
   const where = [
     used.length && `${used.length} เมนู`,
@@ -2987,8 +3261,10 @@ function renderSauces() {
           const nameTh = ing ? ing.nameTh : (it.nameTh || "(ถูกลบ • deleted)");
           const nameEn = ing ? ing.nameEn : (it.nameEn || "");
           const qty = [it.qty, it.unit].filter(Boolean).join(" ");
-          return `<li>
+          const issue = itemIssue(it);
+          return `<li${issue ? ' class="unpriced"' : ""} title="ดับเบิลคลิกเพื่อแก้ไข • double-click to edit" data-edit="sauce" data-owner="${s.id}" data-index="${i}">
             <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
+            ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
             ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
             <button class="icon-btn" title="ลบส่วนผสม • Remove" onclick="removeSauceItem('${s.id}',${i})">✕</button>
           </li>`;
