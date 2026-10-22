@@ -4,9 +4,16 @@
   "private": true,
   "description": "Menu Ingredients Manager - bilingual TH/EN restaurant menu & ingredients app with shared database",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:schema": "wrangler d1 execute menu-ingredients --remote --file=schema.sql",
+    "db:backup": "wrangler d1 export menu-ingredients --remote --output=data/d1-backup.sql"
   },
   "dependencies": {
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.3"
   }
 }

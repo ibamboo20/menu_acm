@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "menu-ingredients",
+  "main": "worker.js",
+  "compatibility_date": "2025-10-01",
+  "observability": { "enabled": true },
+
+  // index.html is imported into worker.js as a string (wrangler's default Text
+  // rule covers .html), so the page and the API ship together and a deploy can
+  // never serve a half-updated pair.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "menu-ingredients",
+      "database_id": "b41c792a-84dd-4f23-809f-311ace34a7ff"
+    }
+  ]
+}
