@@ -367,13 +367,13 @@
   }
   .pct-pill.loss { background: var(--danger-soft); color: var(--danger); }
 
-  /* Markup bands. The yellow and pink steps are darkened well past the colour
-     they are named after, because the pale versions are unreadable as text on
-     a near-white card; the pill behind them carries the pale tone instead. */
+  /* Markup bands. Each text colour is the most saturated version that still
+     holds about 4:1 against the pill behind it and against the cream card,
+     which is where a brighter yellow starts to disappear. */
   .tier-1 { --tier: #b23a3a; --tier-soft: #fbeaea; }   /* < 200%  แดง */
   .tier-2 { --tier: #2f7d55; --tier-soft: #e6f4ec; }   /* ≥ 200%  เขียว */
-  .tier-3 { --tier: #8a6400; --tier-soft: #fff5d1; }   /* ≥ 300%  เหลือง */
-  .tier-4 { --tier: #c01f6e; --tier-soft: #fdeaf3; }   /* ≥ 400%  ชมพู */
+  .tier-3 { --tier: #9c7200; --tier-soft: #fff8dd; }   /* ≥ 300%  เหลือง */
+  .tier-4 { --tier: #1479c4; --tier-soft: #e8f4fe; }   /* ≥ 400%  ฟ้า */
   .tier-5 { --tier: #6d49b8; --tier-soft: #f1ebfb; }   /* ≥ 500%  ม่วงอ่อน */
   .profit-main[class*="tier-"] { color: var(--tier); }
   .pct-pill[class*="tier-"] { color: var(--tier); background: var(--tier-soft); }
@@ -3727,8 +3727,8 @@ function reportShell(title, sub, body) {
   /* same markup bands as the menu cards */
   b.tier-1 { color: #b23a3a; }
   b.tier-2 { color: #2f7d55; }
-  b.tier-3 { color: #8a6400; }
-  b.tier-4 { color: #c01f6e; }
+  b.tier-3 { color: #9c7200; }
+  b.tier-4 { color: #1479c4; }
   b.tier-5 { color: #6d49b8; }
   .summary {
     background: #fff1e6; border: 1px solid #ffd9bd; border-radius: 10px;
