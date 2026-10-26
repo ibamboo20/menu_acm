@@ -367,6 +367,17 @@
   }
   .pct-pill.loss { background: var(--danger-soft); color: var(--danger); }
 
+  /* Markup bands. The yellow and pink steps are darkened well past the colour
+     they are named after, because the pale versions are unreadable as text on
+     a near-white card; the pill behind them carries the pale tone instead. */
+  .tier-1 { --tier: #b23a3a; --tier-soft: #fbeaea; }   /* < 200%  แดง */
+  .tier-2 { --tier: #2f7d55; --tier-soft: #e6f4ec; }   /* ≥ 200%  เขียว */
+  .tier-3 { --tier: #8a6400; --tier-soft: #fff5d1; }   /* ≥ 300%  เหลือง */
+  .tier-4 { --tier: #c01f6e; --tier-soft: #fdeaf3; }   /* ≥ 400%  ชมพู */
+  .tier-5 { --tier: #6d49b8; --tier-soft: #f1ebfb; }   /* ≥ 500%  ม่วงอ่อน */
+  .profit-main[class*="tier-"] { color: var(--tier); }
+  .pct-pill[class*="tier-"] { color: var(--tier); background: var(--tier-soft); }
+
   .add-ing-form {
     display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
     padding-top: 10px; border-top: 1px solid var(--line);
@@ -1523,6 +1534,16 @@ function profitOf(cost, prod) {
 function markupOf(profit, cost) {
   return isFinite(cost) && cost > 0 ? profit / cost * 100 : null;
 }
+
+/* Colour band for a markup figure: under 200% is red, then green, yellow,
+   pink and light purple every hundred points. Highest band first so the
+   first match wins. A markup that can't be worked out gets no band. */
+const MARKUP_TIERS = [[500, "tier-5"], [400, "tier-4"], [300, "tier-3"], [200, "tier-2"]];
+function markupTier(pct) {
+  if (pct === null || !isFinite(pct)) return "";
+  const hit = MARKUP_TIERS.find(([min]) => pct >= min);
+  return hit ? hit[1] : "tier-1";
+}
 function fmtPct(n) { return n === null ? "–" : (n >= 0 ? "" : "-") + Math.abs(n).toFixed(1) + "%"; }
 
 function fmtMenuMeta(prod) {
@@ -1673,8 +1694,8 @@ function menuCardHtml(menu) {
       ? `<div class="cost-rule"></div>
          <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่${rice ? ` <span class="en">(${esc(styleLabel(styleKey).th)})</span>` : ""}</span>
          <span class="cost-label">📈 กำไร • Profit:</span>
-         <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
-         <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
+         <span class="profit-main${profit.profit < 0 ? " loss" : ""} ${markupTier(profit.markupPct)}">${esc(fmtPrice(profit.profit))}</span>
+         <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""} ${markupTier(profit.markupPct)}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
          <span class="cost-label">ของต้นทุน • Markup</span>
          <span class="cost-label">ต้นทุนอาหาร • Food cost ${esc(fmtPct(profit.foodCostPct))}</span>
          ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกส่วนผสม</span>` : ""}`
@@ -2030,8 +2051,8 @@ function drinkCardHtml(d) {
     ? `<div class="cost-rule"></div>
        <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / แก้ว</span>
        <span class="cost-label">📈 กำไร • Profit:</span>
-       <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
-       <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
+       <span class="profit-main${profit.profit < 0 ? " loss" : ""} ${markupTier(profit.markupPct)}">${esc(fmtPrice(profit.profit))}</span>
+       <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""} ${markupTier(profit.markupPct)}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
        <span class="cost-label">ของต้นทุน • Markup</span>
        <span class="cost-label">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(profit.foodCostPct))}</span>
        ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกวัตถุดิบ</span>` : ""}`
@@ -3703,6 +3724,12 @@ function reportShell(title, sub, body) {
   @media print { .table-scroll { overflow: visible; } .table-scroll table { min-width: 0; } }
   b.pos { color: #2f7d55; }
   b.neg { color: #b23a3a; }
+  /* same markup bands as the menu cards */
+  b.tier-1 { color: #b23a3a; }
+  b.tier-2 { color: #2f7d55; }
+  b.tier-3 { color: #8a6400; }
+  b.tier-4 { color: #c01f6e; }
+  b.tier-5 { color: #6d49b8; }
   .summary {
     background: #fff1e6; border: 1px solid #ffd9bd; border-radius: 10px;
     padding: 10px 14px; margin-top: 14px; font-size: .9rem;
@@ -3801,7 +3828,7 @@ function buildMenuReport(ids) {
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
     const p = profitOf(c, prod);
     const profitRow = p
-      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; ${esc(fmtPrice(p.profit))} (${esc(fmtPct(p.markupPct))} ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
       : "";
     return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr>${profitRow}</tfoot>`;
   };
@@ -3895,8 +3922,8 @@ function buildCostReport(ids) {
       <td>${esc(name)}</td>
       <td class="num">${costPerServe === null ? dash : esc(fmtPrice(costPerServe))}</td>
       <td class="num">${isFinite(price) && price > 0 ? esc(fmtPrice(price)) : dash}</td>
-      <td class="num">${p ? `<b class="${p.profit < 0 ? "neg" : "pos"}">${esc(fmtPrice(p.profit))}</b>` : dash}</td>
-      <td class="num">${p ? `<b class="${p.markupPct < 0 ? "neg" : "pos"}">${esc(fmtPct(p.markupPct))}</b>` : dash}</td>
+      <td class="num">${p ? `<b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b>` : dash}</td>
+      <td class="num">${p ? `<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b>` : dash}</td>
       <td class="num">${p ? esc(fmtPct(p.foodCostPct)) : dash}</td>
       <td>${p ? (r.cost.missing ? `<span class="en">⚠️ ต้นทุนยังไม่ครบ ${r.cost.missing} รายการ</span>` : "") : `<span class="en">ยังขาด: ${esc(need.join(", "))}</span>`}</td>
     </tr>`;
@@ -3926,7 +3953,7 @@ function buildCostReport(ids) {
       const avg = mn ? (markupSum - mSumBefore) / mn : null;
       const avgFood = n ? (foodCostSum - fSumBefore) / n : null;
       const foot = !n ? "" :
-        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average markup (${n} รายการ)</td><td></td><td></td><td></td><td class="num">${esc(fmtPct(avg))}</td><td class="num">${esc(fmtPct(avgFood))}</td><td></td></tr></tfoot>`;
+        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average markup (${n} รายการ)</td><td></td><td></td><td></td><td class="num"><b class="${markupTier(avg) || "pos"}">${esc(fmtPct(avg))}</b></td><td class="num">${esc(fmtPct(avgFood))}</td><td></td></tr></tfoot>`;
       return `<div class="cat-block">
         <h2 class="cat-title">${esc(menuCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
         <div class="table-scroll"><table>${head}<tbody>${rows}</tbody>${foot}</table></div>
@@ -3937,7 +3964,7 @@ function buildCostReport(ids) {
   const avgFoodAll = counted ? foodCostSum / counted : null;
   const summary = `<div class="summary">
     คำนวณได้ ${counted} รายการ${incomplete ? ` · ข้อมูลไม่ครบ ${incomplete} รายการ` : ""}${
-      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b>${esc(fmtPct(avgAll))}</b> ของต้นทุน (ต้นทุนอาหาร ${esc(fmtPct(avgFoodAll))})`}
+      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b class="${markupTier(avgAll) || "pos"}">${esc(fmtPct(avgAll))}</b> ของต้นทุน (ต้นทุนอาหาร ${esc(fmtPct(avgFoodAll))})`}
     <div class="en">เมนูที่มีตัวเลือกจะแยกบรรทัดตามเนื้อสัตว์และแบบเสิร์ฟ เพราะต้นทุนและราคาต่างกัน</div>
   </div>`;
 
