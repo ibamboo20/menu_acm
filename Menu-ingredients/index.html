@@ -1512,11 +1512,18 @@ function profitOf(cost, prod) {
   const profit = price - costPerServe;
   return {
     costPerServe, price, profit,
-    marginPct: profit / price * 100,      // กำไร ÷ ราคาขาย
+    markupPct: markupOf(profit, costPerServe),   // กำไร ÷ ต้นทุน
     foodCostPct: costPerServe / price * 100,
   };
 }
-function fmtPct(n) { return (n >= 0 ? "" : "-") + Math.abs(n).toFixed(1) + "%"; }
+
+/* กำไรคิดเป็นเปอร์เซ็นต์ของต้นทุน (Markup) = กำไร ÷ ต้นทุน × 100.
+   A zero cost has no markup to speak of — the percentage would be infinite —
+   so it comes back null and the display falls back to a dash. */
+function markupOf(profit, cost) {
+  return isFinite(cost) && cost > 0 ? profit / cost * 100 : null;
+}
+function fmtPct(n) { return n === null ? "–" : (n >= 0 ? "" : "-") + Math.abs(n).toFixed(1) + "%"; }
 
 function fmtMenuMeta(prod) {
   const bits = [];
@@ -1667,7 +1674,8 @@ function menuCardHtml(menu) {
          <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / ที่${rice ? ` <span class="en">(${esc(styleLabel(styleKey).th)})</span>` : ""}</span>
          <span class="cost-label">📈 กำไร • Profit:</span>
          <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
-         <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
+         <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
+         <span class="cost-label">ของต้นทุน • Markup</span>
          <span class="cost-label">ต้นทุนอาหาร • Food cost ${esc(fmtPct(profit.foodCostPct))}</span>
          ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกส่วนผสม</span>` : ""}`
       : (isFinite(sellPrice) && sellPrice > 0
@@ -1976,7 +1984,7 @@ function drinkProfit(perGlass, drink) {
   const profit = price - perGlass;
   return {
     costPerServe: perGlass, price, profit,
-    marginPct: profit / price * 100,
+    markupPct: markupOf(profit, perGlass),
     foodCostPct: perGlass / price * 100,
   };
 }
@@ -2023,7 +2031,8 @@ function drinkCardHtml(d) {
        <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(profit.price))} / แก้ว</span>
        <span class="cost-label">📈 กำไร • Profit:</span>
        <span class="profit-main${profit.profit < 0 ? " loss" : ""}">${esc(fmtPrice(profit.profit))}</span>
-       <span class="pct-pill${profit.marginPct < 0 ? " loss" : ""}">${esc(fmtPct(profit.marginPct))}</span>
+       <span class="pct-pill${profit.markupPct < 0 ? " loss" : ""}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(profit.markupPct))}</span>
+       <span class="cost-label">ของต้นทุน • Markup</span>
        <span class="cost-label">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(profit.foodCostPct))}</span>
        ${cost.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกวัตถุดิบ</span>` : ""}`
     : (isFinite(sellPrice) && sellPrice > 0
@@ -3792,7 +3801,7 @@ function buildMenuReport(ids) {
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
     const p = profitOf(c, prod);
     const profitRow = p
-      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; ${esc(fmtPrice(p.profit))} (${esc(fmtPct(p.marginPct))}) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; ${esc(fmtPrice(p.profit))} (${esc(fmtPct(p.markupPct))} ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
       : "";
     return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr>${profitRow}</tfoot>`;
   };
@@ -3862,14 +3871,21 @@ function costRowsFor(m) {
 function buildCostReport(ids) {
   const chosen = new Set(ids);
   const dash = `<span class="en">–</span>`;
-  let counted = 0, incomplete = 0, marginSum = 0;
+  /* markup and food cost are now independent numbers — one is measured against
+     cost, the other against price — so each is averaged on its own instead of
+     deriving the second from 100 minus the first */
+  let counted = 0, incomplete = 0, markupN = 0, markupSum = 0, foodCostSum = 0;
 
   const rowHtml = (name, r) => {
     const serves = servesOf(r.prod);
     const price = parseFloat(r.prod.sellPrice);
     const costPerServe = r.cost.priced && serves !== null && serves > 0 ? r.cost.total / serves : null;
     const p = profitOf(r.cost, r.prod);
-    if (p) { counted++; marginSum += p.marginPct; } else { incomplete++; }
+    if (p) {
+      counted++;
+      foodCostSum += p.foodCostPct;
+      if (p.markupPct !== null) { markupN++; markupSum += p.markupPct; }
+    } else { incomplete++; }
     const need = [
       !r.cost.priced && "ต้นทุนส่วนผสม",
       !(serves !== null && serves > 0) && "Serves",
@@ -3880,7 +3896,7 @@ function buildCostReport(ids) {
       <td class="num">${costPerServe === null ? dash : esc(fmtPrice(costPerServe))}</td>
       <td class="num">${isFinite(price) && price > 0 ? esc(fmtPrice(price)) : dash}</td>
       <td class="num">${p ? `<b class="${p.profit < 0 ? "neg" : "pos"}">${esc(fmtPrice(p.profit))}</b>` : dash}</td>
-      <td class="num">${p ? `<b class="${p.marginPct < 0 ? "neg" : "pos"}">${esc(fmtPct(p.marginPct))}</b>` : dash}</td>
+      <td class="num">${p ? `<b class="${p.markupPct < 0 ? "neg" : "pos"}">${esc(fmtPct(p.markupPct))}</b>` : dash}</td>
       <td class="num">${p ? esc(fmtPct(p.foodCostPct)) : dash}</td>
       <td>${p ? (r.cost.missing ? `<span class="en">⚠️ ต้นทุนยังไม่ครบ ${r.cost.missing} รายการ</span>` : "") : `<span class="en">ยังขาด: ${esc(need.join(", "))}</span>`}</td>
     </tr>`;
@@ -3891,7 +3907,7 @@ function buildCostReport(ids) {
     <th class="num">ต้นทุน/ที่<br>Cost per serve</th>
     <th class="num">ราคาขาย<br>Price</th>
     <th class="num">กำไร<br>Profit</th>
-    <th class="num">กำไร %<br>Margin</th>
+    <th class="num">กำไร % ของต้นทุน<br>Markup</th>
     <th class="num">ต้นทุนอาหาร %<br>Food cost</th>
     <th></th>
   </tr></thead>`;
@@ -3900,26 +3916,28 @@ function buildCostReport(ids) {
     .map(([cat, list]) => [cat, list.filter(m => chosen.has(m.id))])
     .filter(([, list]) => list.length)
     .map(([cat, list]) => {
-      const before = counted, sumBefore = marginSum;
+      const before = counted, mnBefore = markupN, mSumBefore = markupSum, fSumBefore = foodCostSum;
       const rows = list.map(m => {
         const combos = costRowsFor(m);
         const nameOf = r => m.nameTh + (r.label ? ` (${r.label})` : "");
         return combos.map(r => rowHtml(nameOf(r), r)).join("");
       }).join("");
-      const n = counted - before;
-      const avg = n ? (marginSum - sumBefore) / n : null;
-      const foot = avg === null ? "" :
-        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average margin (${n} รายการ)</td><td></td><td></td><td></td><td class="num">${esc(fmtPct(avg))}</td><td class="num">${esc(fmtPct(100 - avg))}</td><td></td></tr></tfoot>`;
+      const n = counted - before, mn = markupN - mnBefore;
+      const avg = mn ? (markupSum - mSumBefore) / mn : null;
+      const avgFood = n ? (foodCostSum - fSumBefore) / n : null;
+      const foot = !n ? "" :
+        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average markup (${n} รายการ)</td><td></td><td></td><td></td><td class="num">${esc(fmtPct(avg))}</td><td class="num">${esc(fmtPct(avgFood))}</td><td></td></tr></tfoot>`;
       return `<div class="cat-block">
         <h2 class="cat-title">${esc(menuCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
         <div class="table-scroll"><table>${head}<tbody>${rows}</tbody>${foot}</table></div>
       </div>`;
     }).join("");
 
-  const avgAll = counted ? marginSum / counted : null;
+  const avgAll = markupN ? markupSum / markupN : null;
+  const avgFoodAll = counted ? foodCostSum / counted : null;
   const summary = `<div class="summary">
     คำนวณได้ ${counted} รายการ${incomplete ? ` · ข้อมูลไม่ครบ ${incomplete} รายการ` : ""}${
-      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b>${esc(fmtPct(avgAll))}</b> (ต้นทุนอาหาร ${esc(fmtPct(100 - avgAll))})`}
+      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b>${esc(fmtPct(avgAll))}</b> ของต้นทุน (ต้นทุนอาหาร ${esc(fmtPct(avgFoodAll))})`}
     <div class="en">เมนูที่มีตัวเลือกจะแยกบรรทัดตามเนื้อสัตว์และแบบเสิร์ฟ เพราะต้นทุนและราคาต่างกัน</div>
   </div>`;
 
