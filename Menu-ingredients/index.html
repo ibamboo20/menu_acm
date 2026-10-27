@@ -341,8 +341,14 @@
   .row-edit .e-scope label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
   .row-edit .e-scope input { flex: 0 0 auto; width: auto; min-width: 0; margin: 0; padding: 0; }
   .row-edit .e-scope label:has(input:checked) { color: var(--accent); font-weight: 600; }
-  /* on the base list, what the with-rice version uses instead */
+  /* a quantity that belongs to this serve style alone, and the main-only
+     figure it replaced, kept beside it so the difference is visible */
   .qty-badge.qty-override { background: var(--good-soft); color: var(--good); }
+  .was-qty { font-size: .72rem; color: var(--muted); text-decoration: line-through; white-space: nowrap; }
+  .only-tag {
+    font-size: .7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+    background: var(--good-soft); color: var(--good); white-space: nowrap;
+  }
 
   .from-sauce {
     display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
@@ -1743,36 +1749,57 @@ function menuCardHtml(menu) {
 
     /* a later list overrides an earlier one for the same ingredient */
     const optIds = new Set(opts ? (cur.items || []).map(it => it.ingredientId) : []);
-    const styleIds = new Set(styleKey === "rice" ? riceItems(menu).map(it => it.ingredientId) : []);
+    const riceById = new Map(riceItems(menu).map(it => [it.ingredientId, it]));
+    const onRice = rice && styleKey === "rice";
 
-    /* one ingredient row; `where` says which list it lives in */
-    const rowHtml = (it, where, overridden) => {
+    /* one ingredient row.
+       `where` says which list the row is stored in, so an edit or a delete
+       goes back to the right place; `mainQty` is the main-only amount, shown
+       beside a with-rice row that differs from it. */
+    const rowHtml = (it, where, overridden, extra = {}) => {
       const ing = findIngredient(it.ingredientId);
       const qty = [it.qty, it.unit].filter(Boolean).join(" ");
       const issue = overridden ? null : itemIssue(it);
       const cls = [overridden && "overridden", issue && "unpriced"].filter(Boolean).join(" ");
-      /* when this row is being overridden, say what is used instead rather
-         than only crossing it out */
-      const by = overridden
-        ? (styleKey === "rice" && styleIds.has(it.ingredientId)
-            ? riceItems(menu).find(x => x.ingredientId === it.ingredientId)
-            : (opts && (cur.items || []).find(x => x.ingredientId === it.ingredientId)))
-        : null;
+      const by = overridden && opts ? (cur.items || []).find(x => x.ingredientId === it.ingredientId) : null;
       const byQty = by ? [by.qty, by.unit].filter(Boolean).join(" ") : "";
       const tip = overridden
-        ? (styleKey === "rice" && styleIds.has(it.ingredientId)
-            ? `${RICE_TH}ใช้ ${byQty || "ปริมาณของตัวเอง"} แทน • With rice uses its own amount`
-            : "option นี้กำหนดปริมาณของตัวเอง • overridden by this option")
-        : "ดับเบิลคลิกเพื่อแก้ไข • double-click to edit";
+        ? `option นี้ใช้ ${byQty || "ปริมาณของตัวเอง"} แทน • overridden by this option`
+        : extra.riceOnly
+          ? `ใส่เฉพาะตอนเสิร์ฟ${RICE_TH} • only in the ${RICE_EN} version`
+          : "ดับเบิลคลิกเพื่อแก้ไข • double-click to edit";
+      const del = extra.riceOnly || where === "style"
+        ? { t: `ใช้ปริมาณเดียวกับ${MAIN_TH} • back to the ${MAIN_EN} amount`, w: "style" }
+        : { t: "ลบออก • Remove", w: where };
       return `<li${cls ? ` class="${cls}"` : ""} title="${esc(tip)}"${overridden ? "" : ` data-edit="menu" data-owner="${menu.id}" data-where="${where}" data-ing="${it.ingredientId}"`}>
         <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
         ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
-        ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
-        ${byQty ? `<span class="qty-badge qty-override" title="${esc(tip)}">→ ${esc(byQty)}</span>` : ""}
+        ${extra.riceOnly ? `<span class="only-tag" title="${esc(tip)}">🍚 เฉพาะ${esc(RICE_TH)}</span>` : ""}
+        ${qty ? `<span class="qty-badge${extra.mainQty ? " qty-override" : ""}">${esc(qty)}</span>` : ""}
+        ${extra.mainQty ? `<span class="was-qty" title="${esc(MAIN_TH)}ใช้ ${esc(extra.mainQty)}">${esc(MAIN_TH)} ${esc(extra.mainQty)}</span>` : ""}
+        ${byQty ? `<span class="qty-badge qty-override">→ ${esc(byQty)}</span>` : ""}
         ${where === "opt"
           ? `<button class="icon-btn" title="ย้ายไปส่วนผสมหลัก (ใช้ทุก option) • Move to base" onclick="promoteItem('${menu.id}','${it.ingredientId}')">⬆️</button>` : ""}
-        <button class="icon-btn" title="ลบออก • Remove" onclick="removeItem('${menu.id}','${it.ingredientId}','${where}')">✕</button>
+        <button class="icon-btn" title="${esc(del.t)}" onclick="removeItem('${menu.id}','${it.ingredientId}','${del.w}')">✕</button>
       </li>`;
+    };
+
+    /* the list for the style being looked at: main-only shows the base
+       amounts, with-rice shows its own where it has one, plus anything that
+       goes in only when rice is served */
+    const styleRows = () => {
+      const base = menu.items || [];
+      if (!onRice) return base.map(it => rowHtml(it, "base", optIds.has(it.ingredientId)));
+      const baseIds = new Set(base.map(it => it.ingredientId));
+      return [
+        ...base.map(it => {
+          const ov = riceById.get(it.ingredientId);
+          if (!ov) return rowHtml(it, "base", optIds.has(it.ingredientId));
+          return rowHtml(ov, "style", false, { mainQty: [it.qty, it.unit].filter(Boolean).join(" ") });
+        }),
+        ...riceItems(menu).filter(it => !baseIds.has(it.ingredientId))
+          .map(it => rowHtml(it, "style", false, { riceOnly: true })),
+      ];
     };
     const addFormHtml = (where, ph) =>
       `<form class="add-ing-form" onsubmit="return addItem(event,'${menu.id}','${where}')">
@@ -1789,17 +1816,22 @@ function menuCardHtml(menu) {
         : `<div class="empty-ing">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
       itemsHtml += addFormHtml("base", "ส่วนผสม • Ingredient");
     } else {
-      const baseList = (menu.items || []).length
-        ? `<ul class="ing-list">${menu.items.map(it => rowHtml(it, "base", optIds.has(it.ingredientId) || styleIds.has(it.ingredientId))).join("")}</ul>`
+      const rows = styleRows();
+      const baseList = rows.length
+        ? `<ul class="ing-list">${rows.join("")}</ul>`
         : `<div class="empty-ing">ยังไม่มีส่วนผสมหลัก • No base ingredients yet</div>`;
+      const head = rice
+        ? `🧾 ส่วนผสม — ${esc(styleLabel(styleKey).th)} <span class="en">• ${esc(styleLabel(styleKey).en)}${onRice ? " — ปริมาณของแบบพร้อมข้าว แก้ได้ตรงนี้" : ""}</span>`
+        : `🧾 ส่วนผสมหลัก <span class="en">• Base — ใช้ทุกแบบ</span>`;
       itemsHtml = `
-        <div class="list-head">🧾 ส่วนผสมหลัก <span class="en">• Base — ใช้ทุกแบบ</span></div>
+        <div class="list-head">${head}</div>
         ${baseList}
-        ${addFormHtml("base", "ส่วนผสมหลัก • Base ingredient")}`;
+        ${addFormHtml(onRice ? "style" : "base",
+            onRice ? `ใส่เฉพาะ${RICE_TH} • ${RICE_EN} only` : "ส่วนผสมหลัก • Base ingredient")}`;
 
       if (opts) {
         const optList = (cur.items || []).length
-          ? `<ul class="ing-list">${cur.items.map(it => rowHtml(it, "opt", styleIds.has(it.ingredientId))).join("")}</ul>`
+          ? `<ul class="ing-list">${cur.items.map(it => rowHtml(it, "opt", riceById.has(it.ingredientId) && onRice)).join("")}</ul>`
           : `<div class="empty-ing">ยังไม่มีส่วนผสมเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to ${esc(cur.nameEn || cur.nameTh)} yet</div>`;
         itemsHtml += `
           <div class="list-head" style="margin-top:14px">
@@ -1811,18 +1843,6 @@ function menuCardHtml(menu) {
           ${addFormHtml("opt", `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
       }
 
-      if (rice && styleKey === "rice") {
-        const list = riceItems(menu);
-        const styleList = list.length
-          ? `<ul class="ing-list">${list.map(it => rowHtml(it, "style", false)).join("")}</ul>`
-          : `<div class="empty-ing">ยังไม่มีส่วนผสมหรือปริมาณเฉพาะของ ${esc(RICE_TH)} • Nothing specific to ${esc(RICE_EN)} yet</div>`;
-        itemsHtml += `
-          <div class="list-head" style="margin-top:14px">
-            🍚 เฉพาะ${esc(RICE_TH)} <span class="en">• ${esc(RICE_EN)} only — เพิ่มส่วนผสม หรือใช้ปริมาณต่างจากเมนูเดี่ยว</span>
-          </div>
-          ${styleList}
-          ${addFormHtml("style", `เฉพาะ${RICE_TH} • ${RICE_EN} only`)}`;
-      }
     }
 
     const rels = relatedMenus(menu);
@@ -2411,11 +2431,21 @@ function applyScope(found, ingredientId, qty, unit, scope) {
   const riceList = (menu.withRice = menu.withRice || { enabled: true, items: [] });
   riceList.items = riceList.items || [];
 
-  if (found.where !== "style" && scope === "rice") {
+  if (scope === "rice") {
+    const cur = currentOption(menu);
+    const base = (menu.items || []).find(it => it.ingredientId === ingredientId)
+      || (cur && (cur.items || []).find(it => it.ingredientId === ingredientId));
+    /* typing the main-only amount back in means the two agree again, so the
+       separate with-rice entry is dropped rather than kept as a copy */
+    if (base && base.qty === qty && base.unit === unit) {
+      if (!riceList.items.some(it => it.ingredientId === ingredientId)) return null;
+      riceList.items = riceList.items.filter(it => it.ingredientId !== ingredientId);
+      return `ใช้ปริมาณเดียวกับ${MAIN_TH}แล้ว • Same as ${MAIN_EN} again`;
+    }
     const hit = riceList.items.find(it => it.ingredientId === ingredientId);
     if (hit) { hit.qty = qty; hit.unit = unit; }
     else riceList.items.push({ ingredientId, qty, unit });
-    return "เก็บปริมาณนี้ไว้ใช้เฉพาะแบบพร้อมข้าว • Saved for With rice only";
+    return `ใช้ปริมาณนี้เฉพาะ${RICE_TH} • Saved for ${RICE_EN} only`;
   }
 
   if (found.where === "style" && scope === "both") {
@@ -2452,17 +2482,16 @@ function openRowEdit(li) {
      with-rice-only amount, but never on the main-only tab, where there is no
      second quantity in view to be confused with. */
   const riceMenu = kind === "menu" && found.menu && hasRice(found.menu);
-  const isOverride = found.where === "style";
-  const showScope = riceMenu && (isOverride || currentStyleKey(found.menu) === "rice");
+  const showScope = riceMenu && currentStyleKey(found.menu) === "rice";
   const scopeName = "scope-" + Math.random().toString(36).slice(2, 8);
   const scopeHtml = showScope
     ? `<div class="e-scope">
-         <span>ปริมาณนี้ใช้กับ • Applies to:</span>
-         <label title="แก้แล้วเปลี่ยนทั้งเมนูเดี่ยวและพร้อมข้าว">
-           <input type="radio" name="${scopeName}" value="both"${isOverride ? "" : " checked"}> ${esc(MAIN_TH)} + ${esc(RICE_TH)}
+         <span>บันทึกปริมาณนี้ไว้ที่ • Save to:</span>
+         <label title="ปริมาณของเมนูเดี่ยวไม่เปลี่ยน">
+           <input type="radio" name="${scopeName}" value="rice" checked> เฉพาะ${esc(RICE_TH)}
          </label>
-         <label title="แก้เฉพาะแบบพร้อมข้าว ปริมาณของเมนูเดี่ยวไม่เปลี่ยน">
-           <input type="radio" name="${scopeName}" value="rice"${isOverride ? " checked" : ""}> เฉพาะ${esc(RICE_TH)}
+         <label title="เปลี่ยนทั้งเมนูเดี่ยวและพร้อมข้าว">
+           <input type="radio" name="${scopeName}" value="both"> ${esc(MAIN_TH)} + ${esc(RICE_TH)}
          </label>
        </div>`
     : "";
