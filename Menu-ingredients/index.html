@@ -1325,6 +1325,12 @@ setInterval(async () => {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+/* a search that matches nothing should say so — an empty panel reads as a
+   broken page, which is exactly how the sauce search looked while it threw */
+function noHits(what, q, en) {
+  return `<div class="empty-ing">🔍 ไม่พบ${what}ที่ตรงกับ “${esc(q)}” • ${esc(en)}</div>`;
+}
+
 /* ---------- helpers ---------- */
 function findIngredient(id) { return state.ingredients.find(i => i.id === id); }
 function ingDisplay(ing) {
@@ -1643,6 +1649,11 @@ function renderMenus() {
   document.getElementById("menu-empty").style.display =
     state.menus.length === 0 ? "" : "none";
 
+  if (q && !menus.length) {
+    container.innerHTML = noHits("เมนู", q, "No menu matches this search");
+    return;
+  }
+
   // group by category, preserving first-seen order; uncategorized last
   const groups = new Map();
   menus.forEach(m => {
@@ -1866,6 +1877,11 @@ function renderIngredients() {
   document.getElementById("ing-empty").style.display =
     state.ingredients.length === 0 ? "" : "none";
 
+  if (q && !list.length) {
+    tbody.innerHTML = `<tr><td colspan="8">${noHits("ส่วนผสม", q, "No ingredient matches this search")}</td></tr>`;
+    return;
+  }
+
   tbody.innerHTML = list.map(ing => {
     const used = menusUsing(ing.id);
     const inSauces = saucesUsing(ing.id);
@@ -1921,6 +1937,11 @@ function renderBeverages() {
 
   document.getElementById("bev-empty").style.display =
     state.beverages.length === 0 ? "" : "none";
+
+  if (q && !list.length) {
+    tbody.innerHTML = `<tr><td colspan="9">${noHits("วัตถุดิบ", q, "No beverage ingredient matches this search")}</td></tr>`;
+    return;
+  }
 
   const dash = `<span class="brand-txt">–</span>`;
   tbody.innerHTML = list.map(bev => {
@@ -2140,6 +2161,11 @@ function renderDrinks() {
 
   const list = state.drinks.filter(hit);
   document.getElementById("drink-empty").style.display = state.drinks.length ? "none" : "";
+
+  if (q && !list.length) {
+    container.innerHTML = noHits("เมนูเครื่องดื่ม", q, "No drink matches this search");
+    return;
+  }
 
   const groups = new Map();
   list.forEach(d => {
@@ -3457,7 +3483,7 @@ function renderSauces() {
   const list = state.sauces.filter(hit);
   document.getElementById("sauce-empty").style.display = state.sauces.length ? "none" : "";
   if (q && !list.length) {
-    grid.innerHTML = `<div class="empty-ing">ไม่พบซอสที่ตรงกับ “${esc(q)}” • No sauce matches this search</div>`;
+    grid.innerHTML = noHits("ซอส", q, "No sauce matches this search");
     return;
   }
 
