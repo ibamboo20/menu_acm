@@ -1309,7 +1309,7 @@ async function save() {
 setInterval(async () => {
   const ae = document.activeElement;
   if (openRowEditor) return;                     // a row is being edited in place
-  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search", "drink-search"];
+  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search", "drink-search", "sauce-search"];
   if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && !SEARCH_BOXES.includes(ae.id)) return;
   try {
     const res = await fetch("/api/state");
@@ -3440,15 +3440,26 @@ function fmtSmallPrice(n) {
 function renderSauces() {
   const grid = document.getElementById("sauce-grid");
   const q = document.getElementById("sauce-search").value.trim().toLowerCase();
+  /* a row carries an ingredientId, not the name — only the oldest rows keep
+     their own text, so the name has to be looked up the way the card does */
+  const itemMatches = it => {
+    const ing = it.ingredientId ? findIngredient(it.ingredientId) : null;
+    const th = ing ? ing.nameTh : it.nameTh;
+    const en = ing ? ing.nameEn : it.nameEn;
+    return (th || "").toLowerCase().includes(q) || (en || "").toLowerCase().includes(q);
+  };
   const hit = s =>
     !q ||
     s.nameTh.toLowerCase().includes(q) ||
     (s.nameEn || "").toLowerCase().includes(q) ||
-    (s.items || []).some(it =>
-      it.nameTh.toLowerCase().includes(q) || (it.nameEn || "").toLowerCase().includes(q));
+    (s.items || []).some(itemMatches);
 
   const list = state.sauces.filter(hit);
   document.getElementById("sauce-empty").style.display = state.sauces.length ? "none" : "";
+  if (q && !list.length) {
+    grid.innerHTML = `<div class="empty-ing">ไม่พบซอสที่ตรงกับ “${esc(q)}” • No sauce matches this search</div>`;
+    return;
+  }
 
   grid.innerHTML = list.map(s => {
     const rows = (s.items || []).length
