@@ -300,6 +300,11 @@
   ul.ing-list li:last-child { border-bottom: none; }
   .ing-name { flex: 1; }
   .ing-name .en { color: var(--muted); font-size: .8rem; }
+  .ing-cost {
+    display: block; margin-top: 1px;
+    font-size: .74rem; color: var(--muted); font-weight: 400;
+    font-variant-numeric: tabular-nums; cursor: help;
+  }
   .qty-badge {
     background: var(--accent-soft); color: var(--blue);
     font-size: .8rem; padding: 2px 10px; border-radius: 999px; font-weight: 600;
@@ -1432,6 +1437,19 @@ function fmtPrice(p) {
 function fmtPack(ing) {
   return [ing.packQty, ing.packUnit].filter(v => v !== "" && v != null).join(" ");
 }
+/* a pinch of something expensive still rounds to $0.00 at two decimals, which
+   reads as free rather than as too small to matter */
+function fmtCost(n) {
+  return n > 0 && n < 0.005 ? "< $0.01" : fmtPrice(n);
+}
+/* the cost of the amount this recipe uses, shown under the ingredient name,
+   with the sum behind it in the tooltip */
+function costLine(cost, row, it) {
+  if (cost === null || !isFinite(cost)) return "";
+  const used = [it.qty, it.unit].filter(Boolean).join(" ");
+  const calc = `${fmtPack(row)} ราคา ${fmtPrice(row.price)} → ใช้ ${used} = ${fmtCost(cost)}`;
+  return `<span class="ing-cost" title="${esc(calc)}">ต้นทุนประมาณ ${esc(fmtCost(cost))}</span>`;
+}
 
 /* ---------- unit conversion & cost ---------- */
 /* each convertible unit maps to [dimension, size in the dimension's base unit] */
@@ -1767,7 +1785,7 @@ function menuCardHtml(menu) {
         ? { t: `ใช้ปริมาณเดียวกับ${MAIN_TH} • back to the ${MAIN_EN} amount`, w: "style" }
         : { t: "ลบออก • Remove", w: where };
       return `<li${issue ? ' class="unpriced"' : ""} title="${esc(tip)}" data-edit="menu" data-owner="${menu.id}" data-where="${where}" data-ing="${it.ingredientId}">
-        <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}</span>
+        <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}${ing ? costLine(itemCost(it), ing, it) : ""}</span>
         ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
         ${extra.riceOnly ? `<span class="only-tag" title="${esc(tip)}">🍚 เฉพาะ${esc(RICE_TH)}</span>` : ""}
         ${qty ? `<span class="qty-badge${ownAmount ? " qty-override" : ""}">${esc(qty)}</span>` : ""}
@@ -2078,7 +2096,7 @@ function drinkCardHtml(d) {
         const qty = [it.qty, it.unit].filter(Boolean).join(" ");
         const issue = bevItemIssue(it);
         return `<li${issue ? ' class="unpriced"' : ""} title="ดับเบิลคลิกเพื่อแก้ไข • double-click to edit" data-edit="drink" data-owner="${d.id}" data-index="${i}">
-          <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
+          <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}${bev ? costLine(drinkItemCost(it), bev, it) : ""}</span>
           ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
           ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
           <button class="icon-btn" title="ลบวัตถุดิบ • Remove" onclick="removeDrinkItem('${d.id}',${i})">✕</button>
@@ -3523,7 +3541,7 @@ function renderSauces() {
           const qty = [it.qty, it.unit].filter(Boolean).join(" ");
           const issue = itemIssue(it);
           return `<li${issue ? ' class="unpriced"' : ""} title="ดับเบิลคลิกเพื่อแก้ไข • double-click to edit" data-edit="sauce" data-owner="${s.id}" data-index="${i}">
-            <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}</span>
+            <span class="ing-name">${esc(nameTh)}${nameEn ? ` <span class="en">• ${esc(nameEn)}</span>` : ""}${ing ? costLine(itemCost(it), ing, it) : ""}</span>
             ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
             ${qty ? `<span class="qty-badge">${esc(qty)}</span>` : ""}
             <button class="icon-btn" title="ลบส่วนผสม • Remove" onclick="removeSauceItem('${s.id}',${i})">✕</button>
