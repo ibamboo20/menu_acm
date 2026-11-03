@@ -607,7 +607,10 @@
             </div>
             <div class="field" style="flex:1 1 100px">
               <label><b>Serves</b> • จำนวนที่</label>
-              <input type="number" id="menu-serves" min="0" step="any" placeholder="เช่น 4">
+              <!-- a new dish is one plate unless its recipe says otherwise, and
+                   without a figure here there is no per-serve cost and so no
+                   profit — so start at 1 rather than empty -->
+              <input type="number" id="menu-serves" min="0" step="any" value="1" placeholder="เช่น 4">
             </div>
             <div class="field" style="flex:1 1 130px">
               <label><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
@@ -1565,6 +1568,16 @@ function profitOf(cost, prod) {
   };
 }
 
+/* there is a selling price but no profit to show, so name the piece that is
+   still missing instead of listing everything the sum needs */
+function whyNoProfit(cost, serves) {
+  const need = [];
+  if (!cost.priced) need.push(["ต้นทุนส่วนผสม", "ingredient costs"]);
+  if (serves === null || serves <= 0) need.push(["จำนวน Serves", "serves"]);
+  return `คำนวณกำไรไม่ได้ — ยังขาด${need.map(n => n[0]).join("และ")}`
+       + ` • needs ${need.map(n => n[1]).join(" and ")}`;
+}
+
 /* กำไรคิดเป็นเปอร์เซ็นต์ของต้นทุน (Markup) = กำไร ÷ ต้นทุน × 100.
    A zero cost has no markup to speak of — the percentage would be infinite —
    so it comes back null and the display falls back to a dash. */
@@ -1745,7 +1758,7 @@ function menuCardHtml(menu) {
       : (isFinite(sellPrice) && sellPrice > 0
         ? `<div class="cost-rule"></div>
            <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(sellPrice))} / ที่</span>
-           <span class="cost-note">คำนวณกำไรไม่ได้ — ต้องมีทั้งต้นทุนส่วนผสมและจำนวน Serves • Needs ingredient costs and Serves</span>`
+           <span class="cost-note">${esc(whyNoProfit(cost, serves))}</span>`
         : "");
 
     const costHtml = cost.priced
@@ -2658,7 +2671,7 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
     yieldUnit: document.getElementById("menu-yield-unit").value.trim(),
     portionQty: document.getElementById("menu-portion-qty").value.trim(),
     portionUnit: document.getElementById("menu-portion-unit").value.trim(),
-    serves: document.getElementById("menu-serves").value.trim(),
+    serves: document.getElementById("menu-serves").value.trim() || "1",
     sellPrice: document.getElementById("menu-sellprice").value.trim(),
   };
   if (document.getElementById("menu-has-opts").checked) {
