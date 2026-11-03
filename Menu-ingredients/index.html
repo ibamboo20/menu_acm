@@ -1447,7 +1447,10 @@ function fmtCost(n) {
 function costLine(cost, row, it) {
   if (cost === null || !isFinite(cost)) return "";
   const used = [it.qty, it.unit].filter(Boolean).join(" ");
-  const calc = `${fmtPack(row)} ราคา ${fmtPrice(row.price)} → ใช้ ${used} = ${fmtCost(cost)}`;
+  /* the tooltip carries the figure before rounding, because the total is the
+     sum of these and not of the cents shown on the line */
+  const exact = "$" + cost.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  const calc = `${fmtPack(row)} ราคา ${fmtPrice(row.price)} → ใช้ ${used} = ${exact}`;
   return `<span class="ing-cost" title="${esc(calc)}">ต้นทุนประมาณ ${esc(fmtCost(cost))}</span>`;
 }
 
@@ -1747,7 +1750,7 @@ function menuCardHtml(menu) {
     const costHtml = cost.priced
       ? `<div class="cost-box">
            <span class="cost-label">💰 ต้นทุน${[opts && cur.nameTh, rice && styleLabel(styleKey).th].filter(Boolean).length ? ` (${esc([opts && cur.nameTh, rice && styleLabel(styleKey).th].filter(Boolean).join(" · "))})` : ""} • Cost:</span>
-           <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+           <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding, not from the cents shown on each line">${esc(fmtPrice(cost.total))}</span>
            ${serves !== null && serves > 0
              ? `<span class="cost-label">≈ ${esc(fmtPrice(cost.total / serves))} / ที่ • per serve</span>` : ""}
            ${cost.missing
@@ -2145,12 +2148,12 @@ function drinkCardHtml(d) {
     ? `<div class="cost-box">
          ${c.batch
             ? `<span class="cost-label">💰 ต้นทุนทั้งแบตช์ • Batch cost:</span>
-               <span class="cost-main">${esc(fmtPrice(cost.total))}</span>
+               <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding, not from the cents shown on each line">${esc(fmtPrice(cost.total))}</span>
                ${c.perGlass !== null
                   ? `<span class="cost-label">≈ <b class="profit-main" style="font-size:.95rem">${esc(fmtPrice(c.perGlass))}</b> / แก้ว • per glass</span>`
                   : ""}`
             : `<span class="cost-label">💰 ต้นทุนต่อแก้ว • Cost per glass:</span>
-               <span class="cost-main">${esc(fmtPrice(cost.total))}</span>`}
+               <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding, not from the cents shown on each line">${esc(fmtPrice(cost.total))}</span>`}
          ${c.note ? `<span class="cost-note">* ${esc(c.note)}</span>` : ""}
          ${cost.missing ? `<span class="cost-note">* คำนวณจาก ${cost.priced} ใน ${cost.priced + cost.missing} วัตถุดิบ — อีก ${cost.missing} รายการยังไม่มีราคา/ขนาดบรรจุ หรือหน่วยแปลงกันไม่ได้</span>` : ""}
          ${profitHtml}
@@ -3570,7 +3573,7 @@ function renderSauces() {
     const costHtml = c.cost.priced
       ? `<div class="cost-box">
            <span class="cost-label">💰 ต้นทุนทั้งสูตร • Batch cost:</span>
-           <span class="cost-main">${esc(fmtPrice(c.cost.total))}</span>
+           <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding, not from the cents shown on each line">${esc(fmtPrice(c.cost.total))}</span>
            ${c.perUnit ? `<span class="cost-label">≈ ${esc(fmtSmallPrice(c.perUnit.value))} / ${esc(c.perUnit.unit || "หน่วย")}</span>` : ""}
            ${c.perServe !== null ? `<span class="cost-label">≈ <b class="profit-main" style="font-size:.95rem">${esc(fmtPrice(c.perServe))}</b> / เสิร์ฟ • per serve</span>` : ""}
            ${c.serveNote ? `<span class="cost-note">* ${esc(c.serveNote)}</span>` : ""}
