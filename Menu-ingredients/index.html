@@ -1276,6 +1276,26 @@ function migrate(s) {
       delete m.serveStyles;
     }
     if (m.withRice && !Array.isArray(m.withRice.items)) m.withRice.items = [];
+    /* A with-rice amount for an ingredient that belongs to one meat option
+       used to be filed in the menu-wide list, where every other option picked
+       it up as well — chicken mince turning up in the beef plate. Hand each
+       one back to the option(s) whose recipe it came from. */
+    (m.options || []).forEach(o => { if (o.rice && !Array.isArray(o.rice.items)) o.rice.items = []; });
+    if (m.withRice && (m.options || []).length) {
+      const baseIds = new Set((m.items || []).map(it => it.ingredientId));
+      m.withRice.items = m.withRice.items.filter(it => {
+        if (baseIds.has(it.ingredientId)) return true;
+        const owners = m.options.filter(o => (o.items || []).some(x => x.ingredientId === it.ingredientId));
+        if (!owners.length) return true;      // rice-only extra, e.g. the rice itself
+        owners.forEach(o => {
+          const list = optRiceStore(o).items;
+          if (!list.some(x => x.ingredientId === it.ingredientId)) {
+            list.push({ ingredientId: it.ingredientId, qty: it.qty, unit: it.unit });
+          }
+        });
+        return false;
+      });
+    }
   });
   return s;
 }
@@ -1376,6 +1396,17 @@ function styleLabel(key) {
   return key === "rice" ? { th: RICE_TH, en: RICE_EN } : { th: MAIN_TH, en: MAIN_EN };
 }
 function riceItems(menu) { return hasRice(menu) ? (menu.withRice.items || []) : []; }
+/* a meat option's own with-rice amounts. They have to live on the option:
+   kept in the menu-wide list, one option's meat would be cooked into all the
+   others as soon as its with-rice portion differed. */
+function optRiceItems(opt) { return (opt && opt.rice && opt.rice.items) || []; }
+/* "style" is a with-rice amount of the menu, "optstyle" one of the meat's */
+function isStyleWhere(where) { return where === "style" || where === "optstyle"; }
+function optRiceStore(opt) {
+  const r = (opt.rice = opt.rice || {});
+  r.items = r.items || [];
+  return r;
+}
 function selectStyle(menuId, key) {
   selectedStyle[menuId] = key;
   renderMenus();
@@ -1388,7 +1419,10 @@ function effectiveItems(menu, opt, styleKey) {
   const map = new Map();
   (menu.items || []).forEach(it => map.set(it.ingredientId, it));
   if (opt) (opt.items || []).forEach(it => map.set(it.ingredientId, it));
-  if (styleKey === "rice") riceItems(menu).forEach(it => map.set(it.ingredientId, it));
+  if (styleKey === "rice") {
+    riceItems(menu).forEach(it => map.set(it.ingredientId, it));
+    if (opt) optRiceItems(opt).forEach(it => map.set(it.ingredientId, it));
+  }
   return [...map.values()];
 }
 /* all ingredients of a menu across base + every option + the rice extras
@@ -1399,7 +1433,7 @@ function menuUnionItems(menu) {
   const add = list => (list || []).forEach(it => {
     if (!map.has(it.ingredientId)) map.set(it.ingredientId, it);
   });
-  (menuOptions(menu) || []).forEach(o => add(o.items));
+  (menuOptions(menu) || []).forEach(o => { add(o.items); add(optRiceItems(o)); });
   add(riceItems(menu));
   return [...map.values()];
 }
@@ -1782,9 +1816,15 @@ function menuCardHtml(menu) {
        then the with-rice amounts. Each ingredient is therefore shown once, in
        the section it belongs to, carrying the amount this plate really uses —
        no crossed-out duplicate anywhere. */
-    const optIds = new Set(opts ? (cur.items || []).map(it => it.ingredientId) : []);
     const onRice = rice && styleKey === "rice";
     const riceById = new Map(onRice ? riceItems(menu).map(it => [it.ingredientId, it]) : []);
+    /* the meat's own with-rice amounts, which belong to this option alone */
+    const optRiceById = new Map(onRice && opts ? optRiceItems(cur).map(it => [it.ingredientId, it]) : []);
+    /* whatever the meat option decides for itself, however it got there, is
+       shown in its own section and not again among the base ingredients */
+    const optIds = new Set(opts
+      ? [...(cur.items || []).map(it => it.ingredientId), ...optRiceById.keys()]
+      : []);
 
     /* one ingredient row; `where` says which list holds it, so an edit or a
        delete goes back to the right place */
@@ -1792,14 +1832,14 @@ function menuCardHtml(menu) {
       const ing = findIngredient(it.ingredientId);
       const qty = [it.qty, it.unit].filter(Boolean).join(" ");
       const issue = itemIssue(it);
-      const ownAmount = where === "style" && !extra.riceOnly;
+      const ownAmount = isStyleWhere(where) && !extra.riceOnly;
       const tip = extra.riceOnly
         ? `ใส่เฉพาะตอนเสิร์ฟ${RICE_TH} • only in the ${RICE_EN} version`
         : ownAmount
           ? `${RICE_TH}ใช้ปริมาณของตัวเอง — ${MAIN_TH}ใช้ ${extra.mainQty || "ปริมาณเดิม"} • double-click to edit`
           : "ดับเบิลคลิกเพื่อแก้ไข • double-click to edit";
-      const del = where === "style"
-        ? { t: `ใช้ปริมาณเดียวกับ${MAIN_TH} • back to the ${MAIN_EN} amount`, w: "style" }
+      const del = isStyleWhere(where)
+        ? { t: `ใช้ปริมาณเดียวกับ${MAIN_TH} • back to the ${MAIN_EN} amount`, w: where }
         : { t: "ลบออก • Remove", w: where };
       return `<li${issue ? ' class="unpriced"' : ""} title="${esc(tip)}" data-edit="menu" data-owner="${menu.id}" data-where="${where}" data-ing="${it.ingredientId}">
         <span class="ing-name">${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? ` <span class="en">• ${esc(ing.nameEn)}</span>` : ""}${ing ? costLine(itemCost(it), ing, it) : ""}</span>
@@ -1813,11 +1853,14 @@ function menuCardHtml(menu) {
     };
 
     /* a row showing the with-rice amount where there is one, so editing it
-       changes this serve style and leaves the main-only amount alone */
+       changes this serve style and leaves the main-only amount alone. A meat
+       row looks to its own option's list first, so its with-rice portion is
+       saved on the option and not shared out to the other meats. */
     const forStyle = (it, where) => {
-      const ov = riceById.get(it.ingredientId);
+      const own = where === "opt" ? optRiceById.get(it.ingredientId) : null;
+      const ov = own || riceById.get(it.ingredientId);
       return ov
-        ? rowHtml(ov, "style", { mainQty: [it.qty, it.unit].filter(Boolean).join(" ") })
+        ? rowHtml(ov, own ? "optstyle" : "style", { mainQty: [it.qty, it.unit].filter(Boolean).join(" ") })
         : rowHtml(it, where);
     };
 
@@ -1862,8 +1905,14 @@ function menuCardHtml(menu) {
       if (opts) {
         /* the meat is shown here for whichever serve style is on screen, so a
            with-rice portion is changed in this section rather than elsewhere */
-        const optList = (cur.items || []).length
-          ? `<ul class="ing-list">${cur.items.map(it => forStyle(it, "opt")).join("")}</ul>`
+        const optOwn = new Set((cur.items || []).map(it => it.ingredientId));
+        const optRows = [
+          ...(cur.items || []).map(it => forStyle(it, "opt")),
+          ...(onRice ? optRiceItems(cur).filter(it => !optOwn.has(it.ingredientId))
+                        .map(it => rowHtml(it, "optstyle", { riceOnly: true })) : []),
+        ];
+        const optList = optRows.length
+          ? `<ul class="ing-list">${optRows.join("")}</ul>`
           : `<div class="empty-ing">ยังไม่มีส่วนผสมเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to ${esc(cur.nameEn || cur.nameTh)} yet</div>`;
         itemsHtml += `
           <div class="list-head" style="margin-top:14px">
@@ -1872,7 +1921,8 @@ function menuCardHtml(menu) {
               ? `<button type="button" class="btn small ghost" style="margin-left:auto" onclick="promoteAll('${menu.id}')">⬆️ ย้ายทั้งหมดไปส่วนผสมหลัก</button>` : ""}
           </div>
           ${optList}
-          ${addFormHtml("opt", `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
+          ${addFormHtml(onRice ? "optstyle" : "opt",
+              onRice ? `เฉพาะ ${cur.nameTh} — ${RICE_TH}` : `เฉพาะ ${cur.nameTh} • ${cur.nameEn || cur.nameTh} only`)}`;
       }
 
     }
@@ -2449,6 +2499,7 @@ function readRowItem(li) {
   if (!menu) return null;
   const where = li.dataset.where, cur = currentOption(menu);
   const list = (where === "opt" && cur) ? (cur.items = cur.items || [])
+    : (where === "optstyle" && cur) ? optRiceStore(cur).items
     : (where === "style" && hasRice(menu)) ? (menu.withRice.items = menu.withRice.items || [])
     : (menu.items = menu.items || []);
   return { kind, menu, where, item: list.find(it => it.ingredientId === li.dataset.ing), list };
@@ -2460,33 +2511,42 @@ function readRowItem(li) {
    going back to "ทุกแบบ" is writing it into the base list and dropping it. */
 function applyScope(found, ingredientId, qty, unit, scope) {
   const menu = found.menu;
-  const riceList = (menu.withRice = menu.withRice || { enabled: true, items: [] });
-  riceList.items = riceList.items || [];
+  const cur = currentOption(menu);
+  /* An ingredient the meat option owns keeps its with-rice amount on that
+     option. Filed in the menu-wide list it would be cooked into every other
+     meat as well — which is how chicken mince ended up in the beef plate. */
+  const ownedByOpt = !!cur && (found.where === "optstyle"
+    || (cur.items || []).some(it => it.ingredientId === ingredientId));
+  const store = ownedByOpt
+    ? optRiceStore(cur)
+    : (menu.withRice = menu.withRice || { enabled: true, items: [] });
+  store.items = store.items || [];
+  const mainAmount = () => (ownedByOpt ? cur.items : (menu.items || []))
+    .find(it => it.ingredientId === ingredientId);
 
   if (scope === "rice") {
-    const cur = currentOption(menu);
-    const base = (menu.items || []).find(it => it.ingredientId === ingredientId)
-      || (cur && (cur.items || []).find(it => it.ingredientId === ingredientId));
+    const base = mainAmount();
     /* typing the main-only amount back in means the two agree again, so the
        separate with-rice entry is dropped rather than kept as a copy */
     if (base && base.qty === qty && base.unit === unit) {
-      if (!riceList.items.some(it => it.ingredientId === ingredientId)) return null;
-      riceList.items = riceList.items.filter(it => it.ingredientId !== ingredientId);
+      if (!store.items.some(it => it.ingredientId === ingredientId)) return null;
+      store.items = store.items.filter(it => it.ingredientId !== ingredientId);
       return `ใช้ปริมาณเดียวกับ${MAIN_TH}แล้ว • Same as ${MAIN_EN} again`;
     }
-    const hit = riceList.items.find(it => it.ingredientId === ingredientId);
+    const hit = store.items.find(it => it.ingredientId === ingredientId);
     if (hit) { hit.qty = qty; hit.unit = unit; }
-    else riceList.items.push({ ingredientId, qty, unit });
-    return `ใช้ปริมาณนี้เฉพาะ${RICE_TH} • Saved for ${RICE_EN} only`;
+    else store.items.push({ ingredientId, qty, unit });
+    return ownedByOpt
+      ? `ใช้ปริมาณนี้เฉพาะ ${cur.nameTh} — ${RICE_TH} • Saved for ${cur.nameEn || cur.nameTh} with rice`
+      : `ใช้ปริมาณนี้เฉพาะ${RICE_TH} • Saved for ${RICE_EN} only`;
   }
 
-  if (found.where === "style" && scope === "both") {
-    const cur = currentOption(menu);
-    const base = (menu.items || []).find(it => it.ingredientId === ingredientId)
-      || (cur && (cur.items || []).find(it => it.ingredientId === ingredientId));
+  if (isStyleWhere(found.where) && scope === "both") {
+    const base = mainAmount();
     if (base) { base.qty = qty; base.unit = unit; }
+    else if (ownedByOpt) cur.items.push({ ingredientId, qty, unit });
     else (menu.items = menu.items || []).push({ ingredientId, qty, unit });
-    riceList.items = riceList.items.filter(it => it.ingredientId !== ingredientId);
+    store.items = store.items.filter(it => it.ingredientId !== ingredientId);
     return "ใช้ปริมาณนี้ทั้งสองแบบแล้ว • Now used for both serve styles";
   }
 
@@ -2736,6 +2796,7 @@ function addItem(e, menuId, where) {
 
   const cur = currentOption(menu);
   const list = (where === "opt" && cur) ? (cur.items = cur.items || [])
+    : (where === "optstyle" && cur) ? optRiceStore(cur).items
     : (where === "style" && hasRice(menu)) ? (menu.withRice.items = menu.withRice.items || [])
     : (menu.items = menu.items || []);
   const existing = list.find(it => it.ingredientId === ing.id);
@@ -2758,9 +2819,24 @@ function removeItem(menuId, ingredientId, where) {
   if (!menu) return;
   const cur = currentOption(menu);
   if (where === "opt" && cur) cur.items = (cur.items || []).filter(it => it.ingredientId !== ingredientId);
+  else if (where === "optstyle" && cur) {
+    const r = optRiceStore(cur);
+    r.items = r.items.filter(it => it.ingredientId !== ingredientId);
+  }
   else if (where === "style" && hasRice(menu)) menu.withRice.items = (menu.withRice.items || []).filter(it => it.ingredientId !== ingredientId);
   else menu.items = (menu.items || []).filter(it => it.ingredientId !== ingredientId);
   save(); renderAll();
+}
+
+/* an ingredient that moves to the base list takes its with-rice amount with
+   it, from the option's list to the menu-wide one */
+function promoteRiceAmount(menu, opt, ingredientId) {
+  const own = optRiceItems(opt).find(x => x.ingredientId === ingredientId);
+  if (!own) return;
+  opt.rice.items = opt.rice.items.filter(x => x.ingredientId !== ingredientId);
+  const riceList = (menu.withRice = menu.withRice || { enabled: true, items: [] });
+  riceList.items = (riceList.items || []).filter(x => x.ingredientId !== ingredientId);
+  riceList.items.push(own);
 }
 
 /* move an option-specific ingredient into the shared base list */
@@ -2773,6 +2849,7 @@ function promoteItem(menuId, ingredientId) {
   cur.items = cur.items.filter(x => x.ingredientId !== ingredientId);
   menu.items = (menu.items || []).filter(x => x.ingredientId !== ingredientId);
   menu.items.push(it);
+  promoteRiceAmount(menu, cur, ingredientId);
   save(); renderAll();
   const ing = findIngredient(ingredientId);
   toast(`ย้าย "${ing ? ing.nameTh : ""}" ไปส่วนผสมหลักแล้ว • Moved to base`);
@@ -2787,6 +2864,7 @@ function promoteAll(menuId) {
   cur.items.forEach(it => {
     menu.items = menu.items.filter(x => x.ingredientId !== it.ingredientId);
     menu.items.push(it);
+    promoteRiceAmount(menu, cur, it.ingredientId);
   });
   cur.items = [];
   save(); renderAll();
@@ -3843,7 +3921,10 @@ function allUsages() {
     // base ingredients are listed once (they apply to every option),
     // then each option's own ingredients are listed under that option
     (m.items || []).forEach(it => push(it, null, null));
-    (menuOptions(m) || []).forEach(o => (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn)));
+    (menuOptions(m) || []).forEach(o => {
+      (o.items || []).forEach(it => push(it, o.nameTh, o.nameEn));
+      optRiceItems(o).forEach(it => push(it, `${o.nameTh} — ${RICE_TH}`, `${o.nameEn || o.nameTh} — ${RICE_EN}`));
+    });
     riceItems(m).forEach(it => push(it, RICE_TH, RICE_EN));
   });
   // sauces use the same ingredient table, so they belong in the usage list
@@ -4028,7 +4109,11 @@ function buildMenuReport(ids) {
                          hasRice(m) && `🍚 ${styleLabel(k).th} • ${styleLabel(k).en}`]
                         .filter(Boolean).join("  ·  ");
         const optMeta = fmtMenuMeta(prod);
-        const ownIds = new Set([...(o ? o.items || [] : []), ...(k === "rice" ? riceItems(m) : [])].map(x => x.ingredientId));
+        const ownIds = new Set([
+          ...(o ? o.items || [] : []),
+          ...(k === "rice" ? riceItems(m) : []),
+          ...(k === "rice" ? optRiceItems(o) : []),
+        ].map(x => x.ingredientId));
         return `<h3>${esc(heading)}</h3>` +
           (optMeta.length ? `<div class="meta">${esc(optMeta.join("  |  "))}</div>` : "") +
           (items.length
