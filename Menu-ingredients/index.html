@@ -262,6 +262,20 @@
     font-size: .88rem;
   }
   .method-box .m-title { font-size: .76rem; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+
+  /* blocks that are folded away until the heading is clicked; the browser's
+     own <details> does the toggling, the arrow is ours */
+  summary.fold-head {
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    list-style: none; user-select: none; margin-bottom: 0;
+  }
+  summary.fold-head::-webkit-details-marker { display: none; }
+  summary.fold-head::after {
+    content: "▸"; margin-left: auto; font-size: .85em; color: var(--muted);
+  }
+  details[open] > summary.fold-head::after { content: "▾"; }
+  details[open] > summary.fold-head { margin-bottom: 6px; }
+  .fold-count { font-weight: 400; color: var(--muted); }
   .method-box .m-body { white-space: pre-wrap; }
   .method-box .m-en { color: var(--muted); font-size: .83rem; margin-top: 6px; }
   .sauce-note {
@@ -1367,6 +1381,19 @@ function ingDisplay(ing) {
   if (!ing) return "(ถูกลบ • deleted)";
   return ing.nameEn ? `${ing.nameTh} (${ing.nameEn})` : ing.nameTh;
 }
+/* folded blocks (the shared-ingredient list, a method): closed to begin with,
+   and whatever the user opened stays open through the ten-second refresh,
+   which rebuilds the cards from scratch */
+const openFolds = new Set();
+document.addEventListener("toggle", e => {
+  const key = e.target.dataset && e.target.dataset.fold;
+  if (!key) return;
+  if (e.target.open) openFolds.add(key); else openFolds.delete(key);
+}, true);   // "toggle" does not bubble, so listen on the way down
+function foldAttrs(key) {
+  return ` data-fold="${esc(key)}"${openFolds.has(key) ? " open" : ""}`;
+}
+
 /* meat options: a menu may have options[], each with its own items[] */
 const selectedOpt = {}; // menuId -> optionId (per-session UI state)
 function menuOptions(menu) {
@@ -1929,13 +1956,13 @@ function menuCardHtml(menu) {
 
     const rels = relatedMenus(menu);
     const relHtml = rels.length
-      ? `<div class="related">
-           <div class="rel-title">🔗 ใช้ส่วนผสมร่วมกับ • Shares ingredients with:</div>
+      ? `<details class="related"${foldAttrs("rel:" + menu.id)}>
+           <summary class="rel-title fold-head">🔗 ใช้ส่วนผสมร่วมกับ • Shares ingredients with: <span class="fold-count">${rels.length} เมนู</span></summary>
            ${rels.map(r => {
              const names = r.shared.map(id => { const g = findIngredient(id); return g ? g.nameTh : ""; }).filter(Boolean).join(", ");
              return `<span class="chip" title="${esc(names)}" onclick="showShared('${menu.id}','${r.menu.id}')">${esc(r.menu.nameTh)} • ${r.shared.length} อย่าง</span>`;
            }).join("")}
-         </div>`
+         </details>`
       : "";
 
     return `<div class="card menu-card" id="menu-${menu.id}">
@@ -2172,10 +2199,11 @@ function drinkCardHtml(d) {
     : `<div class="empty-ing">ยังไม่มีวัตถุดิบ • No ingredients yet</div>`;
 
   const method = (d.methodTh || d.methodEn)
-    ? `<div class="method-box"><div class="m-title">🍸 วิธีทำ • Method</div>` +
+    ? `<details class="method-box"${foldAttrs("method:" + d.id)}>` +
+      `<summary class="m-title fold-head">🍸 วิธีทำ • Method</summary>` +
       (d.methodTh ? `<div class="m-body">${esc(d.methodTh)}</div>` : "") +
       (d.methodEn ? `<div class="m-body m-en">${esc(d.methodEn)}</div>` : "") +
-      `</div>`
+      `</details>`
     : "";
 
   const c = drinkCost(d);
@@ -3647,10 +3675,11 @@ function renderSauces() {
     // the text lives in its own element so pre-wrap cannot pick up the
     // indentation of this template
     const method = (s.methodTh || s.methodEn)
-      ? `<div class="method-box"><div class="m-title">👨‍🍳 วิธีทำ • Method</div>` +
+      ? `<details class="method-box"${foldAttrs("method:" + s.id)}>` +
+        `<summary class="m-title fold-head">👨‍🍳 วิธีทำ • Method</summary>` +
         (s.methodTh ? `<div class="m-body">${esc(s.methodTh)}</div>` : "") +
         (s.methodEn ? `<div class="m-body m-en">${esc(s.methodEn)}</div>` : "") +
-        `</div>`
+        `</details>`
       : "";
 
     const yieldTxt = [s.yieldQty, s.yieldUnit].filter(Boolean).join(" ");
