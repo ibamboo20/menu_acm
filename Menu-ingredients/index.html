@@ -815,7 +815,6 @@
             <th>ราคา<br>Price</th>
             <th>ราคาต่อหน่วย<br>Unit price</th>
             <th>แหล่งจัดจำหน่าย<br>Supplier</th>
-            <th>มีในเครื่องดื่ม • Used in</th>
             <th></th>
           </tr>
         </thead>
@@ -2068,17 +2067,13 @@ function renderBeverages() {
     state.beverages.length === 0 ? "" : "none";
 
   if (q && !list.length) {
-    tbody.innerHTML = `<tr><td colspan="9">${noHits("วัตถุดิบ", q, "No beverage ingredient matches this search")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">${noHits("วัตถุดิบ", q, "No beverage ingredient matches this search")}</td></tr>`;
     return;
   }
 
   const dash = `<span class="brand-txt">–</span>`;
   tbody.innerHTML = list.map(bev => {
     const per = unitPrice(bev);
-    const used = drinksUsing(bev.id);
-    const usedHtml = used.length
-      ? used.map(d => `<span class="chip blue" onclick="jumpToDrink('${d.id}')">${esc(d.nameTh)}${d.nameEn ? ` • ${esc(d.nameEn)}` : ""}</span>`).join("")
-      : `<span class="chip plain">ยังไม่มีเมนูที่ใช้ • Not used yet</span>`;
     return `<tr>
       <td><b>${esc(bev.nameTh)}</b>${bev.nameEn ? `<br><span class="brand-txt">${esc(bev.nameEn)}</span>` : ""}</td>
       <td>${bev.category ? `<span class="cat-badge">${esc(bev.category)}</span>` : dash}</td>
@@ -2087,7 +2082,6 @@ function renderBeverages() {
       <td>${bev.price ? esc(fmtPrice(bev.price)) : dash}</td>
       <td>${per ? `<span class="brand-txt">${esc(per)}</span>` : dash}</td>
       <td>${bev.supplier ? `<span class="brand-txt">${esc(bev.supplier)}</span>` : dash}</td>
-      <td>${usedHtml}</td>
       <td style="white-space:nowrap">
         <button class="icon-btn" title="แก้ไข • Edit" style="color:var(--blue)" onclick="editBeverage('${bev.id}')">✏️</button>
         <button class="icon-btn" title="ลบ • Delete" onclick="deleteBeverage('${bev.id}')">🗑️</button>
