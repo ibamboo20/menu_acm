@@ -2270,7 +2270,11 @@ function drinkCardHtml(d) {
          <span class="cost-note">${c.note
             ? esc(c.note)
             : "คำนวณกำไรไม่ได้ — ต้องมีราคาและขนาดบรรจุของวัตถุดิบก่อน • Needs beverage prices and pack sizes"}</span>`
-      : "");
+      /* the cost is worked out but there is nothing to measure it against. Say
+         so: a card that simply stops after the cost looks like a card whose
+         profit is broken, rather than one still waiting for a price. */
+      : `<div class="cost-rule"></div>
+         <span class="cost-note">🏷️ ยังไม่ได้ใส่ราคาขาย — กด ✏️ ใส่ราคาต่อแก้ว แล้วจะคำนวณกำไรให้ • No selling price yet: add the price per glass to see the profit</span>`);
 
   const costHtml = cost.priced
     ? `<div class="cost-box">
