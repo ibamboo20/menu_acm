@@ -976,6 +976,48 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>🥤 รายงานตามวัตถุดิบเครื่องดื่ม <span class="en">• Report by Beverage Ingredient</span></h2>
+      <p class="hint">เลือกวัตถุดิบเครื่องดื่ม รายงานจะแสดงว่ามีเมนูเครื่องดื่มอะไรใช้บ้าง แต่ละแก้วใช้เท่าไหร่ และรวมทั้งหมดเท่าไหร่ • Pick beverage ingredients — the report shows which drinks use them, how much each uses, and the total</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('bev', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('bev', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-bev-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeBeverageReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeBeverageReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🍸 รายงานตามเมนูเครื่องดื่ม <span class="en">• Report by Drink Menu</span></h2>
+      <p class="hint">เลือกเมนูเครื่องดื่ม รายงานจะแสดงวัตถุดิบทั้งหมด ต้นทุนต่อแก้ว วิธีทำ และบอกว่าแต่ละวัตถุดิบมีเมนูไหนใช้ด้วย • Pick drinks — the report lists their ingredients, cost per glass, method, and which other drinks share each ingredient</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('drink', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('drink', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-drink-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeDrinkReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeDrinkReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🧾 รายงานต้นทุนและกำไรเครื่องดื่ม <span class="en">• Drink Cost &amp; Profit Report</span></h2>
+      <p class="hint">สรุปเป็นตารางแยกตามประเภทเครื่องดื่ม เทียบต้นทุนต่อแก้วกับราคาขาย พร้อมกำไรและเปอร์เซ็นต์ • A table per drink type comparing cost per glass against the selling price, with profit and percentages</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('dcost', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('dcost', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-dcost-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeDrinkCostReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeDrinkCostReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
   </section>
 
 </main>
@@ -3842,8 +3884,21 @@ document.getElementById("drink-modal").addEventListener("click", e => {
 });
 
 /* ---------- reports ---------- */
-/* three independent pickers; "menu" and "cost" both choose menus */
-const reportSel = { ing: new Set(), menu: new Set(), cost: new Set() };
+/* six independent pickers. "menu" and "cost" both choose menus, "drink" and
+   "dcost" both choose drinks — same list, separate ticks, so a selection made
+   for one report is not disturbed by the other. */
+const reportSel = {
+  ing: new Set(), menu: new Set(), cost: new Set(),
+  bev: new Set(), drink: new Set(), dcost: new Set(),
+};
+const REPORT_KINDS = ["ing", "menu", "cost", "bev", "drink", "dcost"];
+/* what each picker is choosing from */
+function reportSource(kind) {
+  if (kind === "ing") return state.ingredients;
+  if (kind === "bev") return state.beverages;
+  if (kind === "drink" || kind === "dcost") return state.drinks;
+  return state.menus;
+}
 const reportIngSel = reportSel.ing;
 const reportMenuSel = reportSel.menu;
 
@@ -3875,9 +3930,43 @@ function groupedMenus() {
   return [...groups.entries()].sort(([a], [b]) =>
     catOrder(a) - catOrder(b) || a.localeCompare(b, "th"));
 }
-function pickerGroups(kind) { return kind === "ing" ? groupedIngredients() : groupedMenus(); }
+/* beverage ingredients, grouped the same way as the food ones */
+function groupedBeverages() {
+  const groups = new Map();
+  [...state.beverages]
+    .sort((a, b) => a.nameTh.localeCompare(b.nameTh, "th"))
+    .forEach(b => {
+      const key = (b.category || "").trim();
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(b);
+    });
+  return [...groups.entries()].sort(([a], [b]) => {
+    if (a === "") return 1;
+    if (b === "") return -1;
+    return a.localeCompare(b, "th");
+  });
+}
+/* drink menus grouped by drink type, in the order DRINK_TYPES defines */
+function groupedDrinks() {
+  const groups = new Map();
+  state.drinks.forEach(d => {
+    const key = (d.category || "").trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(d);
+  });
+  return [...groups.entries()].sort(([a], [b]) =>
+    drinkCatOrder(a) - drinkCatOrder(b) || a.localeCompare(b, "th"));
+}
+function pickerGroups(kind) {
+  if (kind === "ing") return groupedIngredients();
+  if (kind === "bev") return groupedBeverages();
+  if (kind === "drink" || kind === "dcost") return groupedDrinks();
+  return groupedMenus();
+}
 function groupTitle(kind, cat) {
-  return kind === "ing" ? (cat || "ไม่ระบุประเภท • Uncategorized") : menuCatLabel(cat);
+  if (kind === "ing" || kind === "bev") return cat || "ไม่ระบุประเภท • Uncategorized";
+  if (kind === "drink" || kind === "dcost") return drinkCatLabel(cat);
+  return menuCatLabel(cat);
 }
 
 function renderPicker(kind) {
@@ -3885,9 +3974,12 @@ function renderPicker(kind) {
   if (!box) return;
   const sel = reportSel[kind];
   const groups = pickerGroups(kind);
-  const empty = kind === "ing"
-    ? "ยังไม่มีส่วนผสม • No ingredients yet"
-    : "ยังไม่มีเมนู • No menus yet";
+  const empty = {
+    ing:   "ยังไม่มีส่วนผสม • No ingredients yet",
+    bev:   "ยังไม่มีวัตถุดิบเครื่องดื่ม • No beverage ingredients yet",
+    drink: "ยังไม่มีเมนูเครื่องดื่ม • No drinks yet",
+    dcost: "ยังไม่มีเมนูเครื่องดื่ม • No drinks yet",
+  }[kind] || "ยังไม่มีเมนู • No menus yet";
   if (!groups.length) { box.innerHTML = `<span class="brand-txt">${empty}</span>`; return; }
   box.innerHTML = groups.map(([cat, list], gi) => {
     const allOn = list.every(x => sel.has(x.id));
@@ -3906,7 +3998,7 @@ function renderPicker(kind) {
   }).join("");
 }
 
-function renderReports() { ["ing", "menu", "cost"].forEach(renderPicker); }
+function renderReports() { REPORT_KINDS.forEach(renderPicker); }
 
 function toggleReportSel(kind, id, v) {
   const s = reportSel[kind];
@@ -3923,7 +4015,7 @@ function toggleReportGroup(kind, groupIndex, on) {
 function setAllReportSel(kind, on) {
   const s = reportSel[kind];
   s.clear();
-  if (on) (kind === "ing" ? state.ingredients : state.menus).forEach(x => s.add(x.id));
+  if (on) reportSource(kind).forEach(x => s.add(x.id));
   renderReports();
 }
 
@@ -4260,6 +4352,216 @@ function buildCostReport(ids) {
     summary + body);
 }
 
+/* ---------- drink reports ---------- */
+/* every place a beverage ingredient is poured: beverageId -> [{drinkId, label, …}] */
+function allBevUsages() {
+  const map = new Map();
+  state.drinks.forEach(d => {
+    (d.items || []).forEach(it => {
+      const arr = map.get(it.beverageId) || [];
+      arr.push({ drinkId: d.id, label: d.nameTh, labelEn: d.nameEn || "", qty: it.qty, unit: it.unit });
+      map.set(it.beverageId, arr);
+    });
+  });
+  return map;
+}
+/* the batch / per-glass line shown under a drink's name */
+function drinkMetaBits(d, c) {
+  const yieldTxt = [d.yieldQty, d.yieldUnit].filter(Boolean).join(" ");
+  const serveTxt = [d.serveQty, d.serveUnit].filter(Boolean).join(" ");
+  return [
+    c.batch && yieldTxt && `ผสมเป็นแบตช์ • Batch: ${yieldTxt}`,
+    serveTxt && `${c.batch ? "ตักต่อแก้ว • Per glass" : "ขนาดแก้ว • Glass"}: ${serveTxt}`,
+    c.glasses !== null && `≈ ${Math.floor(c.glasses)} แก้ว/แบตช์ • glasses per batch`,
+    d.sellPrice && `ราคาขาย • Price: ${fmtPrice(d.sellPrice)} / แก้ว`,
+  ].filter(Boolean);
+}
+
+function buildBeverageReport(ids) {
+  const usages = allBevUsages();
+  const chosen = new Set(ids);
+  const sectionFor = id => {
+    const bev = findBeverage(id);
+    if (!bev) return "";
+    const list = usages.get(id) || [];
+    const meta = [
+      bev.brand ? `แบรนด์ • Brand: ${esc(bev.brand)}` : "",
+      fmtPack(bev) ? `ปริมาณ • Pack size: ${esc(fmtPack(bev))}` : "",
+      bev.price ? `ราคา • Price: ${esc(fmtPrice(bev.price))}${fmtPack(bev) ? ` / ${esc(fmtPack(bev))}` : ""}` : "",
+      bev.supplier ? `แหล่งจัดจำหน่าย • Supplier: ${esc(bev.supplier)}` : ""
+    ].filter(Boolean).join(" &nbsp;|&nbsp; ");
+    const rows = list.map(u =>
+      `<tr><td>${esc(u.label)}${u.labelEn ? `<br><span class="en">${esc(u.labelEn)}</span>` : ""}</td><td>${esc(fmtQty(u))}</td></tr>`).join("");
+    const table = list.length
+      ? `<table><thead><tr><th>เมนูเครื่องดื่ม • Drink</th><th>ปริมาณที่ใช้ • Quantity used</th></tr></thead>
+         <tbody>${rows}</tbody>
+         <tfoot><tr><td>รวมทั้งหมด • Total (${list.length} รายการ)</td><td>${esc(totalLine(list))}</td></tr></tfoot></table>`
+      : `<div class="meta">ยังไม่มีเมนูเครื่องดื่มที่ใช้วัตถุดิบนี้ • Not used in any drink yet</div>`;
+    return `<h2>${esc(bev.nameTh)}${bev.nameEn ? ` <span class="en">• ${esc(bev.nameEn)}</span>` : ""}</h2>${meta ? `<div class="meta">${meta}</div>` : ""}${table}`;
+  };
+
+  const body = groupedBeverages()
+    .map(([cat, list]) => [cat, list.filter(b => chosen.has(b.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) =>
+      `<div class="cat-block">
+         <h2 class="cat-title">${esc(cat || "ไม่ระบุประเภท • Uncategorized")}
+           <span class="cat-n">${list.length} รายการ</span></h2>
+         ${list.map(b => sectionFor(b.id)).join("")}
+       </div>`).join("");
+
+  return reportShell(
+    "รายงานวัตถุดิบเครื่องดื่ม • Beverage Ingredient Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} วัตถุดิบ`,
+    body);
+}
+
+function buildDrinkReport(ids) {
+  const usages = allBevUsages();
+  const othersFor = (bevId, drinkId) => {
+    const list = (usages.get(bevId) || []).filter(u => u.drinkId !== drinkId);
+    if (!list.length) return `<span class="en">–</span>`;
+    return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
+  };
+  const chosen = new Set(ids);
+  const sectionFor = d => {
+    const c = drinkCost(d);
+    const bits = drinkMetaBits(d, c);
+    const rows = (d.items || []).map(it => {
+      const bev = findBeverage(it.beverageId);
+      const cost = drinkItemCost(it);
+      return `<tr>
+        <td>${esc(bev ? bev.nameTh : "(ถูกลบ)")}${bev && bev.nameEn ? `<br><span class="en">${esc(bev.nameEn)}</span>` : ""}</td>
+        <td>${esc(fmtQty(it))}</td>
+        <td>${cost === null ? `<span class="en">–</span>` : esc(fmtPrice(cost))}</td>
+        <td>${othersFor(it.beverageId, d.id)}</td>
+      </tr>`;
+    }).join("");
+    /* the batch cost and the per-glass cost are different numbers whenever a
+       drink is mixed ahead, so both are spelled out rather than just the sum */
+    const p = drinkProfit(c.perGlass, d);
+    const costLabel = c.batch ? "รวมต้นทุนทั้งแบตช์ • Batch cost" : "รวมต้นทุนต่อแก้ว • Cost per glass";
+    const perGlass = c.batch && c.perGlass !== null
+      ? ` &nbsp;(${esc(fmtPrice(c.perGlass))} / แก้ว • per glass)` : "";
+    const note = c.cost.missing ? ` <span class="en">* ${c.cost.missing} รายการไม่มีข้อมูลราคา</span>` : "";
+    const profitRow = p
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / แก้ว &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      : "";
+    const foot = c.cost.priced
+      ? `<tfoot><tr><td>${costLabel}</td><td></td><td>${esc(fmtPrice(c.cost.total))}${perGlass}${note}</td><td></td></tr>${profitRow}</tfoot>`
+      : "";
+    const table = (d.items || []).length
+      ? `<table><thead><tr><th>วัตถุดิบ • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead><tbody>${rows}</tbody>${foot}</table>`
+      : `<div class="meta">ยังไม่มีวัตถุดิบ • No ingredients yet</div>`;
+    const method = (d.methodTh || d.methodEn)
+      ? `<h3>วิธีทำ • Method</h3>
+         ${d.methodTh ? `<div class="meta" style="white-space:pre-wrap">${esc(d.methodTh)}</div>` : ""}
+         ${d.methodEn ? `<div class="meta en" style="white-space:pre-wrap">${esc(d.methodEn)}</div>` : ""}`
+      : "";
+    return `<h2>${esc(d.nameTh)}${d.nameEn ? ` <span class="en">• ${esc(d.nameEn)}</span>` : ""}</h2>`
+      + (bits.length ? `<div class="meta">${esc(bits.join("  |  "))}</div>` : "")
+      + (c.note ? `<div class="meta">* ${esc(c.note)}</div>` : "")
+      + table + method;
+  };
+
+  const body = groupedDrinks()
+    .map(([cat, list]) => [cat, list.filter(d => chosen.has(d.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) =>
+      `<div class="cat-block">
+         <h2 class="cat-title">${esc(drinkCatLabel(cat))}
+           <span class="cat-n">${list.length} เมนู</span></h2>
+         ${list.map(sectionFor).join("")}
+       </div>`).join("");
+
+  return reportShell(
+    "รายงานเมนูเครื่องดื่ม • Drink Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
+    body);
+}
+
+function buildDrinkCostReport(ids) {
+  const chosen = new Set(ids);
+  const dash = `<span class="en">–</span>`;
+  let counted = 0, incomplete = 0, markupN = 0, markupSum = 0, foodCostSum = 0;
+
+  const rowHtml = d => {
+    const c = drinkCost(d);
+    const price = parseFloat(d.sellPrice);
+    const p = drinkProfit(c.perGlass, d);
+    if (p) {
+      counted++;
+      foodCostSum += p.foodCostPct;
+      if (p.markupPct !== null) { markupN++; markupSum += p.markupPct; }
+    } else { incomplete++; }
+    /* a batch drink with no per-glass pour has a cost but nothing to divide it
+       by, so say that rather than listing the price as the thing missing */
+    const need = [
+      !c.cost.priced && "ราคาวัตถุดิบ",
+      c.cost.priced && c.perGlass === null && "ขนาดแบตช์/ตักต่อแก้ว",
+      !(isFinite(price) && price > 0) && "ราคาขาย",
+    ].filter(Boolean);
+    /* the missing-price warning belongs on the row even when there is no profit
+       to show — that is exactly when a part-counted $0.00 looks like a real
+       cost and nothing else on the row says otherwise */
+    const notes = [];
+    if (c.cost.missing && c.cost.priced) notes.push(`<span class="en">⚠️ ต้นทุนยังไม่ครบ ${c.cost.missing} รายการ</span>`);
+    if (!p && need.length) notes.push(`<span class="en">ยังขาด: ${esc(need.join(", "))}</span>`);
+    if (!notes.length && c.batch && c.cost.priced) {
+      notes.push(`<span class="en">แบตช์ ${esc(fmtPrice(c.cost.total))}${c.glasses !== null ? ` · ${Math.floor(c.glasses)} แก้ว` : ""}</span>`);
+    }
+    return `<tr>
+      <td>${esc(d.nameTh)}${d.nameEn ? `<br><span class="en">${esc(d.nameEn)}</span>` : ""}</td>
+      <td class="num">${c.perGlass === null ? dash : esc(fmtPrice(c.perGlass))}</td>
+      <td class="num">${isFinite(price) && price > 0 ? esc(fmtPrice(price)) : dash}</td>
+      <td class="num">${p ? `<b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b>` : dash}</td>
+      <td class="num">${p ? `<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b>` : dash}</td>
+      <td class="num">${p ? esc(fmtPct(p.foodCostPct)) : dash}</td>
+      <td>${notes.join("<br>")}</td>
+    </tr>`;
+  };
+
+  const head = `<thead><tr>
+    <th>เมนูเครื่องดื่ม • Drink</th>
+    <th class="num">ต้นทุน/แก้ว<br>Cost per glass</th>
+    <th class="num">ราคาขาย<br>Price</th>
+    <th class="num">กำไร<br>Profit</th>
+    <th class="num">กำไร % ของต้นทุน<br>Markup</th>
+    <th class="num">ต้นทุนวัตถุดิบ %<br>Cost</th>
+    <th></th>
+  </tr></thead>`;
+
+  const body = groupedDrinks()
+    .map(([cat, list]) => [cat, list.filter(d => chosen.has(d.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) => {
+      const before = counted, mnBefore = markupN, mSumBefore = markupSum, fSumBefore = foodCostSum;
+      const rows = list.map(rowHtml).join("");
+      const n = counted - before, mn = markupN - mnBefore;
+      const avg = mn ? (markupSum - mSumBefore) / mn : null;
+      const avgFood = n ? (foodCostSum - fSumBefore) / n : null;
+      const foot = !n ? "" :
+        `<tfoot><tr><td>กำไรเฉลี่ยของหมวดนี้ • Average markup (${n} รายการ)</td><td></td><td></td><td></td><td class="num"><b class="${markupTier(avg) || "pos"}">${esc(fmtPct(avg))}</b></td><td class="num">${esc(fmtPct(avgFood))}</td><td></td></tr></tfoot>`;
+      return `<div class="cat-block">
+        <h2 class="cat-title">${esc(drinkCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
+        <div class="table-scroll"><table>${head}<tbody>${rows}</tbody>${foot}</table></div>
+      </div>`;
+    }).join("");
+
+  const avgAll = markupN ? markupSum / markupN : null;
+  const avgFoodAll = counted ? foodCostSum / counted : null;
+  const summary = `<div class="summary">
+    คำนวณได้ ${counted} รายการ${incomplete ? ` · ข้อมูลไม่ครบ ${incomplete} รายการ` : ""}${
+      avgAll === null ? "" : ` · กำไรเฉลี่ยรวม <b class="${markupTier(avgAll) || "pos"}">${esc(fmtPct(avgAll))}</b> ของต้นทุน (ต้นทุนวัตถุดิบ ${esc(fmtPct(avgFoodAll))})`}
+    <div class="en">เครื่องดื่มที่ผสมเป็นแบตช์จะหารต้นทุนลงมาเป็นต่อแก้วก่อนคิดกำไร</div>
+  </div>`;
+
+  return reportShell(
+    "รายงานต้นทุนและกำไรเครื่องดื่ม • Drink Cost & Profit Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
+    summary + body);
+}
+
 function downloadHtml(filename, html) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const a = document.createElement("a");
@@ -4293,6 +4595,27 @@ function makeCostReport(mode) {
   if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
   const html = buildCostReport(ids);
   if (mode === "download") { downloadHtml(`cost-profit-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeBeverageReport(mode) {
+  const ids = state.beverages.filter(b => reportSel.bev.has(b.id)).map(b => b.id);
+  if (!ids.length) { toast("เลือกวัตถุดิบอย่างน้อย 1 อย่างก่อน • Select at least one beverage ingredient"); return; }
+  const html = buildBeverageReport(ids);
+  if (mode === "download") { downloadHtml(`beverage-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeDrinkReport(mode) {
+  const ids = state.drinks.filter(d => reportSel.drink.has(d.id)).map(d => d.id);
+  if (!ids.length) { toast("เลือกเมนูเครื่องดื่มอย่างน้อย 1 เมนูก่อน • Select at least one drink"); return; }
+  const html = buildDrinkReport(ids);
+  if (mode === "download") { downloadHtml(`drink-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeDrinkCostReport(mode) {
+  const ids = state.drinks.filter(d => reportSel.dcost.has(d.id)).map(d => d.id);
+  if (!ids.length) { toast("เลือกเมนูเครื่องดื่มอย่างน้อย 1 เมนูก่อน • Select at least one drink"); return; }
+  const html = buildDrinkCostReport(ids);
+  if (mode === "download") { downloadHtml(`drink-cost-profit-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
   else openPrint(html);
 }
 
