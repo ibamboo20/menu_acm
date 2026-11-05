@@ -2133,8 +2133,12 @@ function renderBeverages() {
 }
 
 /* ---------- drink menus ---------- */
+/* the order here is the order the drink cards and the reports group by:
+   the alcohol together first, then the rest */
 const DRINK_TYPES = [
   { value: "Spirit",      th: "เหล้า · สุรา" },
+  { value: "Beer",        th: "เบียร์" },
+  { value: "Wine",        th: "ไวน์" },
   { value: "Cocktail",    th: "ค็อกเทล" },
   { value: "Smoothies",   th: "สมูทตี้ · ปั่น" },
   { value: "Refreshment", th: "เครื่องดื่มทั่วไป" },
