@@ -4420,12 +4420,8 @@ function buildBeverageReport(ids) {
 }
 
 function buildDrinkReport(ids) {
-  const usages = allBevUsages();
-  const othersFor = (bevId, drinkId) => {
-    const list = (usages.get(bevId) || []).filter(u => u.drinkId !== drinkId);
-    if (!list.length) return `<span class="en">–</span>`;
-    return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
-  };
+  /* as in the menu report: which other drinks pour the same thing is the
+     beverage report's question, not something to repeat on every line here */
   const chosen = new Set(ids);
   const sectionFor = d => {
     const c = drinkCost(d);
@@ -4437,7 +4433,6 @@ function buildDrinkReport(ids) {
         <td>${esc(bev ? bev.nameTh : "(ถูกลบ)")}${bev && bev.nameEn ? `<br><span class="en">${esc(bev.nameEn)}</span>` : ""}</td>
         <td>${esc(fmtQty(it))}</td>
         <td>${cost === null ? `<span class="en">–</span>` : esc(fmtPrice(cost))}</td>
-        <td>${othersFor(it.beverageId, d.id)}</td>
       </tr>`;
     }).join("");
     /* the batch cost and the per-glass cost are different numbers whenever a
@@ -4448,13 +4443,13 @@ function buildDrinkReport(ids) {
       ? ` &nbsp;(${esc(fmtPrice(c.perGlass))} / แก้ว • per glass)` : "";
     const note = c.cost.missing ? ` <span class="en">* ${c.cost.missing} รายการไม่มีข้อมูลราคา</span>` : "";
     const profitRow = p
-      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / แก้ว &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / แก้ว &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนวัตถุดิบ • Cost ${esc(fmtPct(p.foodCostPct))}</span></td></tr>`
       : "";
     const foot = c.cost.priced
-      ? `<tfoot><tr><td>${costLabel}</td><td></td><td>${esc(fmtPrice(c.cost.total))}${perGlass}${note}</td><td></td></tr>${profitRow}</tfoot>`
+      ? `<tfoot><tr><td>${costLabel}</td><td></td><td>${esc(fmtPrice(c.cost.total))}${perGlass}${note}</td></tr>${profitRow}</tfoot>`
       : "";
     const table = (d.items || []).length
-      ? `<table><thead><tr><th>วัตถุดิบ • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead><tbody>${rows}</tbody>${foot}</table>`
+      ? `<table><thead><tr><th>วัตถุดิบ • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th></tr></thead><tbody>${rows}</tbody>${foot}</table>`
       : `<div class="meta">ยังไม่มีวัตถุดิบ • No ingredients yet</div>`;
     const method = (d.methodTh || d.methodEn)
       ? `<h3>วิธีทำ • Method</h3>
