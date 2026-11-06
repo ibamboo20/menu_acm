@@ -4183,14 +4183,10 @@ function buildIngredientReport(ids) {
 }
 
 function buildMenuReport(ids) {
-  const usages = allUsages();
-  const othersFor = (ingId, menuId) => {
-    const list = (usages.get(ingId) || []).filter(u => u.menuId !== menuId);
-    if (!list.length) return `<span class="en">–</span>`;
-    return list.map(u => `${esc(u.label)}: ${esc(fmtQty(u))}`).join("<br>");
-  };
-  const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th><th>เมนูอื่นที่ใช้ด้วย • Also used in</th></tr></thead>`;
-  const itemRows = (items, menuId, optIds) => items.map(it => {
+  /* which other menus share an ingredient is what the ingredient report is
+     for; here it only buried the recipe under a column of cross-references */
+  const tableHead = `<thead><tr><th>ส่วนผสม • Ingredient</th><th>ปริมาณ • Quantity</th><th>ต้นทุน • Cost</th></tr></thead>`;
+  const itemRows = (items, optIds) => items.map(it => {
     const ing = findIngredient(it.ingredientId);
     const c = itemCost(it);
     const own = optIds && optIds.has(it.ingredientId) ? ` <span class="en">(เฉพาะแบบนี้)</span>` : "";
@@ -4198,7 +4194,6 @@ function buildMenuReport(ids) {
       <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${own}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
       <td>${esc(fmtQty(it))}</td>
       <td>${c === null ? `<span class="en">–</span>` : esc(fmtPrice(c))}</td>
-      <td>${othersFor(it.ingredientId, menuId)}</td>
     </tr>`;
   }).join("");
   const costFoot = (items, prod) => {
@@ -4210,9 +4205,9 @@ function buildMenuReport(ids) {
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการไม่มีข้อมูลราคา</span>` : "";
     const p = profitOf(c, prod);
     const profitRow = p
-      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td><td></td></tr>`
+      ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / ที่ &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td></tr>`
       : "";
-    return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td><td></td></tr>${profitRow}</tfoot>`;
+    return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td></tr>${profitRow}</tfoot>`;
   };
   const chosen = new Set(ids);
   const sectionFor = m => {
@@ -4240,12 +4235,12 @@ function buildMenuReport(ids) {
         return `<h3>${esc(heading)}</h3>` +
           (optMeta.length ? `<div class="meta">${esc(optMeta.join("  |  "))}</div>` : "") +
           (items.length
-            ? `<table>${tableHead}<tbody>${itemRows(items, m.id, ownIds)}</tbody>${costFoot(items, prod)}</table>`
+            ? `<table>${tableHead}<tbody>${itemRows(items, ownIds)}</tbody>${costFoot(items, prod)}</table>`
             : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`);
       }).join("");
     } else {
       content = (m.items || []).length
-        ? `<table>${tableHead}<tbody>${itemRows(m.items, m.id)}</tbody>${costFoot(m.items, prodOf(m, null, "main"))}</table>`
+        ? `<table>${tableHead}<tbody>${itemRows(m.items)}</tbody>${costFoot(m.items, prodOf(m, null, "main"))}</table>`
         : `<div class="meta">ยังไม่มีส่วนผสม • No ingredients yet</div>`;
     }
     return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${cat}${content}`;
