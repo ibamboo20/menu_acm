@@ -415,6 +415,22 @@
   .add-ing-form input.qty-input { flex: 1 1 60px; min-width: 60px; }
   .add-ing-form input.unit-input { flex: 1 1 70px; min-width: 70px; }
 
+  /* a set counts serves, not grams: one small number box per line, editable
+     where it is read */
+  .serves-cell { display: inline-flex; align-items: center; gap: 4px; }
+  input.serves-input {
+    width: 62px; flex: 0 0 62px; padding: 4px 6px;
+    font-size: .85rem; font-weight: 600; text-align: center;
+    color: var(--blue); background: var(--accent-soft);
+    border: 1px solid var(--chip-border2); border-radius: 999px;
+  }
+  ul.ing-list li.unpriced input.serves-input {
+    background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft);
+  }
+  .serves-unit { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+  .bundle-form select.bundle-select { flex: 3 1 220px; min-width: 0; }
+  .bundle-form { align-items: center; }
+
   .related {
     margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
   }
@@ -586,7 +602,7 @@
 
     <div class="card">
       <h2>เพิ่มเมนูใหม่ <span class="en">• Add New Menu</span></h2>
-      <p class="hint">ใส่ชื่อเมนูภาษาไทย และภาษาอังกฤษ (ถ้ามี) • Enter menu name in Thai and English (optional)</p>
+      <p class="hint" id="menu-form-hint">ใส่ชื่อเมนูภาษาไทย และภาษาอังกฤษ (ถ้ามี) • Enter menu name in Thai and English (optional)</p>
       <form class="form-row" id="add-menu-form">
         <div class="field">
           <label><b>ชื่อเมนู (ไทย)</b> • Menu name (Thai) *</label>
@@ -601,7 +617,7 @@
           <select id="menu-category"></select>
         </div>
         <div style="flex-basis:100%; border-top:1px solid var(--line); padding-top:10px; margin-top:2px">
-          <div class="opt-label" style="margin-bottom:6px">📐 ข้อมูลการผลิต • Production info <span style="color:#bbb">(optional)</span></div>
+          <div class="opt-label" style="margin-bottom:6px" id="menu-prod-label">📐 ข้อมูลการผลิต • Production info <span style="color:#bbb">(optional)</span></div>
           <div class="form-row">
             <div class="field" style="flex:1 1 100px">
               <label><b>Yield</b> • ปริมาณที่ได้</label>
@@ -627,12 +643,12 @@
               <input type="number" id="menu-serves" min="0" step="any" value="1" placeholder="เช่น 4">
             </div>
             <div class="field" style="flex:1 1 130px">
-              <label><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
+              <label id="menu-sellprice-label"><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
               <input type="number" id="menu-sellprice" min="0" step="0.01" placeholder="เช่น 18.90">
             </div>
           </div>
         </div>
-        <div style="flex-basis:100%">
+        <div style="flex-basis:100%" id="menu-opts-block">
           <label class="chk-row">
             <input type="checkbox" id="menu-has-opts">
             🥩 มี Meat options <span class="en">• Has meat options</span>
@@ -647,7 +663,7 @@
             </div>
           </div>
         </div>
-        <div style="flex-basis:100%">
+        <div style="flex-basis:100%" id="menu-rice-block">
           <label class="chk-row">
             <input type="checkbox" id="menu-has-rice">
             🍚 มีแบบพร้อมข้าว <span class="en">• Also offer a "with rice" version</span>
@@ -1095,7 +1111,7 @@
           <input type="number" id="edit-menu-serves" min="0" step="any">
         </div>
         <div class="field" style="flex:1 1 120px">
-          <label><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
+          <label id="edit-menu-sellprice-label"><b>ราคาขาย/ที่ ($)</b> • Price per serve</label>
           <input type="number" id="edit-menu-sellprice" min="0" step="0.01">
         </div>
       </div>
@@ -1314,6 +1330,8 @@ function migrate(s) {
   s.menus.forEach(m => {
     if (m.category && LEGACY_CATS[m.category]) m.category = LEGACY_CATS[m.category];
     if (!Array.isArray(m.items)) m.items = [];
+    // what a set or a promotion holds, if this menu is one
+    if (m.bundle != null && !Array.isArray(m.bundle)) m.bundle = [];
     if (m.options && Array.isArray(m.options)) {
       m.options.forEach(o => { if (!Array.isArray(o.items)) o.items = []; });
     }
@@ -1759,6 +1777,11 @@ const MENU_TYPES = [
   { value: "Special Lanna", th: "เมนูพิเศษล้านนา" },
   { value: "Mom's Pinto",   th: "ปิ่นโตคุณแม่" },
   { value: "Add-ons",       th: "ของเพิ่ม" },
+  /* these two come last because they are assembled from everything above:
+     a set and a promotion are not cooked from ingredients but built out of
+     dishes and drinks the system already prices, counted in serves */
+  { value: "Set menu",      th: "เซ็ตเมนู" },
+  { value: "Promotion",     th: "โปรโมชั่น" },
 ];
 function menuCatLabel(cat) {
   if (!cat) return "ไม่ระบุประเภท • Uncategorized";
@@ -1771,6 +1794,140 @@ function catOrder(key) {
   return i === -1 ? MENU_TYPES.length : i;
 }
 
+/* ---------- sets & promotions: a menu built out of other menus ----------
+   A set or a promotion holds no ingredients of its own. It holds lines that
+   point at dishes and drinks already in the system, each counted in serves,
+   and its cost is what those cost per serve. Everything lives in menu.bundle,
+   beside (never instead of) menu.items, so switching a menu's type back shows
+   its recipe exactly as it was. */
+const BUNDLE_CATS = ["Set menu", "Promotion"];
+function isBundleCat(cat) { return BUNDLE_CATS.includes(String(cat || "").trim()); }
+function isBundle(menu) { return !!menu && isBundleCat(menu.category); }
+function bundleItems(menu) { return Array.isArray(menu.bundle) ? menu.bundle : []; }
+function bundleStore(menu) { return (menu.bundle = bundleItems(menu)); }
+
+/* A line names one priced combination, which for a dish means a particular
+   meat option and serve style — those are costed and sold separately, so a
+   set has to say which one it hands over. The choice list and the stored line
+   carry the same four fields, encoded into one string the <select> can hold. */
+function bundleRefKey(ref) {
+  return ref.kind === "drink"
+    ? `drink|${ref.refId}`
+    : `menu|${ref.refId}|${ref.optId || ""}|${ref.style === "rice" ? "rice" : "main"}`;
+}
+function parseBundleRefKey(key) {
+  const p = String(key || "").split("|");
+  if (p[0] === "drink" && p[1]) return { kind: "drink", refId: p[1] };
+  if (p[0] === "menu" && p[1]) {
+    return { kind: "menu", refId: p[1], optId: p[2] || "", style: p[3] === "rice" ? "rice" : "main" };
+  }
+  return null;
+}
+/* everything a set may hold: each dish once per meat option and serve style,
+   each drink once. Sets and promotions are left out of their own choice list,
+   which is what keeps a set from containing itself or another set. */
+function bundleChoices() {
+  const menus = [], drinks = [];
+  state.menus.forEach(m => {
+    if (isBundle(m)) return;
+    const opts = menuOptions(m);
+    const styles = hasRice(m) ? ["main", "rice"] : ["main"];
+    (opts || [null]).forEach(o => styles.forEach(k => {
+      const bits = [o && o.nameTh, hasRice(m) && styleLabel(k).th].filter(Boolean);
+      menus.push({
+        key: bundleRefKey({ kind: "menu", refId: m.id, optId: o ? o.id : "", style: k }),
+        label: m.nameTh + (bits.length ? ` • ${bits.join(" · ")}` : ""),
+      });
+    }));
+  });
+  (state.drinks || []).forEach(d => drinks.push({
+    key: bundleRefKey({ kind: "drink", refId: d.id }),
+    label: d.nameTh + (d.nameEn && d.nameEn !== d.nameTh ? ` • ${d.nameEn}` : ""),
+  }));
+  return { menus, drinks };
+}
+
+/* What one serve of a line costs, and what to call it on the card. perServe
+   comes back null when the dish or drink is not fully costed yet — a set is
+   never told that a plate nobody has priced is free. */
+function bundleRefInfo(ref) {
+  const gone = (nameTh, why) => ({ nameTh, nameEn: "", sub: "", perServe: null, missing: 0, why });
+  if (!ref) return gone("(รายการเสีย • broken line)", "อ่านรายการนี้ไม่ได้ • this line can't be read");
+
+  if (ref.kind === "drink") {
+    const d = (state.drinks || []).find(x => x.id === ref.refId);
+    if (!d) return gone("(เครื่องดื่มถูกลบ • deleted)", "เครื่องดื่มนี้ถูกลบไปแล้ว • this drink was deleted");
+    const c = drinkCost(d);
+    return {
+      nameTh: d.nameTh, nameEn: d.nameEn || "", sub: "", perServe: c.perGlass,
+      missing: c.cost.missing,
+      why: c.perGlass === null
+        ? (c.note || "ยังคิดต้นทุนต่อแก้วไม่ได้ — ใส่ราคาวัตถุดิบในแท็บเครื่องดื่มก่อน • no per-glass cost yet")
+        : null,
+    };
+  }
+
+  const m = state.menus.find(x => x.id === ref.refId);
+  if (!m) return gone("(เมนูถูกลบ • deleted)", "เมนูนี้ถูกลบไปแล้ว • this menu was deleted");
+  const opts = menuOptions(m);
+  const opt = ref.optId ? (opts || []).find(o => o.id === ref.optId) : null;
+  /* an option that has since been deleted is said so rather than quietly
+     costed from the base recipe, which would be a different plate */
+  if (ref.optId && !opt) {
+    return gone(m.nameTh, "ตัวเลือกเนื้อสัตว์ที่เลือกไว้ถูกลบไปแล้ว — เลือกใหม่ • that meat option no longer exists");
+  }
+  const style = ref.style === "rice" && hasRice(m) ? "rice" : "main";
+  const cost = costOf(effectiveItems(m, opt, style));
+  const prod = prodOf(m, opt, style);
+  const serves = servesOf(prod);
+  const bits = [opt && opt.nameTh, hasRice(m) && styleLabel(style).th].filter(Boolean);
+  return {
+    nameTh: m.nameTh, nameEn: m.nameEn || "",
+    sub: bits.join(" · "),
+    perServe: cost.priced && serves !== null && serves > 0 ? cost.total / serves : null,
+    missing: cost.missing,
+    why: !cost.priced ? "ยังคิดต้นทุนส่วนผสมไม่ได้ • its ingredients aren't costed yet"
+      : !(serves !== null && serves > 0) ? "เมนูนี้ยังไม่มีจำนวน Serves • that menu has no serves figure"
+      : null,
+  };
+}
+
+/* the cost of one whole set: each line's per-serve cost times its serves */
+function bundleCost(menu) {
+  const lines = bundleItems(menu).map(ref => {
+    const info = bundleRefInfo(ref);
+    const n = parseFloat(ref.serves);
+    const serves = isFinite(n) && n > 0 ? n : null;
+    return {
+      ref, info, serves,
+      cost: info.perServe !== null && serves !== null ? info.perServe * serves : null,
+    };
+  });
+  let total = 0, priced = 0;
+  lines.forEach(l => { if (l.cost === null) return; total += l.cost; priced++; });
+  return { lines, total, priced, missing: lines.length - priced };
+}
+/* why a line adds nothing to the total yet */
+function bundleLineIssue(l) {
+  if (l.info.why) return l.info.why;
+  if (l.serves === null) return "ยังไม่ได้ใส่จำนวนเสิร์ฟ • no number of serves yet";
+  return null;
+}
+/* A set is sold as one set, so the cost of the bundle is already the cost of
+   what the customer gets: no yield or portion to divide by. The profit and
+   the Markup = กำไร ÷ ต้นทุน × 100 are then the same sums as every other
+   menu and every drink. */
+function bundleProfit(cost, menu) {
+  const price = parseFloat(menu.sellPrice);
+  if (!cost.priced || !isFinite(price) || price <= 0) return null;
+  const profit = price - cost.total;
+  return {
+    costPerServe: cost.total, price, profit,
+    markupPct: markupOf(profit, cost.total),
+    foodCostPct: cost.total / price * 100,
+  };
+}
+
 function renderMenus() {
   const container = document.getElementById("menu-groups");
   const q = document.getElementById("menu-search").value.trim().toLowerCase();
@@ -1779,6 +1936,12 @@ function renderMenus() {
     if (!q) return true;
     if (m.nameTh.toLowerCase().includes(q) || (m.nameEn || "").toLowerCase().includes(q)) return true;
     if ((m.category || "").toLowerCase().includes(q)) return true;
+    /* a set holds dishes rather than ingredients, so searching for a dish
+       should find the sets it is part of as well */
+    if (bundleItems(m).some(ref => {
+      const info = bundleRefInfo(ref);
+      return info.nameTh.toLowerCase().includes(q) || (info.nameEn || "").toLowerCase().includes(q);
+    })) return true;
     return menuUnionItems(m).some(it => {
       const ing = findIngredient(it.ingredientId);
       return ing && (ing.nameTh.toLowerCase().includes(q) || (ing.nameEn || "").toLowerCase().includes(q));
@@ -1815,7 +1978,130 @@ function renderMenus() {
   }).join("");
 }
 
+/* the head of a menu card: name, type and the buttons. Shared so a set and a
+   dish carry the same controls, bar the meat options a set has no use for. */
+function menuHeadHtml(menu, { opts = true } = {}) {
+  return `<div class="menu-head">
+      <h3>${esc(menu.nameTh)}${menu.nameEn ? `<div class="name-en">${esc(menu.nameEn)}</div>` : ""}
+        <select class="menu-cat-badge" title="เปลี่ยนประเภทเมนู • Change menu type" onchange="changeMenuCategory('${menu.id}', this.value)">
+          <option value="">ไม่ระบุประเภท • Uncategorized</option>
+          ${MENU_TYPES.map(t => `<option value="${esc(t.value)}"${menu.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("")}
+        </select>
+      </h3>
+      <span class="head-actions">
+        <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
+        ${opts ? `<button class="icon-btn" title="เพิ่ม/แก้ไขตัวเลือกเมนู • Edit meat options &amp; serve styles" onclick="openOptsEditor('${menu.id}')">🥩</button>` : ""}
+        <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
+      </span>
+    </div>`;
+}
+
+/* a set or a promotion: the dishes and drinks it bundles, counted in serves,
+   costed from what each of them already costs per serve, and its profit
+   against the price of the set */
+function bundleCardHtml(menu) {
+  const c = bundleCost(menu);
+  const choices = bundleChoices();
+
+  const rowsHtml = c.lines.map((l, i) => {
+    const issue = bundleLineIssue(l);
+    const icon = l.ref.kind === "drink" ? "🥤" : "🍽️";
+    /* the per-serve figure and the multiplication, so the line shows where
+       its share of the total came from */
+    const costTxt = l.info.perServe === null ? "" : (() => {
+      const per = `ต้นทุน ${fmtCost(l.info.perServe)} / ที่`;
+      const times = l.serves !== null && l.serves !== 1 && l.cost !== null
+        ? ` × ${fmtServes(l.serves)} ที่ = ${fmtCost(l.cost)}` : "";
+      const tip = l.info.missing
+        ? `เมนูต้นทางยังคิดต้นทุนไม่ครบ ${l.info.missing} รายการ`
+        : "ต้นทุนต่อหนึ่งที่ของเมนูต้นทาง";
+      return `<span class="ing-cost" title="${esc(tip)}">${esc(per + times)}${l.info.missing ? " *" : ""}</span>`;
+    })();
+    return `<li${issue ? ' class="unpriced"' : ""}>
+      <span class="ing-name">${icon} ${esc(l.info.nameTh)}${l.info.sub ? ` <span class="only-tag">${esc(l.info.sub)}</span>` : ""}${l.info.nameEn ? ` <span class="en">• ${esc(l.info.nameEn)}</span>` : ""}${costTxt}</span>
+      ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
+      <span class="serves-cell">
+        <input class="serves-input" type="number" min="0" step="any" value="${esc(l.ref.serves ?? "")}"
+               title="จำนวนเสิร์ฟ • Number of serves" onchange="setBundleServes('${menu.id}',${i},this.value)">
+        <span class="serves-unit">ที่</span>
+      </span>
+      <button class="icon-btn" title="ลบออกจากเซ็ต • Remove from the set" onclick="removeBundleItem('${menu.id}',${i})">✕</button>
+    </li>`;
+  }).join("");
+
+  const list = c.lines.length
+    ? `<ul class="ing-list">${rowsHtml}</ul>`
+    : `<div class="empty-ing">ยังไม่มีรายการในเซ็ต — เลือกอาหารหรือเครื่องดื่มด้านล่าง • Nothing in this set yet</div>`;
+
+  const group = (label, items) => items.length
+    ? `<optgroup label="${esc(label)}">${items.map(o => `<option value="${esc(o.key)}">${esc(o.label)}</option>`).join("")}</optgroup>` : "";
+  const addForm = `
+    <form class="add-ing-form bundle-form" onsubmit="return addBundleItem(event,'${menu.id}')">
+      <select class="bundle-select" required title="เลือกจากเมนูที่มีข้อมูลในระบบ • Pick from the menus already in the system">
+        <option value="">— เลือกอาหารหรือเครื่องดื่ม • Pick a dish or a drink —</option>
+        ${group("🍽️ อาหาร • Food", choices.menus)}
+        ${group("🥤 เครื่องดื่ม • Drinks", choices.drinks)}
+      </select>
+      <input class="serves-input" type="number" min="0" step="any" value="1"
+             title="จำนวนเสิร์ฟ • Number of serves" placeholder="จำนวนที่">
+      <span class="serves-unit">ที่ • serves</span>
+      <button type="submit" class="btn small secondary">+ ใส่</button>
+    </form>`;
+
+  const p = bundleProfit(c, menu);
+  const price = parseFloat(menu.sellPrice);
+  const profitHtml = p
+    ? `<div class="cost-rule"></div>
+       <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(p.price))} / เซ็ต</span>
+       <span class="cost-label">📈 กำไร • Profit:</span>
+       <span class="profit-main${p.profit < 0 ? " loss" : ""} ${markupTier(p.markupPct)}">${esc(fmtPrice(p.profit))}</span>
+       <span class="pct-pill${p.markupPct < 0 ? " loss" : ""} ${markupTier(p.markupPct)}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(p.markupPct))}</span>
+       <span class="cost-label">ของต้นทุน • Markup</span>
+       <span class="cost-label">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span>
+       ${c.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกรายการในเซ็ต</span>` : ""}`
+    : (isFinite(price) && price > 0
+      ? `<div class="cost-rule"></div>
+         <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(price))} / เซ็ต</span>
+         <span class="cost-note">คำนวณกำไรไม่ได้ — ยังคิดต้นทุนรายการในเซ็ตไม่ได้เลย • needs the cost of what's in the set</span>`
+      /* the cost is there but there is nothing to measure it against: say so,
+         the same way a drink card does, rather than stopping after the cost */
+      : `<div class="cost-rule"></div>
+         <span class="cost-note">🏷️ ยังไม่ได้ใส่ราคาขายของเซ็ต — กด ✏️ ใส่ราคา แล้วจะคำนวณกำไรให้ • No set price yet: add it to see the profit</span>`);
+
+  const costHtml = c.priced
+    ? `<div class="cost-box">
+         <span class="cost-label">💰 ต้นทุนทั้งเซ็ต • Set cost:</span>
+         <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding">${esc(fmtPrice(c.total))}</span>
+         ${c.missing
+           ? `<span class="cost-note">* คำนวณจาก ${c.priced} ใน ${c.priced + c.missing} รายการ — อีก ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : ""}
+         ${profitHtml}
+       </div>`
+    : (c.lines.length || (isFinite(price) && price > 0)
+      ? `<div class="cost-box">
+           <span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนเซ็ตไม่ได้ — เมนูที่ใส่ไว้ยังคิดต้นทุนต่อที่ไม่ได้ • Add costs to the dishes in this set first</span>
+           ${profitHtml}
+         </div>`
+      : "");
+
+  /* a dish turned into a set keeps its recipe; it is only out of sight here,
+     so say where it went instead of letting it look deleted */
+  const kept = menuUnionItems(menu).length;
+  const keptHtml = kept
+    ? `<div class="hint" style="margin-top:8px">📦 ส่วนผสมเดิม ${kept} รายการยังเก็บไว้ ไม่ได้ลบ — เปลี่ยนประเภทกลับเป็นเมนูอาหารแล้วจะเห็นเหมือนเดิม • its ${kept} ingredients are kept, just not shown for a set</div>`
+    : "";
+
+  return `<div class="card menu-card" id="menu-${menu.id}">
+    ${menuHeadHtml(menu, { opts: false })}
+    <div class="list-head">🧺 รายการในเซ็ต <span class="en">• What's in this ${menu.category === "Promotion" ? "promotion" : "set"} — counted in serves</span></div>
+    ${list}
+    ${addForm}
+    ${costHtml}
+    ${keptHtml}
+  </div>`;
+}
+
 function menuCardHtml(menu) {
+    if (isBundle(menu)) return bundleCardHtml(menu);
     const opts = menuOptions(menu);
     const cur = currentOption(menu);
     const optsHtml = opts
@@ -2006,25 +2292,21 @@ function menuCardHtml(menu) {
          </details>`
       : "";
 
+    /* a set's lines are kept even while this menu is a dish again, so the
+       recipe is not the whole story: say where they are */
+    const setLines = bundleItems(menu).length;
+    const setKeptHtml = setLines
+      ? `<div class="hint" style="margin-top:8px">🧺 รายการเซ็ต ${setLines} รายการยังเก็บไว้ ไม่ได้ลบ — เปลี่ยนประเภทเป็น Set menu หรือ Promotion แล้วจะเห็นเหมือนเดิม • its ${setLines} set lines are kept, just not shown for a dish</div>`
+      : "";
+
     return `<div class="card menu-card" id="menu-${menu.id}">
-      <div class="menu-head">
-        <h3>${esc(menu.nameTh)}${menu.nameEn ? `<div class="name-en">${esc(menu.nameEn)}</div>` : ""}
-          <select class="menu-cat-badge" title="เปลี่ยนประเภทเมนู • Change menu type" onchange="changeMenuCategory('${menu.id}', this.value)">
-            <option value="">ไม่ระบุประเภท • Uncategorized</option>
-            ${MENU_TYPES.map(t => `<option value="${esc(t.value)}"${menu.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("")}
-          </select>
-        </h3>
-        <span class="head-actions">
-          <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
-          <button class="icon-btn" title="เพิ่ม/แก้ไขตัวเลือกเมนู • Edit meat options &amp; serve styles" onclick="openOptsEditor('${menu.id}')">🥩</button>
-          <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
-        </span>
-      </div>
+      ${menuHeadHtml(menu)}
       ${optsHtml}
       ${stylesHtml}
       ${metaHtml}
       ${itemsHtml}
       ${costHtml}
+      ${setKeptHtml}
       ${relHtml}
     </div>`;
 }
@@ -2806,6 +3088,9 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
     serves: document.getElementById("menu-serves").value.trim() || "1",
     sellPrice: document.getElementById("menu-sellprice").value.trim(),
   };
+  /* a set starts empty: what goes in it is picked on the card, from the
+     dishes and drinks the system already prices */
+  if (isBundleCat(cat)) menu.bundle = [];
   if (document.getElementById("menu-has-opts").checked) {
     const chosen = builderOpts.filter(o => o.checked);
     if (chosen.length) {
@@ -2822,7 +3107,12 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
   save(); renderAll();
   e.target.reset();
   resetBuilder();
+  syncMenuFormForCategory();     // reset() put the type back to "— เลือกประเภท —"
   document.getElementById("menu-name-th").focus();
+  if (isBundleCat(cat)) {
+    toast(`เพิ่ม ${cat} "${th}" แล้ว — เลือกอาหาร/เครื่องดื่มที่อยู่ในเซ็ตได้บนการ์ด • now pick what goes in it on the card`);
+    return;
+  }
   const extras = [
     menu.options && `${menu.options.length} meat options`,
     menu.withRice && RICE_TH,
@@ -2833,9 +3123,17 @@ document.getElementById("add-menu-form").addEventListener("submit", e => {
 function changeMenuCategory(menuId, val) {
   const m = state.menus.find(x => x.id === menuId);
   if (!m) return;
+  const was = isBundle(m);
   m.category = val;
   save(); renderAll();
-  toast(`เปลี่ยนประเภทเมนูแล้ว • Menu type updated`);
+  /* the card changes shape entirely between a dish and a set, so say which
+     one it is now instead of leaving the recipe looking lost */
+  const now = isBundleCat(val);
+  toast(now && !was
+      ? `"${m.nameTh}" เป็น ${val} แล้ว — ใส่เป็นเมนูและเครื่องดื่มตามจำนวนเสิร์ฟ (ส่วนผสมเดิมยังเก็บไว้) • now a bundle`
+    : was && !now
+      ? `"${m.nameTh}" กลับเป็นเมนูอาหารแล้ว — ใส่เป็นส่วนผสม (รายการเซ็ตเดิมยังเก็บไว้) • back to a dish`
+      : `เปลี่ยนประเภทเมนูแล้ว • Menu type updated`);
 }
 
 function deleteMenu(menuId) {
@@ -2898,6 +3196,54 @@ function removeItem(menuId, ingredientId, where) {
   else if (where === "style" && hasRice(menu)) menu.withRice.items = (menu.withRice.items || []).filter(it => it.ingredientId !== ingredientId);
   else menu.items = (menu.items || []).filter(it => it.ingredientId !== ingredientId);
   save(); renderAll();
+}
+
+/* ---------- actions: what a set or a promotion holds ---------- */
+function addBundleItem(e, menuId) {
+  e.preventDefault();
+  const form = e.target;
+  const sel = form.querySelector(".bundle-select");
+  const servesInput = form.querySelector(".serves-input");
+  const key = sel.value;
+  const serves = servesInput.value.trim();
+  const ref = parseBundleRefKey(key);
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu || !ref) return false;
+
+  const list = bundleStore(menu);
+  /* the same dish at the same option and serve style is one line with a
+     count, not two lines: adding it again sets the count */
+  const existing = list.find(x => bundleRefKey(x) === key);
+  const label = sel.options[sel.selectedIndex].textContent;
+  if (existing) {
+    existing.serves = serves;
+    toast(`แก้จำนวนเสิร์ฟของ "${label}" แล้ว • Serves updated`);
+  } else {
+    ref.serves = serves;
+    list.push(ref);
+    toast(`ใส่ "${label}" ลงเซ็ตแล้ว • Added to the set`);
+  }
+  save(); renderAll();
+  const back = document.querySelector(`#menu-${menuId} .bundle-select`);
+  if (back) back.focus();
+  return false;
+}
+function setBundleServes(menuId, i, val) {
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu) return;
+  const line = bundleItems(menu)[i];
+  if (!line) return;
+  line.serves = String(val).trim();
+  save(); renderAll();
+}
+function removeBundleItem(menuId, i) {
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu) return;
+  const list = bundleStore(menu);
+  if (!list[i]) return;
+  list.splice(i, 1);
+  save(); renderAll();
+  toast("ลบรายการออกจากเซ็ตแล้ว • Removed from the set");
 }
 
 /* an ingredient that moves to the base list takes its with-rice amount with
@@ -3034,9 +3380,32 @@ function openMenuEditor(menuId) {
     MENU_TYPES.map(t => `<option value="${esc(t.value)}"${m.category === t.value ? " selected" : ""}>${esc(t.value)} • ${esc(t.th)}</option>`).join("");
   renderMenuEditorStyleTabs(m);
   fillMenuEditorFields(m);
+  syncMenuEditorForCategory(m);
   document.getElementById("menu-modal").classList.add("show");
   refreshAllServesBoxes();
 }
+
+/* A set is sold as one set: there is no batch to divide and no portion to
+   divide it into, so those boxes go away here as well and the price is the
+   price of the whole set. */
+function syncMenuEditorForCategory(m) {
+  const bundle = isBundle(m);
+  ["edit-menu-yield-qty", "edit-menu-yield-unit", "edit-menu-portion-qty",
+   "edit-menu-portion-unit", "edit-menu-serves"].forEach(id => {
+    const field = document.getElementById(id).closest(".field");
+    if (field) field.style.display = bundle ? "none" : "";
+  });
+  document.getElementById("edit-menu-sellprice-label").innerHTML = bundle
+    ? `<b>ราคาขาย/เซ็ต ($)</b> • Price per set`
+    : `<b>ราคาขาย/ที่ ($)</b> • Price per serve`;
+  // per-option production info belongs to a cooked dish, not to a set
+  document.getElementById("edit-menu-opts").style.display = bundle ? "none" : "";
+}
+/* picking the type in the dialog rearranges it there and then, rather than
+   after a save */
+document.getElementById("edit-menu-cat").addEventListener("change", e => {
+  syncMenuEditorForCategory({ category: e.target.value });
+});
 
 function renderMenuEditorStyleTabs(m) {
   const wrap = document.getElementById("edit-style-tabs-wrap");
@@ -4209,8 +4578,37 @@ function buildMenuReport(ids) {
       : "";
     return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td></tr>${profitRow}</tfoot>`;
   };
+  /* a set lists what it bundles, in serves, instead of a recipe */
+  const bundleSection = m => {
+    const c = bundleCost(m);
+    const head = `<thead><tr><th>รายการในเซ็ต • In the set</th><th>จำนวนเสิร์ฟ • Serves</th><th>ต้นทุน • Cost</th></tr></thead>`;
+    const rows = c.lines.map(l => {
+      const name = `${l.ref.kind === "drink" ? "🥤" : "🍽️"} ${l.info.nameTh}${l.info.sub ? ` (${l.info.sub})` : ""}`;
+      const per = l.info.perServe === null ? "" : ` <span class="en">(${esc(fmtCost(l.info.perServe))} / ที่)</span>`;
+      const issue = bundleLineIssue(l);
+      return `<tr>
+        <td>${esc(name)}${l.info.nameEn ? `<br><span class="en">${esc(l.info.nameEn)}</span>` : ""}</td>
+        <td>${l.serves === null ? `<span class="en">–</span>` : esc(fmtServes(l.serves))}</td>
+        <td>${l.cost === null ? `<span class="en">– ${esc(issue || "")}</span>` : esc(fmtPrice(l.cost)) + per}</td>
+      </tr>`;
+    }).join("");
+    const p = bundleProfit(c, m);
+    const note = c.missing ? ` <span class="en">* ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : "";
+    const foot = c.priced
+      ? `<tfoot><tr><td>รวมต้นทุนทั้งเซ็ต • Set cost</td><td></td><td>${esc(fmtPrice(c.total))}${note}</td></tr>${
+          p ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / เซ็ต &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td></tr>` : ""
+        }</tfoot>`
+      : "";
+    return c.lines.length
+      ? `<table>${head}<tbody>${rows}</tbody>${foot}</table>`
+      : `<div class="meta">ยังไม่มีรายการในเซ็ต • Nothing in this set yet</div>`;
+  };
+
   const chosen = new Set(ids);
   const sectionFor = m => {
+    if (isBundle(m)) {
+      return `<h2>${esc(m.nameTh)}${m.nameEn ? ` <span class="en">• ${esc(m.nameEn)}</span>` : ""}</h2>${bundleSection(m)}`;
+    }
     const opts = menuOptions(m);
     const metaBits = fmtMenuMeta(prodOf(m, null, "main"));
     const cat = metaBits.length ? `<div class="meta">${esc(metaBits.join("  |  "))}</div>` : "";
@@ -4266,6 +4664,18 @@ function buildMenuReport(ids) {
 /* ---------- cost & profit summary ---------- */
 /* every priceable combination of a menu: [{label, cost, prod}] */
 function costRowsFor(m) {
+  /* A set is costed from the dishes it bundles and sold as one set, so it is
+     a single row whose cost is already the cost of one serve — hence the
+     serves of 1 and no batch figures to divide by. */
+  if (isBundle(m)) {
+    const c = bundleCost(m);
+    return [{
+      label: "",
+      cost: { total: c.total, priced: c.priced, missing: c.missing },
+      costLabel: "ต้นทุนรายการในเซ็ต",
+      prod: Object.assign(prodOf(m, null, "main"), { yieldQty: "", portionQty: "", serves: "1" }),
+    }];
+  }
   const opts = menuOptions(m);
   const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
   const rows = [];
@@ -4295,7 +4705,7 @@ function buildCostReport(ids) {
       if (p.markupPct !== null) { markupN++; markupSum += p.markupPct; }
     } else { incomplete++; }
     const need = [
-      !r.cost.priced && "ต้นทุนส่วนผสม",
+      !r.cost.priced && (r.costLabel || "ต้นทุนส่วนผสม"),
       !(serves !== null && serves > 0) && "Serves",
       !(isFinite(price) && price > 0) && "ราคาขาย",
     ].filter(Boolean);
@@ -4686,6 +5096,40 @@ document.getElementById("load-sample").addEventListener("click", () => {
 document.getElementById("menu-category").innerHTML =
   `<option value="">— เลือกประเภท • Select type —</option>` +
   MENU_TYPES.map(t => `<option value="${esc(t.value)}">${esc(t.value)} • ${esc(t.th)}</option>`).join("");
+
+/* A set or a promotion is assembled, not cooked: the batch figures and the
+   meat/rice options have nothing to describe, so they step aside and leave
+   the one figure a set still needs — its price. What goes inside is chosen on
+   the card, from the menus already in the system. */
+const MENU_FORM_BATCH_FIELDS =
+  ["menu-yield-qty", "menu-yield-unit", "menu-portion-qty", "menu-portion-unit", "menu-serves"];
+function syncMenuFormForCategory() {
+  const bundle = isBundleCat(document.getElementById("menu-category").value);
+  MENU_FORM_BATCH_FIELDS.forEach(id => {
+    const field = document.getElementById(id).closest(".field");
+    if (field) field.style.display = bundle ? "none" : "";
+  });
+  ["menu-opts-block", "menu-rice-block"].forEach(id => {
+    document.getElementById(id).style.display = bundle ? "none" : "";
+  });
+  if (bundle) {
+    // ticked and then hidden would still have built options nobody can see
+    ["menu-has-opts", "menu-has-rice"].forEach(id => {
+      const box = document.getElementById(id);
+      if (box.checked) { box.checked = false; box.dispatchEvent(new Event("change")); }
+    });
+  }
+  document.getElementById("menu-prod-label").innerHTML = bundle
+    ? `💵 ราคาขายของเซ็ต • Set price <span style="color:#bbb">(optional)</span>`
+    : `📐 ข้อมูลการผลิต • Production info <span style="color:#bbb">(optional)</span>`;
+  document.getElementById("menu-sellprice-label").innerHTML = bundle
+    ? `<b>ราคาขาย/เซ็ต ($)</b> • Price per set`
+    : `<b>ราคาขาย/ที่ ($)</b> • Price per serve`;
+  document.getElementById("menu-form-hint").textContent = bundle
+    ? "ใส่ชื่อและราคาของเซ็ตก่อน แล้วเลือกอาหาร/เครื่องดื่มตามจำนวนเสิร์ฟได้บนการ์ด • Name and price the set here, then pick what goes in it on the card"
+    : "ใส่ชื่อเมนูภาษาไทย และภาษาอังกฤษ (ถ้ามี) • Enter menu name in Thai and English (optional)";
+}
+document.getElementById("menu-category").addEventListener("change", syncMenuFormForCategory);
 
 /* populate drink-type dropdown in the add-drink form */
 document.getElementById("drink-category").innerHTML = drinkTypeOptions("");
