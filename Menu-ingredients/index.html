@@ -431,6 +431,25 @@
   .bundle-form select.bundle-select { flex: 3 1 220px; min-width: 0; }
   .bundle-form { align-items: center; }
 
+  /* a slot the customer chooses from, on a set card */
+  .group-box {
+    border: 1px dashed var(--chip-border2); border-radius: 10px;
+    padding: 6px 10px 8px; margin-top: 8px;
+  }
+  .group-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  input.group-name {
+    flex: 1 1 110px; min-width: 0; padding: 4px 8px;
+    font-size: .85rem; font-weight: 600; color: var(--blue);
+  }
+  .group-sum {
+    margin-left: auto; font-size: .78rem; font-weight: 600; color: var(--blue);
+    font-variant-numeric: tabular-nums; cursor: help; white-space: nowrap;
+  }
+  .group-sum .en { color: var(--muted); font-weight: 400; }
+  .group-box ul.ing-list { margin: 6px 0 2px; }
+  .group-box ul.ing-list li { padding: 5px 2px; font-size: .88rem; }
+  .group-box .add-ing-form { margin-top: 6px; padding-top: 6px; }
+
   /* one row per version of a set, in the 🧩 dialog */
   .setopt-row {
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
@@ -1367,6 +1386,8 @@ function migrate(s) {
     if (m.bundle != null && !Array.isArray(m.bundle)) m.bundle = [];
     if (m.setOptions != null && !Array.isArray(m.setOptions)) m.setOptions = [];
     (m.setOptions || []).forEach(o => { if (!Array.isArray(o.bundle)) o.bundle = []; });
+    if (m.groups != null && !Array.isArray(m.groups)) m.groups = [];
+    (m.groups || []).forEach(g => { if (!Array.isArray(g.choices)) g.choices = []; });
     if (m.options && Array.isArray(m.options)) {
       m.options.forEach(o => { if (!Array.isArray(o.items)) o.items = []; });
     }
@@ -1959,11 +1980,47 @@ function bundleSellPrice(menu, opt) {
 /* every line of a set across all its versions, for the search box and for
    saying how many lines are being kept out of sight */
 function allBundleLines(menu) {
-  return [...bundleItems(menu), ...(setOptions(menu) || []).flatMap(setOptBundle)];
+  return [
+    ...bundleItems(menu),
+    ...(setOptions(menu) || []).flatMap(setOptBundle),
+    ...bundleGroups(menu).flatMap(g => g.choices || []),
+  ];
 }
 
-/* the cost of one whole set: each line's per-serve cost times its serves.
-   With versions, that is the shared lines plus the chosen version's own. */
+/* ----- a slot the customer chooses from -----
+   "Entree: เลือก 1 อย่าง จาก 4" — the set's one price covers whichever plate
+   they pick, so the slot costs the average of what it may hold, times how
+   many of them the set gives. The cheapest and the dearest are carried
+   alongside it: the average is what the set costs on balance, not what any
+   one order costs, and both are worth seeing. Groups belong to the set, so
+   every option of it offers the same choices. */
+function bundleGroups(menu) { return Array.isArray(menu.groups) ? menu.groups : []; }
+function bundleGroupStore(menu) { return (menu.groups = bundleGroups(menu)); }
+function groupCost(g) {
+  const items = (g.choices || []).map(ref => ({ ref, info: bundleRefInfo(ref) }));
+  const priced = items.filter(x => x.info.perServe !== null).map(x => x.info.perServe);
+  const n = parseFloat(g.pick);
+  const pick = isFinite(n) && n > 0 ? n : null;
+  const times = v => (v === null || pick === null) ? null : v * pick;
+  const avg = priced.length ? priced.reduce((s, v) => s + v, 0) / priced.length : null;
+  return {
+    g, items, pick, priced: priced.length, missing: items.length - priced.length,
+    avg, cost: times(avg),
+    lo: times(priced.length ? Math.min(...priced) : null),
+    hi: times(priced.length ? Math.max(...priced) : null),
+  };
+}
+/* why a group adds nothing to the total yet */
+function bundleGroupIssue(gc) {
+  if (!gc.items.length) return "ยังไม่ได้ใส่ตัวเลือกในกลุ่มนี้ • nothing to choose from yet";
+  if (gc.pick === null) return "ยังไม่ได้ใส่ว่าเลือกได้กี่อย่าง • say how many are chosen";
+  if (!gc.priced) return "ตัวเลือกในกลุ่มนี้ยังคิดต้นทุนไม่ได้เลย • none of these are costed yet";
+  return null;
+}
+
+/* the cost of one whole set: each line's per-serve cost times its serves,
+   plus each choice group's average. With versions, that is the shared lines
+   plus the chosen version's own. */
 function bundleCost(menu, opt) {
   const lineOf = where => ref => {
     const info = bundleRefInfo(ref);
@@ -1977,9 +2034,24 @@ function bundleCost(menu, opt) {
   const shared = bundleItems(menu).map(lineOf("base"));
   const own = (opt ? setOptBundle(opt) : []).map(lineOf("opt"));
   const lines = [...shared, ...own];
-  let total = 0, priced = 0;
-  lines.forEach(l => { if (l.cost === null) return; total += l.cost; priced++; });
-  return { lines, shared, own, total, priced, missing: lines.length - priced };
+  const groups = bundleGroups(menu).map(groupCost);
+
+  let total = 0, priced = 0, fixed = 0, lo = 0, hi = 0;
+  lines.forEach(l => {
+    if (l.cost === null) return;
+    total += l.cost; fixed += l.cost; lo += l.cost; hi += l.cost; priced++;
+  });
+  groups.forEach(gc => {
+    if (gc.cost === null) return;
+    total += gc.cost; lo += gc.lo; hi += gc.hi; priced++;
+  });
+  return {
+    lines, shared, own, groups, total, fixed, lo, hi, priced,
+    missing: lines.length + groups.length - priced,
+    /* true when what the customer picks changes the bill, which is when the
+       average is a middle figure rather than the figure */
+    varies: hi - lo > 0.005,
+  };
 }
 /* why a line adds nothing to the total yet */
 function bundleLineIssue(l) {
@@ -2152,6 +2224,61 @@ function bundleCardHtml(menu) {
        ${listOf(c.own, `ยังไม่มีรายการเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to this option yet`)}
        ${addForm("opt")}`;
 
+  /* a slot the customer chooses from: the candidates, how many are picked,
+     and what the slot costs on average — with the cheapest and the dearest
+     beside it, because that is the spread the price has to cover */
+  const groupsHtml = (() => {
+    const boxes = c.groups.map((gc, gi) => {
+      const issue = bundleGroupIssue(gc);
+      const rows = gc.items.map((it, ci) => {
+        const icon = it.ref.kind === "drink" ? "🥤" : "🍽️";
+        const per = it.info.perServe === null
+          ? `<span class="ing-cost">${esc(it.info.why || "ยังคิดต้นทุนไม่ได้")}</span>`
+          : `<span class="ing-cost">ต้นทุน ${esc(fmtCost(it.info.perServe))} / ที่</span>`;
+        return `<li${it.info.perServe === null ? ' class="unpriced"' : ""}>
+          <span class="ing-name">${icon} ${esc(it.info.nameTh)}${it.info.sub ? ` <span class="only-tag">${esc(it.info.sub)}</span>` : ""}${it.info.nameEn ? ` <span class="en">• ${esc(it.info.nameEn)}</span>` : ""}${per}</span>
+          <button class="icon-btn" title="เอาออกจากกลุ่มนี้ • Remove from this group" onclick="removeGroupChoice('${menu.id}',${gi},${ci})">✕</button>
+        </li>`;
+      }).join("");
+      const sum = gc.cost === null
+        ? `<span class="warn-dot" title="${esc(issue || "")}">⚠️</span>`
+        : `<span class="group-sum" title="เฉลี่ยจากตัวเลือกที่คิดต้นทุนได้ ${gc.priced} อย่าง${gc.missing ? ` (อีก ${gc.missing} อย่างยังคิดไม่ได้)` : ""}">เฉลี่ย ${esc(fmtCost(gc.cost))}${
+            gc.hi - gc.lo > 0.005 ? ` <span class="en">(${esc(fmtCost(gc.lo))}–${esc(fmtCost(gc.hi))})</span>` : ""}</span>`;
+      return `<div class="group-box">
+        <div class="group-row">
+          <input class="group-name" type="text" value="${esc(gc.g.nameTh || "")}" placeholder="ชื่อกลุ่ม เช่น Entree"
+                 title="ชื่อกลุ่ม • Group name" onchange="setGroupField('${menu.id}',${gi},'nameTh',this.value)">
+          <span class="serves-unit">เลือก</span>
+          <input class="serves-input" type="number" min="0" step="any" value="${esc(gc.g.pick ?? "")}"
+                 title="เลือกได้กี่อย่าง • How many are chosen" onchange="setGroupField('${menu.id}',${gi},'pick',this.value)">
+          <span class="serves-unit">อย่าง จาก ${gc.items.length}</span>
+          ${sum}
+          <button class="icon-btn" title="ลบกลุ่มนี้ • Remove this group" onclick="removeBundleGroup('${menu.id}',${gi})">✕</button>
+        </div>
+        ${gc.items.length ? `<ul class="ing-list">${rows}</ul>`
+          : `<div class="empty-ing">ยังไม่มีตัวเลือกในกลุ่มนี้ • nothing to choose from yet</div>`}
+        <form class="add-ing-form bundle-form" onsubmit="return addGroupChoice(event,'${menu.id}',${gi})">
+          <select class="bundle-select" required title="เลือกจากเมนูที่มีข้อมูลในระบบ • Pick from the menus already in the system">
+            <option value="">— เพิ่มตัวเลือกในกลุ่มนี้ • Add a choice —</option>
+            ${group("🍽️ อาหาร • Food", choices.menus)}
+            ${group("🥤 เครื่องดื่ม • Drinks", choices.drinks)}
+          </select>
+          <button type="submit" class="btn small secondary">+ ใส่</button>
+        </form>
+      </div>`;
+    }).join("");
+    return `
+      <div class="list-head" style="margin-top:14px">🎯 กลุ่มที่ให้ลูกค้าเลือก <span class="en">• Choose from — คิดต้นทุนแบบเฉลี่ยทุกตัวเลือก</span></div>
+      ${boxes || `<div class="empty-ing">ยังไม่มีกลุ่มตัวเลือก • No choice groups yet</div>`}
+      <form class="add-ing-form bundle-form" onsubmit="return addBundleGroup(event,'${menu.id}')">
+        <input class="group-name" type="text" placeholder="ชื่อกลุ่มใหม่ เช่น Entree" required>
+        <span class="serves-unit">เลือก</span>
+        <input class="serves-input" type="number" min="0" step="any" value="1" title="เลือกได้กี่อย่าง • How many are chosen">
+        <span class="serves-unit">อย่าง</span>
+        <button type="submit" class="btn small secondary">+ เพิ่มกลุ่ม</button>
+      </form>`;
+  })();
+
   const p = bundleProfit(c, menu, cur);
   const price = parseFloat(bundleSellPrice(menu, cur));
   const profitHtml = p
@@ -2162,6 +2289,8 @@ function bundleCardHtml(menu) {
        <span class="pct-pill${p.markupPct < 0 ? " loss" : ""} ${markupTier(p.markupPct)}" title="กำไร ÷ ต้นทุน × 100">${esc(fmtPct(p.markupPct))}</span>
        <span class="cost-label">ของต้นทุน • Markup</span>
        <span class="cost-label">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span>
+       ${c.varies
+         ? `<span class="cost-note">ตัวเลขนี้คิดจากต้นทุนเฉลี่ย — ถ้าลูกค้าเลือกของแพงสุดทุกกลุ่ม กำไรเหลือ ${esc(fmtPrice(p.price - c.hi))} (${esc(fmtPct(markupOf(p.price - c.hi, c.hi)))}) ถ้าเลือกของถูกสุด ได้ ${esc(fmtPrice(p.price - c.lo))} (${esc(fmtPct(markupOf(p.price - c.lo, c.lo)))})</span>` : ""}
        ${c.missing ? `<span class="cost-note">⚠️ กำไรนี้สูงกว่าจริง เพราะยังคิดต้นทุนได้ไม่ครบทุกรายการในเซ็ต</span>` : ""}`
     : (isFinite(price) && price > 0
       ? `<div class="cost-rule"></div>
@@ -2176,6 +2305,8 @@ function bundleCardHtml(menu) {
     ? `<div class="cost-box">
          <span class="cost-label">💰 ต้นทุนทั้งเซ็ต${opts ? ` (${esc(cur.nameTh)})` : ""} • Set cost:</span>
          <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding">${esc(fmtPrice(c.total))}</span>
+         ${c.varies
+           ? `<span class="cost-label" title="แล้วแต่ลูกค้าเลือกอะไรในกลุ่มตัวเลือก — ตัวเลขด้านบนคือค่าเฉลี่ย">(ถูกสุด ${esc(fmtPrice(c.lo))} – แพงสุด ${esc(fmtPrice(c.hi))} แล้วแต่ลูกค้าเลือก)</span>` : ""}
          ${c.missing
            ? `<span class="cost-note">* คำนวณจาก ${c.priced} ใน ${c.priced + c.missing} รายการ — อีก ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : ""}
          ${profitHtml}
@@ -2199,6 +2330,7 @@ function bundleCardHtml(menu) {
       extra: `<button class="icon-btn" title="เพิ่ม/แก้ไขแบบของเซ็ต • Edit the set's options" onclick="openSetOptsEditor('${menu.id}')">🧩</button>` })}
     ${optsHtml}
     ${itemsHtml}
+    ${groupsHtml}
     ${costHtml}
     ${keptHtml}
   </div>`;
@@ -3356,6 +3488,66 @@ function removeBundleItem(menuId, where, i) {
   list.splice(i, 1);
   save(); renderAll();
   toast("ลบรายการออกจากเซ็ตแล้ว • Removed from the set");
+}
+
+/* ---------- the slots a customer chooses from ---------- */
+function addBundleGroup(e, menuId) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.querySelector(".group-name").value.trim();
+  const pick = form.querySelector(".serves-input").value.trim();
+  const menu = state.menus.find(m => m.id === menuId);
+  if (!menu || !name) return false;
+  bundleGroupStore(menu).push({ id: uid(), nameTh: name, nameEn: "", pick, choices: [] });
+  save(); renderAll();
+  toast(`เพิ่มกลุ่ม "${name}" แล้ว — ใส่ตัวเลือกในกลุ่มได้เลย • Group added`);
+  return false;
+}
+function setGroupField(menuId, gi, field, val) {
+  const menu = state.menus.find(m => m.id === menuId);
+  const g = menu && bundleGroups(menu)[gi];
+  if (!g) return;
+  g[field] = String(val).trim();
+  save(); renderAll();
+}
+function removeBundleGroup(menuId, gi) {
+  const menu = state.menus.find(m => m.id === menuId);
+  const g = menu && bundleGroups(menu)[gi];
+  if (!g) return;
+  const n = (g.choices || []).length;
+  // the choices go with it, so say how many before they are gone
+  if (n && !confirm(`ลบกลุ่ม "${g.nameTh}" ?\nตัวเลือกในกลุ่มนี้ ${n} อย่างจะถูกลบไปด้วย\nRemove this group and what is in it?`)) return;
+  bundleGroupStore(menu).splice(gi, 1);
+  save(); renderAll();
+  toast("ลบกลุ่มตัวเลือกแล้ว • Group removed");
+}
+function addGroupChoice(e, menuId, gi) {
+  e.preventDefault();
+  const sel = e.target.querySelector(".bundle-select");
+  const ref = parseBundleRefKey(sel.value);
+  const menu = state.menus.find(m => m.id === menuId);
+  const g = menu && bundleGroups(menu)[gi];
+  if (!g || !ref) return false;
+  g.choices = Array.isArray(g.choices) ? g.choices : [];
+  const label = sel.options[sel.selectedIndex].textContent;
+  /* a choice is in a group once: offering the same plate twice would pull the
+     group's average towards it for no reason */
+  if (g.choices.some(x => bundleRefKey(x) === sel.value)) {
+    toast(`"${label}" อยู่ในกลุ่มนี้แล้ว • already in this group`);
+    return false;
+  }
+  g.choices.push(ref);
+  save(); renderAll();
+  toast(`ใส่ "${label}" ในกลุ่ม "${g.nameTh}" แล้ว • Added to the group`);
+  return false;
+}
+function removeGroupChoice(menuId, gi, ci) {
+  const menu = state.menus.find(m => m.id === menuId);
+  const g = menu && bundleGroups(menu)[gi];
+  if (!g || !(g.choices || [])[ci]) return;
+  g.choices.splice(ci, 1);
+  save(); renderAll();
+  toast("เอาตัวเลือกออกจากกลุ่มแล้ว • Removed from the group");
 }
 
 /* ---------- the versions a set comes in ---------- */
@@ -4783,15 +4975,31 @@ function buildMenuReport(ids) {
         <td>${l.cost === null ? `<span class="en">– ${esc(issue || "")}</span>` : esc(fmtPrice(l.cost)) + per}</td>
       </tr>`;
     }).join("");
+    /* each choice group as a block of its own: what may be picked, how many,
+       and the average that goes into the total */
+    const groupRows = c.groups.map(gc => {
+      const head = `<tr><td colspan="3"><b>🎯 ${esc(gc.g.nameTh || "กลุ่มตัวเลือก")}</b> <span class="en">— เลือก ${
+        gc.pick === null ? "?" : esc(fmtServes(gc.pick))} อย่าง จาก ${gc.items.length}${
+        gc.cost === null ? "" : ` · เฉลี่ย ${esc(fmtPrice(gc.cost))}${gc.hi - gc.lo > 0.005 ? ` (${esc(fmtPrice(gc.lo))}–${esc(fmtPrice(gc.hi))})` : ""}`}</span></td></tr>`;
+      const rows = gc.items.map(it => `<tr>
+        <td>&nbsp;&nbsp;${it.ref.kind === "drink" ? "🥤" : "🍽️"} ${esc(it.info.nameTh)}${it.info.sub ? ` (${esc(it.info.sub)})` : ""}${it.info.nameEn ? `<br>&nbsp;&nbsp;<span class="en">${esc(it.info.nameEn)}</span>` : ""}</td>
+        <td><span class="en">เลือกได้</span></td>
+        <td>${it.info.perServe === null ? `<span class="en">– ${esc(it.info.why || "")}</span>` : `${esc(fmtPrice(it.info.perServe))} <span class="en">/ ที่</span>`}</td>
+      </tr>`).join("");
+      return head + (rows || `<tr><td colspan="3"><span class="en">&nbsp;&nbsp;ยังไม่มีตัวเลือกในกลุ่มนี้</span></td></tr>`);
+    }).join("");
+
     const p = bundleProfit(c, m, opt);
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : "";
+    const spread = c.varies
+      ? ` <span class="en">(ถูกสุด ${esc(fmtPrice(c.lo))} – แพงสุด ${esc(fmtPrice(c.hi))} แล้วแต่ลูกค้าเลือก)</span>` : "";
     const foot = c.priced
-      ? `<tfoot><tr><td>รวมต้นทุนทั้งเซ็ต • Set cost</td><td></td><td>${esc(fmtPrice(c.total))}${note}</td></tr>${
+      ? `<tfoot><tr><td>รวมต้นทุนทั้งเซ็ต • Set cost</td><td></td><td>${esc(fmtPrice(c.total))}${spread}${note}</td></tr>${
           p ? `<tr><td>ราคาขาย • Price / กำไร • Profit</td><td></td><td>${esc(fmtPrice(p.price))} / เซ็ต &nbsp;→&nbsp; <b class="${markupTier(p.markupPct) || (p.profit < 0 ? "neg" : "pos")}">${esc(fmtPrice(p.profit))}</b> (<b class="${markupTier(p.markupPct) || "pos"}">${esc(fmtPct(p.markupPct))}</b> ของต้นทุน) &nbsp;<span class="en">ต้นทุนอาหาร • Food cost ${esc(fmtPct(p.foodCostPct))}</span></td></tr>` : ""
         }</tfoot>`
       : "";
-    return c.lines.length
-      ? `<table>${head}<tbody>${rows}</tbody>${foot}</table>`
+    return c.lines.length || c.groups.length
+      ? `<table>${head}<tbody>${rows}${groupRows}</tbody>${foot}</table>`
       : `<div class="meta">ยังไม่มีรายการในเซ็ต • Nothing in this set yet</div>`;
   };
   /* a set lists what it bundles, in serves, instead of a recipe — and one
