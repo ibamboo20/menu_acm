@@ -431,6 +431,16 @@
   .bundle-form select.bundle-select { flex: 3 1 220px; min-width: 0; }
   .bundle-form { align-items: center; }
 
+  /* one row per version of a set, in the 🧩 dialog */
+  .setopt-row {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 7px 0; border-bottom: 1px dashed var(--line);
+  }
+  .setopt-row:last-child { border-bottom: none; }
+  .setopt-row input[type=text] { flex: 2 1 120px; min-width: 0; }
+  .setopt-row input[type=number] { flex: 0 1 100px; }
+  .setopt-n { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+
   .related {
     margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
   }
@@ -1165,6 +1175,29 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="setopts-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🧩 แบบของเซ็ต <span class="modal-en">• Set options</span>
+        <div class="modal-sub" id="setopts-modal-sub"></div>
+      </h3>
+      <button class="icon-btn" title="ปิด • Close" onclick="closeSetOptsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="hint" style="margin:10px 0">
+        เซ็ตเดียวมีได้หลายแบบ เช่น <b>แบบ 1 · แบบ 2 · แบบ 3</b> — แต่ละแบบเลือกอาหาร/เครื่องดื่มของตัวเองได้บนการ์ด และใส่ราคาแยกได้<br>
+        <span class="en">Each option carries its own lines and, when you fill it in, its own price. Leave the price blank to use the set's price. Lines added to "รายการร่วมทุกแบบ" are in every option.</span>
+      </div>
+      <div id="setopts-rows"></div>
+      <button type="button" class="btn small secondary" style="margin-top:10px" onclick="addSetOptRow()">+ เพิ่มแบบ • Add an option</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn small ghost" onclick="closeSetOptsModal()">ยกเลิก • Cancel</button>
+      <button class="btn small" onclick="saveSetOptsModal()">💾 บันทึก • Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="drink-modal">
   <div class="modal-card">
     <div class="modal-head">
@@ -1332,6 +1365,8 @@ function migrate(s) {
     if (!Array.isArray(m.items)) m.items = [];
     // what a set or a promotion holds, if this menu is one
     if (m.bundle != null && !Array.isArray(m.bundle)) m.bundle = [];
+    if (m.setOptions != null && !Array.isArray(m.setOptions)) m.setOptions = [];
+    (m.setOptions || []).forEach(o => { if (!Array.isArray(o.bundle)) o.bundle = []; });
     if (m.options && Array.isArray(m.options)) {
       m.options.forEach(o => { if (!Array.isArray(o.items)) o.items = []; });
     }
@@ -1892,20 +1927,59 @@ function bundleRefInfo(ref) {
   };
 }
 
-/* the cost of one whole set: each line's per-serve cost times its serves */
-function bundleCost(menu) {
-  const lines = bundleItems(menu).map(ref => {
+/* ----- a set may come in several versions -----
+   "เซ็ต A แบบ 1 / แบบ 2 / แบบ 3": each version has its own lines and, when it
+   differs, its own price. They work like a dish's meat options — one tab at a
+   time, costed and priced on their own — but they are kept in their own list,
+   so a menu that goes back to being a dish does not find set versions sitting
+   among its meat options. Lines on the set itself are in every version. */
+function setOptions(menu) {
+  return Array.isArray(menu.setOptions) && menu.setOptions.length ? menu.setOptions : null;
+}
+function setOptStore(menu) {
+  return (menu.setOptions = Array.isArray(menu.setOptions) ? menu.setOptions : []);
+}
+function setOptBundle(opt) { return Array.isArray(opt.bundle) ? opt.bundle : []; }
+function setOptBundleStore(opt) { return (opt.bundle = setOptBundle(opt)); }
+const selectedSetOpt = {};   // menuId -> version id (per-session UI state)
+function currentSetOpt(menu) {
+  const opts = setOptions(menu);
+  if (!opts) return null;
+  return opts.find(o => o.id === selectedSetOpt[menu.id]) || opts[0];
+}
+function selectSetOpt(menuId, optId) {
+  selectedSetOpt[menuId] = optId;
+  renderMenus();
+}
+/* a version's own price where it has one, otherwise the set's */
+function bundleSellPrice(menu, opt) {
+  const own = opt && opt.sellPrice;
+  return (own !== "" && own != null) ? own : (menu.sellPrice ?? "");
+}
+/* every line of a set across all its versions, for the search box and for
+   saying how many lines are being kept out of sight */
+function allBundleLines(menu) {
+  return [...bundleItems(menu), ...(setOptions(menu) || []).flatMap(setOptBundle)];
+}
+
+/* the cost of one whole set: each line's per-serve cost times its serves.
+   With versions, that is the shared lines plus the chosen version's own. */
+function bundleCost(menu, opt) {
+  const lineOf = where => ref => {
     const info = bundleRefInfo(ref);
     const n = parseFloat(ref.serves);
     const serves = isFinite(n) && n > 0 ? n : null;
     return {
-      ref, info, serves,
+      ref, info, serves, where,
       cost: info.perServe !== null && serves !== null ? info.perServe * serves : null,
     };
-  });
+  };
+  const shared = bundleItems(menu).map(lineOf("base"));
+  const own = (opt ? setOptBundle(opt) : []).map(lineOf("opt"));
+  const lines = [...shared, ...own];
   let total = 0, priced = 0;
   lines.forEach(l => { if (l.cost === null) return; total += l.cost; priced++; });
-  return { lines, total, priced, missing: lines.length - priced };
+  return { lines, shared, own, total, priced, missing: lines.length - priced };
 }
 /* why a line adds nothing to the total yet */
 function bundleLineIssue(l) {
@@ -1917,8 +1991,8 @@ function bundleLineIssue(l) {
    what the customer gets: no yield or portion to divide by. The profit and
    the Markup = กำไร ÷ ต้นทุน × 100 are then the same sums as every other
    menu and every drink. */
-function bundleProfit(cost, menu) {
-  const price = parseFloat(menu.sellPrice);
+function bundleProfit(cost, menu, opt) {
+  const price = parseFloat(bundleSellPrice(menu, opt));
   if (!cost.priced || !isFinite(price) || price <= 0) return null;
   const profit = price - cost.total;
   return {
@@ -1938,7 +2012,7 @@ function renderMenus() {
     if ((m.category || "").toLowerCase().includes(q)) return true;
     /* a set holds dishes rather than ingredients, so searching for a dish
        should find the sets it is part of as well */
-    if (bundleItems(m).some(ref => {
+    if (allBundleLines(m).some(ref => {
       const info = bundleRefInfo(ref);
       return info.nameTh.toLowerCase().includes(q) || (info.nameEn || "").toLowerCase().includes(q);
     })) return true;
@@ -1980,7 +2054,7 @@ function renderMenus() {
 
 /* the head of a menu card: name, type and the buttons. Shared so a set and a
    dish carry the same controls, bar the meat options a set has no use for. */
-function menuHeadHtml(menu, { opts = true } = {}) {
+function menuHeadHtml(menu, { opts = true, extra = "" } = {}) {
   return `<div class="menu-head">
       <h3>${esc(menu.nameTh)}${menu.nameEn ? `<div class="name-en">${esc(menu.nameEn)}</div>` : ""}
         <select class="menu-cat-badge" title="เปลี่ยนประเภทเมนู • Change menu type" onchange="changeMenuCategory('${menu.id}', this.value)">
@@ -1991,6 +2065,7 @@ function menuHeadHtml(menu, { opts = true } = {}) {
       <span class="head-actions">
         <button class="icon-btn" title="แก้ไขรายละเอียดเมนู • Edit menu details" style="color:var(--blue)" onclick="openMenuEditor('${menu.id}')">✏️</button>
         ${opts ? `<button class="icon-btn" title="เพิ่ม/แก้ไขตัวเลือกเมนู • Edit meat options &amp; serve styles" onclick="openOptsEditor('${menu.id}')">🥩</button>` : ""}
+        ${extra}
         <button class="icon-btn" title="ลบเมนู • Delete menu" onclick="deleteMenu('${menu.id}')">🗑️</button>
       </span>
     </div>`;
@@ -2000,10 +2075,25 @@ function menuHeadHtml(menu, { opts = true } = {}) {
    costed from what each of them already costs per serve, and its profit
    against the price of the set */
 function bundleCardHtml(menu) {
-  const c = bundleCost(menu);
+  const opts = setOptions(menu);
+  const cur = currentSetOpt(menu);
+  const c = bundleCost(menu, cur);
   const choices = bundleChoices();
 
-  const rowsHtml = c.lines.map((l, i) => {
+  /* one tab per version, each showing its own price where it has one, so the
+     difference between แบบ 1 and แบบ 2 is visible before opening either */
+  const optPrice = o => {
+    const p = parseFloat(bundleSellPrice(menu, o));
+    return isFinite(p) && p > 0 ? ` (${fmtPrice(p)})` : "";
+  };
+  const optsHtml = opts
+    ? `<div class="opt-tabs">
+         <div class="opt-label">🧩 แบบของเซ็ต • Set option:</div>
+         ${opts.map(o => `<button type="button" class="opt-tab${cur.id === o.id ? " active" : ""}" onclick="selectSetOpt('${menu.id}','${o.id}')">${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}${esc(optPrice(o))}</button>`).join("")}
+       </div>`
+    : "";
+
+  const rowHtml = (l, i) => {
     const issue = bundleLineIssue(l);
     const icon = l.ref.kind === "drink" ? "🥤" : "🍽️";
     /* the per-serve figure and the multiplication, so the line shows where
@@ -2022,21 +2112,21 @@ function bundleCardHtml(menu) {
       ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
       <span class="serves-cell">
         <input class="serves-input" type="number" min="0" step="any" value="${esc(l.ref.serves ?? "")}"
-               title="จำนวนเสิร์ฟ • Number of serves" onchange="setBundleServes('${menu.id}',${i},this.value)">
+               title="จำนวนเสิร์ฟ • Number of serves" onchange="setBundleServes('${menu.id}','${l.where}',${i},this.value)">
         <span class="serves-unit">ที่</span>
       </span>
-      <button class="icon-btn" title="ลบออกจากเซ็ต • Remove from the set" onclick="removeBundleItem('${menu.id}',${i})">✕</button>
+      <button class="icon-btn" title="ลบออกจากเซ็ต • Remove from the set" onclick="removeBundleItem('${menu.id}','${l.where}',${i})">✕</button>
     </li>`;
-  }).join("");
+  };
 
-  const list = c.lines.length
-    ? `<ul class="ing-list">${rowsHtml}</ul>`
-    : `<div class="empty-ing">ยังไม่มีรายการในเซ็ต — เลือกอาหารหรือเครื่องดื่มด้านล่าง • Nothing in this set yet</div>`;
+  const listOf = (lines, empty) => lines.length
+    ? `<ul class="ing-list">${lines.map(rowHtml).join("")}</ul>`
+    : `<div class="empty-ing">${empty}</div>`;
 
   const group = (label, items) => items.length
     ? `<optgroup label="${esc(label)}">${items.map(o => `<option value="${esc(o.key)}">${esc(o.label)}</option>`).join("")}</optgroup>` : "";
-  const addForm = `
-    <form class="add-ing-form bundle-form" onsubmit="return addBundleItem(event,'${menu.id}')">
+  const addForm = where => `
+    <form class="add-ing-form bundle-form" onsubmit="return addBundleItem(event,'${menu.id}','${where}')">
       <select class="bundle-select" required title="เลือกจากเมนูที่มีข้อมูลในระบบ • Pick from the menus already in the system">
         <option value="">— เลือกอาหารหรือเครื่องดื่ม • Pick a dish or a drink —</option>
         ${group("🍽️ อาหาร • Food", choices.menus)}
@@ -2048,8 +2138,22 @@ function bundleCardHtml(menu) {
       <button type="submit" class="btn small secondary">+ ใส่</button>
     </form>`;
 
-  const p = bundleProfit(c, menu);
-  const price = parseFloat(menu.sellPrice);
+  const what = menu.category === "Promotion" ? "promotion" : "set";
+  /* without versions there is one plain list; with them, the shared lines
+     come first and then the version's own, each with its own add box */
+  const itemsHtml = !opts
+    ? `<div class="list-head">🧺 รายการในเซ็ต <span class="en">• What's in this ${what} — counted in serves</span></div>
+       ${listOf(c.shared, `ยังไม่มีรายการในเซ็ต — เลือกอาหารหรือเครื่องดื่มด้านล่าง • Nothing in this ${what} yet`)}
+       ${addForm("base")}`
+    : `<div class="list-head">🧺 รายการร่วมทุกแบบ <span class="en">• In every option</span></div>
+       ${listOf(c.shared, "ยังไม่มีรายการที่ได้ทุกแบบ • Nothing shared by every option yet")}
+       ${addForm("base")}
+       <div class="list-head" style="margin-top:14px">🧩 เฉพาะ ${esc(cur.nameTh)} <span class="en">• ${esc(cur.nameEn || cur.nameTh)} only</span></div>
+       ${listOf(c.own, `ยังไม่มีรายการเฉพาะของ ${esc(cur.nameTh)} • Nothing specific to this option yet`)}
+       ${addForm("opt")}`;
+
+  const p = bundleProfit(c, menu, cur);
+  const price = parseFloat(bundleSellPrice(menu, cur));
   const profitHtml = p
     ? `<div class="cost-rule"></div>
        <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(p.price))} / เซ็ต</span>
@@ -2066,11 +2170,11 @@ function bundleCardHtml(menu) {
       /* the cost is there but there is nothing to measure it against: say so,
          the same way a drink card does, rather than stopping after the cost */
       : `<div class="cost-rule"></div>
-         <span class="cost-note">🏷️ ยังไม่ได้ใส่ราคาขายของเซ็ต — กด ✏️ ใส่ราคา แล้วจะคำนวณกำไรให้ • No set price yet: add it to see the profit</span>`);
+         <span class="cost-note">🏷️ ยังไม่ได้ใส่ราคาขายของเซ็ต — กด ✏️ ใส่ราคา${opts ? " หรือกด 🧩 ใส่ราคาแยกรายแบบ" : ""} แล้วจะคำนวณกำไรให้ • No set price yet: add it to see the profit</span>`);
 
   const costHtml = c.priced
     ? `<div class="cost-box">
-         <span class="cost-label">💰 ต้นทุนทั้งเซ็ต • Set cost:</span>
+         <span class="cost-label">💰 ต้นทุนทั้งเซ็ต${opts ? ` (${esc(cur.nameTh)})` : ""} • Set cost:</span>
          <span class="cost-main" title="รวมจากเลขเต็มของทุกบรรทัด ไม่ได้ปัดทีละบรรทัด • summed before rounding">${esc(fmtPrice(c.total))}</span>
          ${c.missing
            ? `<span class="cost-note">* คำนวณจาก ${c.priced} ใน ${c.priced + c.missing} รายการ — อีก ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : ""}
@@ -2091,10 +2195,10 @@ function bundleCardHtml(menu) {
     : "";
 
   return `<div class="card menu-card" id="menu-${menu.id}">
-    ${menuHeadHtml(menu, { opts: false })}
-    <div class="list-head">🧺 รายการในเซ็ต <span class="en">• What's in this ${menu.category === "Promotion" ? "promotion" : "set"} — counted in serves</span></div>
-    ${list}
-    ${addForm}
+    ${menuHeadHtml(menu, { opts: false,
+      extra: `<button class="icon-btn" title="เพิ่ม/แก้ไขแบบของเซ็ต • Edit the set's options" onclick="openSetOptsEditor('${menu.id}')">🧩</button>` })}
+    ${optsHtml}
+    ${itemsHtml}
     ${costHtml}
     ${keptHtml}
   </div>`;
@@ -2294,7 +2398,7 @@ function menuCardHtml(menu) {
 
     /* a set's lines are kept even while this menu is a dish again, so the
        recipe is not the whole story: say where they are */
-    const setLines = bundleItems(menu).length;
+    const setLines = allBundleLines(menu).length;
     const setKeptHtml = setLines
       ? `<div class="hint" style="margin-top:8px">🧺 รายการเซ็ต ${setLines} รายการยังเก็บไว้ ไม่ได้ลบ — เปลี่ยนประเภทเป็น Set menu หรือ Promotion แล้วจะเห็นเหมือนเดิม • its ${setLines} set lines are kept, just not shown for a dish</div>`
       : "";
@@ -3199,7 +3303,13 @@ function removeItem(menuId, ingredientId, where) {
 }
 
 /* ---------- actions: what a set or a promotion holds ---------- */
-function addBundleItem(e, menuId) {
+/* which list a line belongs to: the set's own, shared by every option, or the
+   option on screen */
+function bundleListFor(menu, where) {
+  const cur = currentSetOpt(menu);
+  return where === "opt" && cur ? setOptBundleStore(cur) : bundleStore(menu);
+}
+function addBundleItem(e, menuId, where) {
   e.preventDefault();
   const form = e.target;
   const sel = form.querySelector(".bundle-select");
@@ -3210,7 +3320,7 @@ function addBundleItem(e, menuId) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu || !ref) return false;
 
-  const list = bundleStore(menu);
+  const list = bundleListFor(menu, where);
   /* the same dish at the same option and serve style is one line with a
      count, not two lines: adding it again sets the count */
   const existing = list.find(x => bundleRefKey(x) === key);
@@ -3224,27 +3334,106 @@ function addBundleItem(e, menuId) {
     toast(`ใส่ "${label}" ลงเซ็ตแล้ว • Added to the set`);
   }
   save(); renderAll();
-  const back = document.querySelector(`#menu-${menuId} .bundle-select`);
+  const forms = [...document.querySelectorAll(`#menu-${menuId} .bundle-form`)];
+  const target = forms.find(f => f.getAttribute("onsubmit").includes(`'${where}'`)) || forms[0];
+  const back = target && target.querySelector(".bundle-select");
   if (back) back.focus();
   return false;
 }
-function setBundleServes(menuId, i, val) {
+function setBundleServes(menuId, where, i, val) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu) return;
-  const line = bundleItems(menu)[i];
+  const line = bundleListFor(menu, where)[i];
   if (!line) return;
   line.serves = String(val).trim();
   save(); renderAll();
 }
-function removeBundleItem(menuId, i) {
+function removeBundleItem(menuId, where, i) {
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu) return;
-  const list = bundleStore(menu);
+  const list = bundleListFor(menu, where);
   if (!list[i]) return;
   list.splice(i, 1);
   save(); renderAll();
   toast("ลบรายการออกจากเซ็ตแล้ว • Removed from the set");
 }
+
+/* ---------- the versions a set comes in ---------- */
+let editingSetOptsMenuId = null;
+let setOptsDraft = [];   // edited in the dialog, written back only on save
+
+function openSetOptsEditor(menuId) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  editingSetOptsMenuId = menuId;
+  /* copy the rows but keep each one's lines by reference, so saving the
+     dialog never drops what a version holds */
+  setOptsDraft = (m.setOptions || []).map(o => ({
+    id: o.id, nameTh: o.nameTh || "", nameEn: o.nameEn || "",
+    sellPrice: o.sellPrice || "", bundle: setOptBundle(o),
+  }));
+  document.getElementById("setopts-modal-sub").textContent =
+    m.nameTh + (m.nameEn ? " • " + m.nameEn : "") + (m.sellPrice ? ` — ราคาเซ็ต ${fmtPrice(m.sellPrice)}` : "");
+  renderSetOptsRows();
+  document.getElementById("setopts-modal").classList.add("show");
+}
+function renderSetOptsRows() {
+  const box = document.getElementById("setopts-rows");
+  box.innerHTML = setOptsDraft.length
+    ? setOptsDraft.map((o, i) => `
+      <div class="setopt-row">
+        <input type="text" id="setopt-th-${i}" value="${esc(o.nameTh)}" placeholder="ชื่อแบบ (ไทย) เช่น แบบ 1">
+        <input type="text" id="setopt-en-${i}" value="${esc(o.nameEn)}" placeholder="Name (English)">
+        <input type="number" min="0" step="0.01" id="setopt-sp-${i}" value="${esc(o.sellPrice)}" placeholder="ราคา ($)" title="เว้นว่าง = ใช้ราคาเซ็ต • blank uses the set price">
+        <span class="setopt-n">${setOptBundle(o).length} รายการ</span>
+        <button type="button" class="icon-btn" title="ลบแบบนี้ • Remove this option" onclick="removeSetOptRow(${i})">✕</button>
+      </div>`).join("")
+    : `<div class="empty-ing">ยังไม่มีแบบ — เซ็ตนี้มีรายการชุดเดียว • No options yet: this set has one single list</div>`;
+}
+function readSetOptsRows() {
+  setOptsDraft.forEach((o, i) => {
+    const v = id => (document.getElementById(id + i)?.value || "").trim();
+    o.nameTh = v("setopt-th-"); o.nameEn = v("setopt-en-"); o.sellPrice = v("setopt-sp-");
+  });
+}
+function addSetOptRow() {
+  readSetOptsRows();          // keep what is already typed in the boxes
+  const n = setOptsDraft.length + 1;
+  setOptsDraft.push({ id: uid(), nameTh: `แบบ ${n}`, nameEn: `Option ${n}`, sellPrice: "", bundle: [] });
+  renderSetOptsRows();
+}
+function removeSetOptRow(i) {
+  readSetOptsRows();
+  const o = setOptsDraft[i];
+  if (!o) return;
+  const n = setOptBundle(o).length;
+  // the lines go with it, so say how many before they are gone
+  if (n && !confirm(`ลบ "${o.nameTh}" ?\nรายการในแบบนี้ ${n} รายการจะถูกลบไปด้วย\nRemove this option and what is in it?`)) return;
+  setOptsDraft.splice(i, 1);
+  renderSetOptsRows();
+}
+function saveSetOptsModal() {
+  const m = state.menus.find(x => x.id === editingSetOptsMenuId);
+  if (!m) { closeSetOptsModal(); return; }
+  readSetOptsRows();
+  const rows = setOptsDraft.filter(o => o.nameTh || o.nameEn);
+  rows.forEach((o, i) => { if (!o.nameTh) o.nameTh = o.nameEn || `แบบ ${i + 1}`; });
+  if (rows.length) m.setOptions = rows;
+  else delete m.setOptions;
+  save(); renderAll();
+  closeSetOptsModal();
+  toast(rows.length
+    ? `บันทึกแบบของเซ็ตแล้ว ${rows.length} แบบ • ${rows.length} set options saved`
+    : "เซ็ตนี้ไม่มีแบบย่อยแล้ว • this set now has a single list");
+}
+function closeSetOptsModal() {
+  editingSetOptsMenuId = null;
+  setOptsDraft = [];
+  document.getElementById("setopts-modal").classList.remove("show");
+}
+document.getElementById("setopts-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeSetOptsModal();
+});
 
 /* an ingredient that moves to the base list takes its with-rice amount with
    it, from the option's list to the menu-wide one */
@@ -4579,20 +4768,22 @@ function buildMenuReport(ids) {
     return `<tfoot><tr><td>รวมต้นทุน • Total cost</td><td></td><td>${esc(fmtPrice(c.total))}${perServe}${note}</td></tr>${profitRow}</tfoot>`;
   };
   /* a set lists what it bundles, in serves, instead of a recipe */
-  const bundleSection = m => {
-    const c = bundleCost(m);
+  const bundleTable = (m, opt) => {
+    const c = bundleCost(m, opt);
     const head = `<thead><tr><th>รายการในเซ็ต • In the set</th><th>จำนวนเสิร์ฟ • Serves</th><th>ต้นทุน • Cost</th></tr></thead>`;
     const rows = c.lines.map(l => {
       const name = `${l.ref.kind === "drink" ? "🥤" : "🍽️"} ${l.info.nameTh}${l.info.sub ? ` (${l.info.sub})` : ""}`;
+      // with versions on the page, say which lines every version gets
+      const shared = opt && l.where === "base" ? ` <span class="en">(ทุกแบบ)</span>` : "";
       const per = l.info.perServe === null ? "" : ` <span class="en">(${esc(fmtCost(l.info.perServe))} / ที่)</span>`;
       const issue = bundleLineIssue(l);
       return `<tr>
-        <td>${esc(name)}${l.info.nameEn ? `<br><span class="en">${esc(l.info.nameEn)}</span>` : ""}</td>
+        <td>${esc(name)}${shared}${l.info.nameEn ? `<br><span class="en">${esc(l.info.nameEn)}</span>` : ""}</td>
         <td>${l.serves === null ? `<span class="en">–</span>` : esc(fmtServes(l.serves))}</td>
         <td>${l.cost === null ? `<span class="en">– ${esc(issue || "")}</span>` : esc(fmtPrice(l.cost)) + per}</td>
       </tr>`;
     }).join("");
-    const p = bundleProfit(c, m);
+    const p = bundleProfit(c, m, opt);
     const note = c.missing ? ` <span class="en">* ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : "";
     const foot = c.priced
       ? `<tfoot><tr><td>รวมต้นทุนทั้งเซ็ต • Set cost</td><td></td><td>${esc(fmtPrice(c.total))}${note}</td></tr>${
@@ -4602,6 +4793,15 @@ function buildMenuReport(ids) {
     return c.lines.length
       ? `<table>${head}<tbody>${rows}</tbody>${foot}</table>`
       : `<div class="meta">ยังไม่มีรายการในเซ็ต • Nothing in this set yet</div>`;
+  };
+  /* a set lists what it bundles, in serves, instead of a recipe — and one
+     complete list per version, since each is costed and priced on its own */
+  const bundleSection = m => {
+    const opts = setOptions(m);
+    if (!opts) return bundleTable(m, null);
+    return opts.map(o =>
+      `<h3>🧩 ${esc(o.nameTh)}${o.nameEn && o.nameEn !== o.nameTh ? ` • ${esc(o.nameEn)}` : ""}</h3>` +
+      bundleTable(m, o)).join("");
   };
 
   const chosen = new Set(ids);
@@ -4668,13 +4868,17 @@ function costRowsFor(m) {
      a single row whose cost is already the cost of one serve — hence the
      serves of 1 and no batch figures to divide by. */
   if (isBundle(m)) {
-    const c = bundleCost(m);
-    return [{
-      label: "",
-      cost: { total: c.total, priced: c.priced, missing: c.missing },
-      costLabel: "ต้นทุนรายการในเซ็ต",
-      prod: Object.assign(prodOf(m, null, "main"), { yieldQty: "", portionQty: "", serves: "1" }),
-    }];
+    // one row per version of the set, as a dish gets one per meat option
+    return (setOptions(m) || [null]).map(o => {
+      const c = bundleCost(m, o);
+      return {
+        label: o ? o.nameTh : "",
+        cost: { total: c.total, priced: c.priced, missing: c.missing },
+        costLabel: "ต้นทุนรายการในเซ็ต",
+        prod: Object.assign(prodOf(m, null, "main"),
+          { yieldQty: "", portionQty: "", serves: "1", sellPrice: bundleSellPrice(m, o) }),
+      };
+    });
   }
   const opts = menuOptions(m);
   const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
