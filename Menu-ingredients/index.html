@@ -1906,8 +1906,14 @@ function bundleChoices() {
 /* What one serve of a line costs, and what to call it on the card. perServe
    comes back null when the dish or drink is not fully costed yet — a set is
    never told that a plate nobody has priced is free. */
+/* what a plate sells for on its own, when it has a price at all: the figure
+   a customer ordering it à la carte would pay for one of them */
+function menuListPrice(v) {
+  const p = parseFloat(v);
+  return isFinite(p) && p > 0 ? p : null;
+}
 function bundleRefInfo(ref) {
-  const gone = (nameTh, why) => ({ nameTh, nameEn: "", sub: "", perServe: null, missing: 0, why });
+  const gone = (nameTh, why) => ({ nameTh, nameEn: "", sub: "", perServe: null, price: null, missing: 0, why });
   if (!ref) return gone("(รายการเสีย • broken line)", "อ่านรายการนี้ไม่ได้ • this line can't be read");
 
   if (ref.kind === "drink") {
@@ -1916,6 +1922,7 @@ function bundleRefInfo(ref) {
     const c = drinkCost(d);
     return {
       nameTh: d.nameTh, nameEn: d.nameEn || "", sub: "", perServe: c.perGlass,
+      price: menuListPrice(d.sellPrice),
       missing: c.cost.missing,
       why: c.perGlass === null
         ? (c.note || "ยังคิดต้นทุนต่อแก้วไม่ได้ — ใส่ราคาวัตถุดิบในแท็บเครื่องดื่มก่อน • no per-glass cost yet")
@@ -1941,6 +1948,7 @@ function bundleRefInfo(ref) {
     nameTh: m.nameTh, nameEn: m.nameEn || "",
     sub: bits.join(" · "),
     perServe: cost.priced && serves !== null && serves > 0 ? cost.total / serves : null,
+    price: menuListPrice(prod.sellPrice),
     missing: cost.missing,
     why: !cost.priced ? "ยังคิดต้นทุนส่วนผสมไม่ได้ • its ingredients aren't costed yet"
       : !(serves !== null && serves > 0) ? "เมนูนี้ยังไม่มีจำนวน Serves • that menu has no serves figure"
@@ -1999,15 +2007,23 @@ function bundleGroupStore(menu) { return (menu.groups = bundleGroups(menu)); }
 function groupCost(g) {
   const items = (g.choices || []).map(ref => ({ ref, info: bundleRefInfo(ref) }));
   const priced = items.filter(x => x.info.perServe !== null).map(x => x.info.perServe);
+  /* the same averaging, over what the plates sell for on their own, so the
+     set can be held up against ordering them one by one */
+  const listed = items.filter(x => x.info.price !== null).map(x => x.info.price);
   const n = parseFloat(g.pick);
   const pick = isFinite(n) && n > 0 ? n : null;
   const times = v => (v === null || pick === null) ? null : v * pick;
-  const avg = priced.length ? priced.reduce((s, v) => s + v, 0) / priced.length : null;
+  const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+  const avg = mean(priced);
   return {
     g, items, pick, priced: priced.length, missing: items.length - priced.length,
     avg, cost: times(avg),
     lo: times(priced.length ? Math.min(...priced) : null),
     hi: times(priced.length ? Math.max(...priced) : null),
+    list: times(mean(listed)),
+    listLo: times(listed.length ? Math.min(...listed) : null),
+    listHi: times(listed.length ? Math.max(...listed) : null),
+    listMissing: items.length - listed.length,
   };
 }
 /* why a group adds nothing to the total yet */
@@ -2029,6 +2045,7 @@ function bundleCost(menu, opt) {
     return {
       ref, info, serves, where,
       cost: info.perServe !== null && serves !== null ? info.perServe * serves : null,
+      list: info.price !== null && serves !== null ? info.price * serves : null,
     };
   };
   const shared = bundleItems(menu).map(lineOf("base"));
@@ -2045,13 +2062,40 @@ function bundleCost(menu, opt) {
     if (gc.cost === null) return;
     total += gc.cost; lo += gc.lo; hi += gc.hi; priced++;
   });
+
+  /* the same sum over the menu prices: what the customer would pay ordering
+     all of it à la carte. Averaged across a choice group exactly as the cost
+     is, so the two figures describe the same imaginary order. */
+  let list = 0, listed = 0, listLo = 0, listHi = 0;
+  lines.forEach(l => {
+    if (l.list === null) return;
+    list += l.list; listLo += l.list; listHi += l.list; listed++;
+  });
+  groups.forEach(gc => {
+    if (gc.list === null) return;
+    list += gc.list; listLo += gc.listLo; listHi += gc.listHi; listed++;
+  });
+  const parts = lines.length + groups.length;
+
   return {
     lines, shared, own, groups, total, fixed, lo, hi, priced,
-    missing: lines.length + groups.length - priced,
+    missing: parts - priced,
     /* true when what the customer picks changes the bill, which is when the
        average is a middle figure rather than the figure */
     varies: hi - lo > 0.005,
+    list, listLo, listHi, listed,
+    listMissing: parts - listed,
+    listVaries: listHi - listLo > 0.005,
   };
+}
+/* What the set saves the customer against ordering the same plates one by
+   one. null when there is nothing to compare: no set price, or not one plate
+   in it carries a menu price of its own. */
+function bundleSaving(c, menu, opt) {
+  const price = parseFloat(bundleSellPrice(menu, opt));
+  if (!c.listed || !isFinite(price) || price <= 0) return null;
+  const off = c.list - price;
+  return { list: c.list, price, off, pct: c.list > 0 ? off / c.list * 100 : null };
 }
 /* why a line adds nothing to the total yet */
 function bundleLineIssue(l) {
@@ -2281,6 +2325,37 @@ function bundleCardHtml(menu) {
 
   const p = bundleProfit(c, menu, cur);
   const price = parseFloat(bundleSellPrice(menu, cur));
+
+  /* what the set saves against ordering the same plates separately — the
+     reason a customer takes the set, said in the customer's own terms */
+  const sv = bundleSaving(c, menu, cur);
+  const savingHtml = !sv ? "" : `
+    <div class="cost-rule"></div>
+    <span class="cost-label">🧾 ซื้อแยกทีละอย่าง • Bought separately:</span>
+    <span class="cost-main" title="รวมราคาขายปกติของทุกอย่างในเซ็ต${c.listVaries ? " — กลุ่มตัวเลือกคิดแบบเฉลี่ย" : ""}">${esc(fmtPrice(sv.list))}</span>
+    ${sv.off > 0
+      ? `<span class="cost-label">💸 ลูกค้าประหยัด • Customer saves</span>
+         <span class="profit-main">${esc(fmtPrice(sv.off))}</span>
+         <span class="pct-pill" title="ส่วนลด ÷ ราคาซื้อแยก × 100">ลด ${esc(fmtPct(sv.pct))}</span>`
+      : sv.off < 0
+        /* a set dearer than its parts is a pricing mistake, not a discount */
+        ? `<span class="cost-label">⚠️ เซ็ตแพงกว่าซื้อแยก • dearer than à la carte</span>
+           <span class="profit-main loss">${esc(fmtPrice(-sv.off))}</span>
+           <span class="pct-pill loss">+${esc(fmtPct(-sv.pct))}</span>`
+        : `<span class="cost-label">เท่ากับซื้อแยกพอดี • the same as à la carte</span>`}
+    ${c.listVaries
+      /* at one end of the choices the set may stop being a discount at all,
+         so each end says which way it falls rather than printing a minus */
+      ? (() => {
+          const at = v => {
+            const pct = v > 0 ? (v - sv.price) / v * 100 : null;
+            return `${fmtPrice(v)} (${pct !== null && pct < 0 ? `เซ็ตแพงกว่า ${fmtPct(-pct)}` : `ลด ${fmtPct(pct)}`})`;
+          };
+          return `<span class="cost-note">ถ้าลูกค้าเลือกของแพงสุดทุกกลุ่ม ซื้อแยก ${esc(at(c.listHi))} ถ้าเลือกของถูกสุด ${esc(at(c.listLo))}</span>`;
+        })() : ""}
+    ${c.listMissing
+      ? `<span class="cost-note">* เทียบจาก ${c.listed} ใน ${c.listed + c.listMissing} รายการ — อีก ${c.listMissing} รายการยังไม่มีราคาขายของตัวเอง ส่วนลดจริงจึงมากกว่านี้</span>` : ""}`;
+
   const profitHtml = p
     ? `<div class="cost-rule"></div>
        <span class="cost-label">🏷️ ราคาขาย • Price: ${esc(fmtPrice(p.price))} / เซ็ต</span>
@@ -2310,11 +2385,13 @@ function bundleCardHtml(menu) {
          ${c.missing
            ? `<span class="cost-note">* คำนวณจาก ${c.priced} ใน ${c.priced + c.missing} รายการ — อีก ${c.missing} รายการยังคิดต้นทุนไม่ได้</span>` : ""}
          ${profitHtml}
+         ${savingHtml}
        </div>`
-    : (c.lines.length || (isFinite(price) && price > 0)
+    : (c.lines.length || c.groups.length || (isFinite(price) && price > 0)
       ? `<div class="cost-box">
            <span class="cost-note" style="margin:0">💰 ยังคำนวณต้นทุนเซ็ตไม่ได้ — เมนูที่ใส่ไว้ยังคิดต้นทุนต่อที่ไม่ได้ • Add costs to the dishes in this set first</span>
            ${profitHtml}
+           ${savingHtml}
          </div>`
       : "");
 
