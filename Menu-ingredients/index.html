@@ -1528,7 +1528,47 @@ async function fetchState() {
   state = migrate(data.state);
 }
 
+/* Two saves in flight at once both carry the same version, so the second one
+   comes back a conflict and the app reloads the server's copy — which looks
+   like the page throwing the work away. One save at a time, and anything
+   asked for while it is away runs straight after. */
+let saving = false, saveQueued = false;
 async function save() {
+  if (saving) { saveQueued = true; return; }
+  saving = true;
+  try {
+    await saveNow();
+  } finally {
+    saving = false;
+    if (saveQueued) { saveQueued = false; save(); }
+  }
+}
+/* A number box with arrows fires on every click of the arrow. Writing to the
+   server on each one is what raced those saves together, so the value is
+   stored in memory at once and the writing waits until the clicking stops. */
+let saveTimer = null;
+function saveSoon(delay = 700) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; save(); }, delay);
+}
+/* Rebuilding the page under the pointer tears the box being clicked out of
+   the document. The figures still have to follow what is typed, so the
+   redraw is held for a beat and the box that had the cursor gets it back. */
+let redrawTimer = null;
+function redrawSoon(fn, delay = 150) {
+  clearTimeout(redrawTimer);
+  redrawTimer = setTimeout(() => {
+    redrawTimer = null;
+    const el = document.activeElement;
+    const key = el && el.dataset ? el.dataset.fkey : null;
+    fn();
+    if (!key) return;
+    const back = document.querySelector(`[data-fkey="${CSS.escape(key)}"]`);
+    if (back) back.focus();
+  }, delay);
+}
+
+async function saveNow() {
   // sauce-derived ingredient rows are rebuilt before anything is persisted
   syncSauceIngredients();
   try {
@@ -1559,7 +1599,7 @@ async function save() {
 setInterval(async () => {
   const ae = document.activeElement;
   if (openRowEditor) return;                     // a row is being edited in place
-  const SEARCH_BOXES = ["menu-search", "ing-search", "bev-search", "drink-search", "sauce-search"];
+  const SEARCH_BOXES = ["menu-search", "reprice-search", "ing-search", "bev-search", "drink-search", "sauce-search"];
   if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT") && !SEARCH_BOXES.includes(ae.id)) return;
   try {
     const res = await fetch("/api/state");
@@ -2465,7 +2505,8 @@ function repriceCardHtml(menu) {
         <span class="serves-cell">
           <input class="new-price-input" type="number" min="0" step="0.01" value="${esc(r.newPrice ?? "")}"
                  title="ราคาใหม่ที่คิดไว้ • The price you are considering"
-                 onchange="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}',this.value)">
+                 data-fkey="price:${menu.id}:${r.optId}:${r.styleKey}"
+                 oninput="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}',this.value)">
           ${f.nw !== null ? `<button class="icon-btn" title="ล้างราคาใหม่ • Clear" onclick="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}','')">✕</button>` : ""}
         </span>
       </td>
@@ -2543,7 +2584,8 @@ function repriceIngredientsHtml(menu) {
         <span class="serves-cell">
           <input class="new-qty-input" type="number" min="0" step="any" value="${esc(it.newQty ?? "")}"
                  title="ปริมาณใหม่ที่คิดไว้ • The amount you are considering"
-                 onchange="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}',this.value)">
+                 data-fkey="qty:${menu.id}:${b.where}:${b.optId}:${it.ingredientId}"
+                 oninput="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}',this.value)">
           <span class="serves-unit">${esc(it.unit || "")}</span>
           ${hasNewQty(it) ? `<button class="icon-btn" title="ล้างปริมาณใหม่ • Clear" onclick="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}','')">✕</button>` : ""}
         </span>
@@ -2591,7 +2633,7 @@ function setNewQty(menuId, where, optId, ingredientId, val) {
   if (!it) return;
   const v = String(val).trim();
   if (v === "") delete it.newQty; else it.newQty = v;
-  save(); renderAll();
+  saveSoon(); redrawSoon(renderReprice);
 }
 
 /* the proposed price is written where the selling price for that same
@@ -2607,7 +2649,7 @@ function setNewPrice(menuId, optId, styleKey, val) {
     const o = optId ? (menuOptions(m) || []).find(x => x.id === optId) : null;
     (o ? optStore(o, styleKey) : styleStore(m, styleKey)).newPrice = v;
   }
-  save(); renderAll();
+  saveSoon(); redrawSoon(renderReprice);
 }
 
 /* the head of a menu card: name, type and the buttons. Shared so a set and a
@@ -2670,7 +2712,9 @@ function bundleCardHtml(menu) {
       ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
       <span class="serves-cell">
         <input class="serves-input" type="number" min="0" step="any" value="${esc(l.ref.serves ?? "")}"
-               title="จำนวนเสิร์ฟ • Number of serves" onchange="setBundleServes('${menu.id}','${l.where}',${i},this.value)">
+               title="จำนวนเสิร์ฟ • Number of serves"
+               data-fkey="serves:${menu.id}:${l.where}:${i}"
+               oninput="setBundleServes('${menu.id}','${l.where}',${i},this.value)">
         <span class="serves-unit">ที่</span>
       </span>
       <button class="icon-btn" title="ลบออกจากเซ็ต • Remove from the set" onclick="removeBundleItem('${menu.id}','${l.where}',${i})">✕</button>
@@ -2733,10 +2777,14 @@ function bundleCardHtml(menu) {
       return `<div class="group-box">
         <div class="group-row">
           <input class="group-name" type="text" value="${esc(gc.g.nameTh || "")}" placeholder="ชื่อกลุ่ม เช่น Entree"
-                 title="ชื่อกลุ่ม • Group name" onchange="setGroupField('${menu.id}',${gi},'nameTh',this.value)">
+                 title="ชื่อกลุ่ม • Group name"
+                 data-fkey="gname:${menu.id}:${gi}"
+                 oninput="setGroupField('${menu.id}',${gi},'nameTh',this.value)">
           <span class="serves-unit">เลือก</span>
           <input class="serves-input" type="number" min="0" step="any" value="${esc(gc.g.pick ?? "")}"
-                 title="เลือกได้กี่อย่าง • How many are chosen" onchange="setGroupField('${menu.id}',${gi},'pick',this.value)">
+                 title="เลือกได้กี่อย่าง • How many are chosen"
+                 data-fkey="gpick:${menu.id}:${gi}"
+                 oninput="setGroupField('${menu.id}',${gi},'pick',this.value)">
           <span class="serves-unit">อย่าง จาก ${gc.items.length}</span>
           ${sum}
           <button class="icon-btn" title="ลบกลุ่มนี้ • Remove this group" onclick="removeBundleGroup('${menu.id}',${gi})">✕</button>
@@ -3997,7 +4045,7 @@ function setBundleServes(menuId, where, i, val) {
   const line = bundleListFor(menu, where)[i];
   if (!line) return;
   line.serves = String(val).trim();
-  save(); renderAll();
+  saveSoon(); redrawSoon(renderMenus);
 }
 function removeBundleItem(menuId, where, i) {
   const menu = state.menus.find(m => m.id === menuId);
@@ -4027,7 +4075,7 @@ function setGroupField(menuId, gi, field, val) {
   const g = menu && bundleGroups(menu)[gi];
   if (!g) return;
   g[field] = String(val).trim();
-  save(); renderAll();
+  saveSoon(); redrawSoon(renderMenus);
 }
 function removeBundleGroup(menuId, gi) {
   const menu = state.menus.find(m => m.id === menuId);
