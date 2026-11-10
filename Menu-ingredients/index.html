@@ -181,6 +181,8 @@
     gap: 16px;
   }
   .grid > * { min-width: 0; }
+  /* a row of figures read across needs the width a card column cannot give */
+  .grid.grid-wide { grid-template-columns: minmax(0, 1fr); }
 
   .group-header {
     display: flex; align-items: baseline; gap: 10px;
@@ -498,6 +500,34 @@
   .brand-txt { color: var(--muted); font-size: .85rem; }
   .table-wrap { overflow-x: auto; }
 
+  /* repricing: one line per priced combination, read across */
+  table.reprice-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  table.reprice-table th {
+    text-align: left; font-size: .72rem; color: var(--muted); font-weight: 600;
+    padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap;
+  }
+  table.reprice-table th .en { display: block; font-weight: 400; font-size: .66rem; opacity: .8; }
+  table.reprice-table td {
+    padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle;
+  }
+  table.reprice-table tr:last-child td { border-bottom: none; }
+  table.reprice-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.reprice-table th.num { text-align: right; }
+  table.reprice-table .en { color: var(--muted); font-size: .76rem; }
+  input.new-price-input {
+    width: 86px; flex: 0 0 86px; padding: 5px 8px;
+    font-size: .88rem; font-weight: 600; text-align: right;
+    color: var(--blue); background: var(--accent-soft);
+    border: 1px solid var(--chip-border2); border-radius: 8px;
+  }
+  .diff-pill {
+    font-size: .78rem; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .diff-pill.up { background: var(--good-soft); color: var(--good); }
+  .diff-pill.down { background: var(--danger-soft); color: var(--danger); }
+  .loss-text { color: var(--danger); }
+
   .empty-state {
     text-align: center; padding: 48px 16px; color: var(--muted);
   }
@@ -584,6 +614,7 @@
     <span class="tab-group-label">🍽️ อาหาร • Food</span>
     <div class="tab-pills">
       <button class="tab-btn active" data-tab="menus">เมนูอาหาร • Menus</button>
+      <button class="tab-btn" data-tab="reprice">ปรับราคา • Repricing</button>
       <button class="tab-btn" data-tab="ingredients">ส่วนผสม • Ingredients</button>
       <button class="tab-btn" data-tab="sauces">ซอส &amp; เบส • Sauces</button>
     </div>
@@ -611,6 +642,7 @@
   <select class="tab-select" id="tab-select" aria-label="เลือกหน้า • Choose section">
     <optgroup label="🍽️ อาหาร • Food">
       <option value="menus">เมนูอาหาร • Menus</option>
+      <option value="reprice">ปรับราคา • Repricing</option>
       <option value="ingredients">ส่วนผสม • Ingredients</option>
       <option value="sauces">ซอส &amp; เบส • Sauces &amp; Bases</option>
     </optgroup>
@@ -720,6 +752,30 @@
       <div class="big">🍲</div>
       <p>ยังไม่มีเมนู เริ่มเพิ่มเมนูแรกได้เลย<br>No menus yet — add your first menu above</p>
       <button class="btn ghost" id="load-sample">โหลดข้อมูลตัวอย่าง • Load sample data</button>
+    </div>
+
+  </section>
+
+  <!-- ================= REPRICING TAB ================= -->
+  <section class="panel" id="panel-reprice">
+
+    <div class="card">
+      <h2>💲 ปรับราคาใหม่ <span class="en">• Repricing</span></h2>
+      <p class="hint">
+        ใส่ราคาใหม่ที่คิดไว้ลงไปในช่อง "ราคาใหม่" ระบบจะบอกว่าขึ้นหรือลงจากราคาเดิมเท่าไหร่ คิดเป็นกี่เปอร์เซ็นต์ และกำไรกับ Markup ที่ราคาใหม่เป็นเท่าไหร่ เทียบกับของเดิม
+        <br><span class="en">Type the price you are considering. Each line shows the change against today's price and what the new price does to the profit — nothing here changes the selling price the rest of the app uses until you copy it across.</span>
+      </p>
+      <div id="reprice-summary"></div>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="reprice-search" placeholder="ค้นหาเมนู… • Search menus…">
+    </div>
+
+    <div id="reprice-groups"></div>
+    <div id="reprice-empty" class="empty-state" style="display:none">
+      <div class="big">💲</div>
+      <p>ยังไม่มีเมนู<br>No menus yet</p>
     </div>
 
   </section>
@@ -1689,6 +1745,18 @@ function costOf(items) {
   return { total, priced, missing: (items || []).length - priced };
 }
 const PROD_FIELDS = ["yieldQty", "yieldUnit", "portionQty", "portionUnit", "serves", "sellPrice"];
+/* A price being considered is kept beside the one being charged, under the
+   same combination, so the repricing page can weigh one against the other
+   without touching what the kitchen and the reports go by. Unlike the
+   selling price it is never inherited: a figure typed against one line is a
+   decision about that line, and letting it stand in for a line nobody has
+   touched would put words in the owner's mouth. */
+function newPriceAt(menu, opt, styleKey) {
+  const src = opt
+    ? (styleKey === "rice" ? (opt.rice || {}) : opt)
+    : (styleKey === "rice" ? (menu.withRice || {}) : menu);
+  return src.newPrice ?? "";
+}
 /* production info that actually applies: an option's own values win,
    anything it leaves blank falls back to the menu's */
 function prodOf(menu, opt, styleKey) {
@@ -2088,6 +2156,12 @@ function bundleCost(menu, opt) {
     listVaries: listHi - listLo > 0.005,
   };
 }
+/* the proposed price of exactly this version of the set, never the set's
+   standing in for it — see newPriceAt */
+function bundleNewPrice(menu, opt) {
+  return ((opt || menu).newPrice) ?? "";
+}
+
 /* What the set saves the customer against ordering the same plates one by
    one. null when there is nothing to compare: no set price, or not one plate
    in it carries a menu price of its own. */
@@ -2166,6 +2240,207 @@ function renderMenus() {
       </div>
       <div class="grid">${list.map(menuCardHtml).join("")}</div>`;
   }).join("");
+}
+
+/* ---------- render: repricing ----------
+   The same menus as the Menus tab, read as prices rather than as recipes:
+   every combination that carries a price of its own gets a line, with a box
+   for the price being considered beside the one being charged. The proposed
+   figure is stored but never used as the selling price — nothing downstream
+   moves until the price is actually changed on the menu itself. */
+
+/* one line per priced combination of a menu: a dish by meat option and serve
+   style, a set by version */
+function repriceRows(m) {
+  if (isBundle(m)) {
+    return (setOptions(m) || [null]).map(o => {
+      const c = bundleCost(m, o);
+      return {
+        label: o ? o.nameTh : "",
+        optId: o ? o.id : "", styleKey: "main",
+        cost: c.priced ? c.total : null,
+        costNote: c.missing ? `ต้นทุนยังไม่ครบ ${c.missing} รายการ` : "",
+        oldPrice: menuListPrice(bundleSellPrice(m, o)),
+        newPrice: bundleNewPrice(m, o),
+        unit: "เซ็ต",
+      };
+    });
+  }
+  const opts = menuOptions(m);
+  const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
+  const rows = [];
+  (opts || [null]).forEach(o => styleKeys.forEach(k => {
+    const cost = costOf(effectiveItems(m, o, k));
+    const prod = prodOf(m, o, k);
+    const serves = servesOf(prod);
+    rows.push({
+      label: [o && o.nameTh, hasRice(m) && styleLabel(k).th].filter(Boolean).join(" · "),
+      optId: o ? o.id : "", styleKey: k,
+      cost: cost.priced && serves !== null && serves > 0 ? cost.total / serves : null,
+      costNote: !cost.priced ? "ยังคิดต้นทุนส่วนผสมไม่ได้"
+        : !(serves !== null && serves > 0) ? "ยังไม่มีจำนวน Serves"
+        : cost.missing ? `ต้นทุนยังไม่ครบ ${cost.missing} รายการ` : "",
+      oldPrice: menuListPrice(prod.sellPrice),
+      newPrice: newPriceAt(m, o, k),
+      unit: "ที่",
+    });
+  }));
+  return rows;
+}
+
+/* everything one line needs to say, worked out in one place so the card and
+   the summary cannot drift apart */
+function repriceFigures(r) {
+  const nw = menuListPrice(r.newPrice);
+  const diff = nw !== null && r.oldPrice !== null ? nw - r.oldPrice : null;
+  const at = p => (p === null || r.cost === null)
+    ? null
+    : { profit: p - r.cost, markup: markupOf(p - r.cost, r.cost), food: p > 0 ? r.cost / p * 100 : null };
+  return {
+    nw, diff,
+    diffPct: diff !== null && r.oldPrice > 0 ? diff / r.oldPrice * 100 : null,
+    now: at(r.oldPrice), then: at(nw),
+  };
+}
+
+function renderReprice() {
+  const container = document.getElementById("reprice-groups");
+  const q = document.getElementById("reprice-search").value.trim().toLowerCase();
+  const menus = state.menus.filter(m => !q
+    || m.nameTh.toLowerCase().includes(q)
+    || (m.nameEn || "").toLowerCase().includes(q)
+    || (m.category || "").toLowerCase().includes(q));
+
+  document.getElementById("reprice-empty").style.display = state.menus.length ? "none" : "";
+  if (q && !menus.length) {
+    container.innerHTML = noHits("เมนู", q, "No menu matches this search");
+    document.getElementById("reprice-summary").innerHTML = "";
+    return;
+  }
+
+  /* how many lines carry a proposed price, and what those lines do to the
+     markup on average — the average is over the same lines on both sides, so
+     the before and after figures are comparable */
+  let n = 0, upN = 0, downN = 0, sumBefore = 0, sumAfter = 0, cmpN = 0, sumDiff = 0;
+  state.menus.forEach(m => repriceRows(m).forEach(r => {
+    const f = repriceFigures(r);
+    if (f.nw === null) return;
+    n++;
+    if (f.diff !== null) { sumDiff += f.diff; if (f.diff > 0) upN++; else if (f.diff < 0) downN++; }
+    if (f.now && f.then && f.now.markup !== null && f.then.markup !== null) {
+      cmpN++; sumBefore += f.now.markup; sumAfter += f.then.markup;
+    }
+  }));
+  document.getElementById("reprice-summary").innerHTML = n
+    ? `<div class="cost-box" style="margin-top:0">
+         <span class="cost-label">📝 ใส่ราคาใหม่ไว้แล้ว • Priced so far:</span>
+         <span class="cost-main">${n}</span>
+         <span class="cost-label">รายการ${upN ? ` · ขึ้นราคา ${upN}` : ""}${downN ? ` · ลดราคา ${downN}` : ""}</span>
+         ${cmpN ? `<span class="cost-label">📈 Markup เฉลี่ยของรายการเหล่านี้ ${esc(fmtPct(sumBefore / cmpN))} →</span>
+           <span class="pct-pill ${markupTier(sumAfter / cmpN)}">${esc(fmtPct(sumAfter / cmpN))}</span>` : ""}
+         <span class="cost-note">ราคาใหม่เก็บไว้ในหน้านี้เท่านั้น ยังไม่ได้เปลี่ยนราคาขายจริง — รวมส่วนต่างทุกรายการ ${esc(fmtPrice(sumDiff))} ต่อหนึ่งที่/เซ็ต</span>
+       </div>`
+    : `<div class="hint">ยังไม่ได้ใส่ราคาใหม่ไว้เลย • No proposed prices yet</div>`;
+
+  const groups = new Map();
+  menus.forEach(m => {
+    const key = (m.category || "").trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  });
+  const keys = [...groups.keys()].sort((a, b) =>
+    catOrder(a) - catOrder(b) || a.localeCompare(b, "th"));
+
+  container.innerHTML = keys.map(key => {
+    const list = groups.get(key);
+    return `
+      <div class="group-header">
+        <h2>${esc(menuCatLabel(key))}</h2>
+        <span class="count">${list.length} เมนู</span>
+        <div class="rule"></div>
+      </div>
+      <div class="grid grid-wide">${list.map(repriceCardHtml).join("")}</div>`;
+  }).join("");
+}
+
+function repriceCardHtml(menu) {
+  const dash = `<span class="en">–</span>`;
+  const rows = repriceRows(menu).map(r => {
+    const f = repriceFigures(r);
+    const diffHtml = f.diff === null
+      ? (f.nw === null ? `<span class="en">—</span>`
+        : `<span class="en">ยังไม่มีราคาเดิมให้เทียบ</span>`)
+      : Math.abs(f.diff) < 0.005
+        ? `<span class="en">เท่าเดิม</span>`
+        : `<span class="diff-pill ${f.diff > 0 ? "up" : "down"}">${f.diff > 0 ? "▲" : "▼"} ${esc(fmtPrice(Math.abs(f.diff)))}${
+            f.diffPct === null ? "" : ` (${f.diff > 0 ? "+" : "−"}${esc(fmtPct(Math.abs(f.diffPct)))})`}</span>`;
+
+    /* the markup now and at the price being considered, side by side, which
+       is the whole question this page exists to answer */
+    const markupHtml = !f.then
+      ? (r.cost === null ? `<span class="en" title="${esc(r.costNote)}">ยังไม่รู้ต้นทุน</span>` : dash)
+      : `${f.now ? `<span class="en">${esc(fmtPct(f.now.markup))} →</span> ` : ""}<span class="pct-pill ${markupTier(f.then.markup)}${f.then.markup !== null && f.then.markup < 0 ? " loss" : ""}">${esc(fmtPct(f.then.markup))}</span>`;
+
+    return `<tr>
+      <td>${r.label ? esc(r.label) : `<span class="en">ราคาเดียว</span>`}</td>
+      <td class="num">${r.cost === null ? `<span class="en" title="${esc(r.costNote)}">–</span>` : esc(fmtPrice(r.cost))}</td>
+      <td class="num">${r.oldPrice === null ? dash : esc(fmtPrice(r.oldPrice))}</td>
+      <td class="num">
+        <span class="serves-cell">
+          <input class="new-price-input" type="number" min="0" step="0.01" value="${esc(r.newPrice ?? "")}"
+                 title="ราคาใหม่ที่คิดไว้ • The price you are considering"
+                 onchange="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}',this.value)">
+          ${f.nw !== null ? `<button class="icon-btn" title="ล้างราคาใหม่ • Clear" onclick="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}','')">✕</button>` : ""}
+        </span>
+      </td>
+      <td class="num">${diffHtml}</td>
+      <td class="num">${f.then ? `<b class="${f.then.profit < 0 ? "loss-text" : ""}">${esc(fmtPrice(f.then.profit))}</b>` : dash}</td>
+      <td class="num">${markupHtml}</td>
+      <td class="num">${f.then && f.then.food !== null ? esc(fmtPct(f.then.food)) : dash}</td>
+    </tr>`;
+  }).join("");
+
+  return `<div class="card menu-card" id="reprice-${menu.id}">
+    <div class="menu-head">
+      <h3>${esc(menu.nameTh)}${menu.nameEn ? `<div class="name-en">${esc(menu.nameEn)}</div>` : ""}
+        <span class="cat-badge">${esc(menuCatLabel(menu.category || ""))}</span>
+      </h3>
+      <span class="head-actions">
+        <button class="icon-btn" title="ไปที่การ์ดเมนู • Open this menu" style="color:var(--blue)" onclick="jumpToMenu('${menu.id}')">↗️</button>
+      </span>
+    </div>
+    <div class="table-wrap">
+      <table class="reprice-table">
+        <thead><tr>
+          <th>แบบ<span class="en">Version</span></th>
+          <th class="num">ต้นทุน<span class="en">Cost</span></th>
+          <th class="num">ราคาเดิม<span class="en">Now</span></th>
+          <th class="num">ราคาใหม่<span class="en">New</span></th>
+          <th class="num">ต่างจากเดิม<span class="en">Change</span></th>
+          <th class="num">กำไรใหม่<span class="en">Profit</span></th>
+          <th class="num">Markup<span class="en">เดิม → ใหม่</span></th>
+          <th class="num">ต้นทุนอาหาร<span class="en">Food cost</span></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* the proposed price is written where the selling price for that same
+   combination lives, so an option's price is kept apart from the menu's */
+function setNewPrice(menuId, optId, styleKey, val) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  const v = String(val).trim();
+  if (isBundle(m)) {
+    const o = optId ? (m.setOptions || []).find(x => x.id === optId) : null;
+    (o || m).newPrice = v;
+  } else {
+    const o = optId ? (menuOptions(m) || []).find(x => x.id === optId) : null;
+    (o ? optStore(o, styleKey) : styleStore(m, styleKey)).newPrice = v;
+  }
+  save(); renderAll();
 }
 
 /* the head of a menu card: name, type and the buttons. Shared so a set and a
@@ -2973,7 +3248,7 @@ function renderDatalists() {
 
 function renderAll() {
   syncSauceIngredients();
-  renderMenus(); renderIngredients(); renderBeverages(); renderDrinks();
+  renderMenus(); renderReprice(); renderIngredients(); renderBeverages(); renderDrinks();
   renderDatalists(); renderSauces(); renderReports();
 }
 
@@ -5518,6 +5793,7 @@ function makeDrinkCostReport(mode) {
 
 /* ---------- search ---------- */
 document.getElementById("menu-search").addEventListener("input", renderMenus);
+document.getElementById("reprice-search").addEventListener("input", renderReprice);
 document.getElementById("ing-search").addEventListener("input", renderIngredients);
 document.getElementById("bev-search").addEventListener("input", renderBeverages);
 
