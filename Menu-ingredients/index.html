@@ -420,6 +420,14 @@
   /* a set counts serves, not grams: one small number box per line, editable
      where it is read */
   .serves-cell { display: inline-flex; align-items: center; gap: 4px; }
+  /* the boxes on the cards are typed into, not clicked up and down: no
+     spinner arrows, and no wheel over a focused box moving the figure */
+  input.serves-input, input.new-price-input, input.new-qty-input { appearance: textfield; -moz-appearance: textfield; }
+  input.serves-input::-webkit-outer-spin-button, input.serves-input::-webkit-inner-spin-button,
+  input.new-price-input::-webkit-outer-spin-button, input.new-price-input::-webkit-inner-spin-button,
+  input.new-qty-input::-webkit-outer-spin-button, input.new-qty-input::-webkit-inner-spin-button {
+    appearance: none; -webkit-appearance: none; margin: 0;
+  }
   input.serves-input {
     width: 62px; flex: 0 0 62px; padding: 4px 6px;
     font-size: .85rem; font-weight: 600; text-align: center;
@@ -1543,9 +1551,14 @@ async function save() {
     if (saveQueued) { saveQueued = false; save(); }
   }
 }
-/* A number box with arrows fires on every click of the arrow. Writing to the
-   server on each one is what raced those saves together, so the value is
-   stored in memory at once and the writing waits until the clicking stops. */
+/* The boxes on the cards are plain text ones so the figure can simply be
+   typed, which means a thousands separator can be typed too. The sums all go
+   through parseFloat, and parseFloat("1,000") is 1 — so the separator comes
+   off as the figure is stored rather than quietly turning 1,000 into 1. */
+function numText(v) { return String(v ?? "").replace(/,/g, "").trim(); }
+
+/* Writing to the server on every keystroke raced those saves together, so
+   the value is stored in memory at once and the writing waits for a pause. */
 let saveTimer = null;
 function saveSoon(delay = 700) {
   clearTimeout(saveTimer);
@@ -1561,10 +1574,23 @@ function redrawSoon(fn, delay = 150) {
     redrawTimer = null;
     const el = document.activeElement;
     const key = el && el.dataset ? el.dataset.fkey : null;
+    /* the caret goes back where it was as well as the focus: a rebuilt box
+       starts the caret at the front, so the next digit typed after a pause
+       would land at the beginning of the figure */
+    let caret = null;
+    if (key && el.setSelectionRange) {
+      try { caret = [el.selectionStart, el.selectionEnd]; } catch (e) { /* not a text box */ }
+    }
     fn();
     if (!key) return;
     const back = document.querySelector(`[data-fkey="${CSS.escape(key)}"]`);
-    if (back) back.focus();
+    if (!back) return;
+    back.focus();
+    if (caret && back.setSelectionRange) {
+      // the stored figure can be shorter than what was typed, e.g. "1,0" -> "10"
+      const n = back.value.length;
+      try { back.setSelectionRange(Math.min(caret[0], n), Math.min(caret[1], n)); } catch (e) { /* ignore */ }
+    }
   }, delay);
 }
 
@@ -2503,7 +2529,7 @@ function repriceCardHtml(menu) {
       <td class="num">${r.oldPrice === null ? dash : esc(fmtPrice(r.oldPrice))}</td>
       <td class="num">
         <span class="serves-cell">
-          <input class="new-price-input" type="number" min="0" step="0.01" value="${esc(r.newPrice ?? "")}"
+          <input class="new-price-input" type="text" inputmode="decimal" value="${esc(r.newPrice ?? "")}"
                  title="ราคาใหม่ที่คิดไว้ • The price you are considering"
                  data-fkey="price:${menu.id}:${r.optId}:${r.styleKey}"
                  oninput="setNewPrice('${menu.id}','${r.optId}','${r.styleKey}',this.value)">
@@ -2582,7 +2608,7 @@ function repriceIngredientsHtml(menu) {
       <td class="num"><span class="qty-badge">${esc([it.qty, it.unit].filter(Boolean).join(" ") || "–")}</span></td>
       <td class="num">
         <span class="serves-cell">
-          <input class="new-qty-input" type="number" min="0" step="any" value="${esc(it.newQty ?? "")}"
+          <input class="new-qty-input" type="text" inputmode="decimal" value="${esc(it.newQty ?? "")}"
                  title="ปริมาณใหม่ที่คิดไว้ • The amount you are considering"
                  data-fkey="qty:${menu.id}:${b.where}:${b.optId}:${it.ingredientId}"
                  oninput="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}',this.value)">
@@ -2631,7 +2657,7 @@ function setNewQty(menuId, where, optId, ingredientId, val) {
     : (m.items || []);
   const it = list.find(x => x.ingredientId === ingredientId);
   if (!it) return;
-  const v = String(val).trim();
+  const v = numText(val);
   if (v === "") delete it.newQty; else it.newQty = v;
   saveSoon(); redrawSoon(renderReprice);
 }
@@ -2641,7 +2667,7 @@ function setNewQty(menuId, where, optId, ingredientId, val) {
 function setNewPrice(menuId, optId, styleKey, val) {
   const m = state.menus.find(x => x.id === menuId);
   if (!m) return;
-  const v = String(val).trim();
+  const v = numText(val);
   if (isBundle(m)) {
     const o = optId ? (m.setOptions || []).find(x => x.id === optId) : null;
     (o || m).newPrice = v;
@@ -2711,7 +2737,7 @@ function bundleCardHtml(menu) {
       <span class="ing-name">${icon} ${esc(l.info.nameTh)}${l.info.sub ? ` <span class="only-tag">${esc(l.info.sub)}</span>` : ""}${l.info.nameEn ? ` <span class="en">• ${esc(l.info.nameEn)}</span>` : ""}${costTxt}</span>
       ${issue ? `<span class="warn-dot" title="${esc(issue)}">⚠️</span>` : ""}
       <span class="serves-cell">
-        <input class="serves-input" type="number" min="0" step="any" value="${esc(l.ref.serves ?? "")}"
+        <input class="serves-input" type="text" inputmode="decimal" value="${esc(l.ref.serves ?? "")}"
                title="จำนวนเสิร์ฟ • Number of serves"
                data-fkey="serves:${menu.id}:${l.where}:${i}"
                oninput="setBundleServes('${menu.id}','${l.where}',${i},this.value)">
@@ -2734,7 +2760,7 @@ function bundleCardHtml(menu) {
         ${group("🍽️ อาหาร • Food", choices.menus)}
         ${group("🥤 เครื่องดื่ม • Drinks", choices.drinks)}
       </select>
-      <input class="serves-input" type="number" min="0" step="any" value="1"
+      <input class="serves-input" type="text" inputmode="decimal" value="1"
              title="จำนวนเสิร์ฟ • Number of serves" placeholder="จำนวนที่">
       <span class="serves-unit">ที่ • serves</span>
       <button type="submit" class="btn small secondary">+ ใส่</button>
@@ -2781,7 +2807,7 @@ function bundleCardHtml(menu) {
                  data-fkey="gname:${menu.id}:${gi}"
                  oninput="setGroupField('${menu.id}',${gi},'nameTh',this.value)">
           <span class="serves-unit">เลือก</span>
-          <input class="serves-input" type="number" min="0" step="any" value="${esc(gc.g.pick ?? "")}"
+          <input class="serves-input" type="text" inputmode="decimal" value="${esc(gc.g.pick ?? "")}"
                  title="เลือกได้กี่อย่าง • How many are chosen"
                  data-fkey="gpick:${menu.id}:${gi}"
                  oninput="setGroupField('${menu.id}',${gi},'pick',this.value)">
@@ -2807,7 +2833,7 @@ function bundleCardHtml(menu) {
       <form class="add-ing-form bundle-form" onsubmit="return addBundleGroup(event,'${menu.id}')">
         <input class="group-name" type="text" placeholder="ชื่อกลุ่มใหม่ เช่น Entree" required>
         <span class="serves-unit">เลือก</span>
-        <input class="serves-input" type="number" min="0" step="any" value="1" title="เลือกได้กี่อย่าง • How many are chosen">
+        <input class="serves-input" type="text" inputmode="decimal" value="1" title="เลือกได้กี่อย่าง • How many are chosen">
         <span class="serves-unit">อย่าง</span>
         <button type="submit" class="btn small secondary">+ เพิ่มกลุ่ม</button>
       </form>`;
@@ -4014,7 +4040,7 @@ function addBundleItem(e, menuId, where) {
   const sel = form.querySelector(".bundle-select");
   const servesInput = form.querySelector(".serves-input");
   const key = sel.value;
-  const serves = servesInput.value.trim();
+  const serves = numText(servesInput.value);
   const ref = parseBundleRefKey(key);
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu || !ref) return false;
@@ -4044,7 +4070,7 @@ function setBundleServes(menuId, where, i, val) {
   if (!menu) return;
   const line = bundleListFor(menu, where)[i];
   if (!line) return;
-  line.serves = String(val).trim();
+  line.serves = numText(val);
   saveSoon(); redrawSoon(renderMenus);
 }
 function removeBundleItem(menuId, where, i) {
@@ -4062,7 +4088,7 @@ function addBundleGroup(e, menuId) {
   e.preventDefault();
   const form = e.target;
   const name = form.querySelector(".group-name").value.trim();
-  const pick = form.querySelector(".serves-input").value.trim();
+  const pick = numText(form.querySelector(".serves-input").value);
   const menu = state.menus.find(m => m.id === menuId);
   if (!menu || !name) return false;
   bundleGroupStore(menu).push({ id: uid(), nameTh: name, nameEn: "", pick, choices: [] });
@@ -4074,7 +4100,7 @@ function setGroupField(menuId, gi, field, val) {
   const menu = state.menus.find(m => m.id === menuId);
   const g = menu && bundleGroups(menu)[gi];
   if (!g) return;
-  g[field] = String(val).trim();
+  g[field] = field === "pick" ? numText(val) : String(val).trim();
   saveSoon(); redrawSoon(renderMenus);
 }
 function removeBundleGroup(menuId, gi) {
