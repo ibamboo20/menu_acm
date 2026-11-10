@@ -782,6 +782,11 @@
         <br><span class="en">Type the price you are considering. Each line shows the change against today's price and what the new price does to the profit — nothing here changes the selling price the rest of the app uses until you copy it across.</span>
       </p>
       <div id="reprice-summary"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeRepriceReport('download')">⬇️ ดาวน์โหลดรายงานราคาใหม่ • Download</button>
+        <button type="button" class="btn secondary" onclick="makeRepriceReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+      <p class="hint" style="margin-top:8px">รายงานจะรวมทุกเมนูที่ใส่ราคาใหม่หรือปรับปริมาณไว้ • The report covers everything you have proposed. เลือกเฉพาะบางเมนูได้ที่แท็บรายงาน</p>
     </div>
 
     <div class="search-bar">
@@ -1090,6 +1095,20 @@
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
         <button type="button" class="btn" onclick="makeCostReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
         <button type="button" class="btn secondary" onclick="makeCostReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💲 รายงานปรับราคา <span class="en">• Repricing Report</span></h2>
+      <p class="hint">สรุปราคาใหม่ที่ตั้งไว้ในหน้า "ปรับราคา" เทียบกับราคาเดิม ขึ้นหรือลงเท่าไหร่ กี่เปอร์เซ็นต์ กำไรและ Markup ที่ราคาใหม่ พร้อมรายการส่วนผสมที่ปรับปริมาณ • The prices and amounts you are proposing, against what is charged today</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('reprice', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('reprice', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-reprice-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makeRepriceReportPicked('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makeRepriceReportPicked('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
       </div>
     </div>
 
@@ -5146,10 +5165,10 @@ document.getElementById("drink-modal").addEventListener("click", e => {
    "dcost" both choose drinks — same list, separate ticks, so a selection made
    for one report is not disturbed by the other. */
 const reportSel = {
-  ing: new Set(), menu: new Set(), cost: new Set(),
+  ing: new Set(), menu: new Set(), cost: new Set(), reprice: new Set(),
   bev: new Set(), drink: new Set(), dcost: new Set(),
 };
-const REPORT_KINDS = ["ing", "menu", "cost", "bev", "drink", "dcost"];
+const REPORT_KINDS = ["ing", "menu", "cost", "reprice", "bev", "drink", "dcost"];
 /* what each picker is choosing from */
 function reportSource(kind) {
   if (kind === "ing") return state.ingredients;
@@ -5677,6 +5696,116 @@ function buildCostReport(ids) {
     summary + body);
 }
 
+/* ---------- repricing report ----------
+   What is being proposed, not the whole price list: a menu with nothing
+   typed against it is left out, so the sheet can be handed over as the list
+   of changes to make. */
+function repriceProposals(m) {
+  const rows = repriceRows(m).map(r => ({ r, f: repriceFigures(r) }))
+    .filter(({ f }) => f.nw !== null || f.costMoved);
+  const amounts = [];
+  repriceIngredientBlocks(m).forEach(b => b.items.filter(hasNewQty).forEach(it => {
+    const ing = findIngredient(it.ingredientId);
+    amounts.push({
+      block: b.label, name: ing ? ing.nameTh : "(ถูกลบ)", nameEn: ing ? (ing.nameEn || "") : "",
+      from: [it.qty, it.unit].filter(Boolean).join(" ") || "–",
+      to: [it.newQty, it.unit].filter(Boolean).join(" "),
+      costNow: itemCost(it), costThen: itemCostNew(it),
+    });
+  }));
+  return { rows, amounts };
+}
+
+function buildRepriceReport(ids) {
+  const chosen = new Set(ids);
+  const dash = `<span class="en">–</span>`;
+  let n = 0, upN = 0, downN = 0, sumDiff = 0, cmpN = 0, sumBefore = 0, sumAfter = 0, qtyN = 0, skipped = 0;
+
+  const head = `<thead><tr>
+    <th>เมนู • Menu</th>
+    <th class="num">ต้นทุน<br>Cost</th>
+    <th class="num">ราคาเดิม<br>Now</th>
+    <th class="num">ราคาใหม่<br>New</th>
+    <th class="num">ต่างจากเดิม<br>Change</th>
+    <th class="num">กำไรใหม่<br>Profit</th>
+    <th class="num">Markup<br>เดิม → ใหม่</th>
+    <th class="num">ต้นทุนอาหาร<br>Food cost</th>
+  </tr></thead>`;
+
+  const rowHtml = (m, { r, f }) => {
+    n++;
+    if (f.diff !== null) { sumDiff += f.diff; if (f.diff > 0) upN++; else if (f.diff < 0) downN++; }
+    if (f.now && f.then && f.now.markup !== null && f.then.markup !== null) {
+      cmpN++; sumBefore += f.now.markup; sumAfter += f.then.markup;
+    }
+    const cost = r.cost === null ? dash
+      : f.costMoved ? `${esc(fmtPrice(r.cost))} → <b class="${f.costDiff > 0 ? "neg" : "pos"}">${esc(fmtPrice(r.costNew))}</b>`
+      : esc(fmtPrice(r.cost));
+    const change = f.diff === null ? (f.costMoved ? `<span class="en">ปริมาณเปลี่ยน</span>` : dash)
+      : Math.abs(f.diff) < 0.005 ? `<span class="en">เท่าเดิม</span>`
+      : `<b class="${f.diff > 0 ? "pos" : "neg"}">${f.diff > 0 ? "▲" : "▼"} ${esc(fmtPrice(Math.abs(f.diff)))}</b>${
+          f.diffPct === null ? "" : ` (${f.diff > 0 ? "+" : "−"}${esc(fmtPct(Math.abs(f.diffPct)))})`}`;
+    return `<tr>
+      <td>${esc(m.nameTh)}${r.label ? ` <span class="en">(${esc(r.label)})</span>` : ""}</td>
+      <td class="num">${cost}</td>
+      <td class="num">${r.oldPrice === null ? dash : esc(fmtPrice(r.oldPrice))}</td>
+      <td class="num">${f.nw === null ? `<span class="en">คงราคาเดิม</span>` : `<b>${esc(fmtPrice(f.nw))}</b>`}</td>
+      <td class="num">${change}</td>
+      <td class="num">${f.then ? `<b class="${f.then.profit < 0 ? "neg" : "pos"}">${esc(fmtPrice(f.then.profit))}</b>` : dash}</td>
+      <td class="num">${f.then ? `${f.now ? `<span class="en">${esc(fmtPct(f.now.markup))} →</span> ` : ""}<b class="${markupTier(f.then.markup) || "pos"}">${esc(fmtPct(f.then.markup))}</b>` : dash}</td>
+      <td class="num">${f.then && f.then.food !== null ? esc(fmtPct(f.then.food)) : dash}</td>
+    </tr>`;
+  };
+
+  const amountsHtml = (m, amounts) => {
+    if (!amounts.length) return "";
+    qtyN += amounts.length;
+    return `<table><thead><tr>
+        <th>ส่วนผสมที่ปรับปริมาณ • Amounts changed</th>
+        <th>จากเดิม • From</th><th>เป็น • To</th><th class="num">ต้นทุนต่อสูตร • Cost</th>
+      </tr></thead><tbody>${amounts.map(a => `<tr>
+        <td>${esc(a.name)}${a.nameEn ? `<br><span class="en">${esc(a.nameEn)}</span>` : ""} <span class="en">— ${esc(a.block)}</span></td>
+        <td>${esc(a.from)}</td>
+        <td><b>${esc(a.to)}</b></td>
+        <td class="num">${a.costNow === null || a.costThen === null ? dash
+          : `${esc(fmtCost(a.costNow))} → <b class="${a.costThen > a.costNow ? "neg" : "pos"}">${esc(fmtCost(a.costThen))}</b>`}</td>
+      </tr>`).join("")}</tbody></table>`;
+  };
+
+  const body = groupedMenus()
+    .map(([cat, list]) => [cat, list.filter(m => chosen.has(m.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) => {
+      const blocks = list.map(m => {
+        const { rows, amounts } = repriceProposals(m);
+        if (!rows.length && !amounts.length) { skipped++; return ""; }
+        return (rows.length ? `<div class="table-scroll"><table>${head}<tbody>${rows.map(x => rowHtml(m, x)).join("")}</tbody></table></div>` : "")
+          + (amounts.length ? `<h3>🧪 ${esc(m.nameTh)}</h3>${amountsHtml(m, amounts)}` : "");
+      }).filter(Boolean).join("");
+      if (!blocks) return "";
+      return `<div class="cat-block">
+        <h2 class="cat-title">${esc(menuCatLabel(cat))}</h2>
+        ${blocks}
+      </div>`;
+    }).filter(Boolean).join("");
+
+  const avgBefore = cmpN ? sumBefore / cmpN : null;
+  const avgAfter = cmpN ? sumAfter / cmpN : null;
+  const summary = `<div class="summary">
+    ${n ? `ปรับราคา ${n} รายการ${upN ? ` · ขึ้น ${upN}` : ""}${downN ? ` · ลด ${downN}` : ""}` : "ยังไม่มีรายการที่ปรับราคา"}${
+      qtyN ? ` · ปรับปริมาณส่วนผสม ${qtyN} รายการ` : ""}${
+      avgBefore === null ? "" : ` · Markup เฉลี่ย ${esc(fmtPct(avgBefore))} → <b class="${markupTier(avgAfter) || "pos"}">${esc(fmtPct(avgAfter))}</b>`}
+    ${n ? `<div class="en">รวมส่วนต่างราคา ${esc(fmtPrice(sumDiff))} ต่อหนึ่งที่/เซ็ต</div>` : ""}
+    <div class="en">แสดงเฉพาะรายการที่ใส่ราคาใหม่หรือปรับปริมาณไว้${skipped ? ` — อีก ${skipped} เมนูที่เลือกไว้ยังไม่ได้ปรับอะไร จึงไม่อยู่ในรายงาน` : ""}</div>
+    <div class="en">ราคาและปริมาณในรายงานนี้คือสิ่งที่เสนอไว้ ยังไม่ใช่ราคาขายหรือสูตรที่ใช้อยู่จริง</div>
+  </div>`;
+
+  return reportShell(
+    "รายงานปรับราคา • Repricing Report",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนูที่เลือก`,
+    summary + (body || `<div class="meta">ยังไม่มีอะไรให้รายงาน — ใส่ราคาใหม่หรือปรับปริมาณในหน้า "ปรับราคา" ก่อน • Nothing proposed yet</div>`));
+}
+
 /* ---------- drink reports ---------- */
 /* every place a beverage ingredient is poured: beverageId -> [{drinkId, label, …}] */
 function allBevUsages() {
@@ -5909,6 +6038,30 @@ function makeMenuReport(mode) {
   const html = buildMenuReport(ids);
   if (mode === "download") { downloadHtml(`menu-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
   else openPrint(html);
+}
+/* ids are left out when the button is the one on the repricing page itself:
+   there the sheet is simply everything proposed */
+function makeRepriceReport(mode, ids) {
+  const list = ids || state.menus.map(m => m.id);
+  if (!list.length) { toast("ยังไม่มีเมนู • No menus yet"); return; }
+  const anything = list.some(id => {
+    const m = state.menus.find(x => x.id === id);
+    if (!m) return false;
+    const p = repriceProposals(m);
+    return p.rows.length || p.amounts.length;
+  });
+  if (!anything) {
+    toast("ยังไม่ได้ใส่ราคาใหม่หรือปริมาณใหม่ไว้เลย • Nothing proposed yet");
+    return;
+  }
+  const html = buildRepriceReport(list);
+  if (mode === "download") { downloadHtml(`repricing-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makeRepriceReportPicked(mode) {
+  const ids = state.menus.filter(m => reportSel.reprice.has(m.id)).map(m => m.id);
+  if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
+  makeRepriceReport(mode, ids);
 }
 function makeCostReport(mode) {
   const ids = state.menus.filter(m => reportSel.cost.has(m.id)).map(m => m.id);
