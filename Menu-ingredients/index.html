@@ -528,6 +528,22 @@
   .diff-pill.down { background: var(--danger-soft); color: var(--danger); }
   .loss-text { color: var(--danger); }
 
+  /* the recipe amounts, folded under the price lines of the same card */
+  .reprice-ings { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .reprice-ings summary.fold-head { font-size: .84rem; color: var(--blue); font-weight: 600; }
+  .reprice-ings .en { color: var(--muted); font-weight: 400; font-size: .76rem; }
+  table.reprice-table tr.block-head td {
+    font-size: .76rem; font-weight: 600; color: var(--blue);
+    background: var(--accent-soft); padding: 5px 8px;
+  }
+  table.reprice-table tr.qty-changed td { background: #fffaf2; }
+  input.new-qty-input {
+    width: 76px; flex: 0 0 76px; padding: 5px 8px;
+    font-size: .88rem; font-weight: 600; text-align: right;
+    color: var(--blue); background: var(--accent-soft);
+    border: 1px solid var(--chip-border2); border-radius: 8px;
+  }
+
   .empty-state {
     text-align: center; padding: 48px 16px; color: var(--muted);
   }
@@ -1734,11 +1750,21 @@ function itemCost(it) {
   if (converted === null) return null;
   return price / packQty * converted;
 }
+/* An amount being considered, kept on the recipe line beside the amount
+   being cooked. Like a proposed price it changes nothing by itself: only the
+   repricing page reads it, so the kitchen, the reports and the cost on the
+   menu card all go on describing the dish as it is served today. */
+function hasNewQty(it) { return String(it.newQty ?? "").trim() !== ""; }
+function itemCostNew(it) {
+  return hasNewQty(it)
+    ? itemCost({ ingredientId: it.ingredientId, qty: String(it.newQty).trim(), unit: it.unit })
+    : itemCost(it);
+}
 /* cost of the items shown for a menu (a specific option's items when it has options) */
-function costOf(items) {
+function costOf(items, useNew = false) {
   let total = 0, priced = 0;
   (items || []).forEach(it => {
-    const c = itemCost(it);
+    const c = useNew ? itemCostNew(it) : itemCost(it);
     if (c === null) return;
     total += c; priced++;
   });
@@ -1980,7 +2006,9 @@ function menuListPrice(v) {
   const p = parseFloat(v);
   return isFinite(p) && p > 0 ? p : null;
 }
-function bundleRefInfo(ref) {
+/* useNew costs the dish at the amounts being considered instead of the ones
+   being cooked, so a set follows a change made to a dish inside it */
+function bundleRefInfo(ref, useNew = false) {
   const gone = (nameTh, why) => ({ nameTh, nameEn: "", sub: "", perServe: null, price: null, missing: 0, why });
   if (!ref) return gone("(รายการเสีย • broken line)", "อ่านรายการนี้ไม่ได้ • this line can't be read");
 
@@ -2008,7 +2036,7 @@ function bundleRefInfo(ref) {
     return gone(m.nameTh, "ตัวเลือกเนื้อสัตว์ที่เลือกไว้ถูกลบไปแล้ว — เลือกใหม่ • that meat option no longer exists");
   }
   const style = ref.style === "rice" && hasRice(m) ? "rice" : "main";
-  const cost = costOf(effectiveItems(m, opt, style));
+  const cost = costOf(effectiveItems(m, opt, style), useNew);
   const prod = prodOf(m, opt, style);
   const serves = servesOf(prod);
   const bits = [opt && opt.nameTh, hasRice(m) && styleLabel(style).th].filter(Boolean);
@@ -2072,8 +2100,8 @@ function allBundleLines(menu) {
    every option of it offers the same choices. */
 function bundleGroups(menu) { return Array.isArray(menu.groups) ? menu.groups : []; }
 function bundleGroupStore(menu) { return (menu.groups = bundleGroups(menu)); }
-function groupCost(g) {
-  const items = (g.choices || []).map(ref => ({ ref, info: bundleRefInfo(ref) }));
+function groupCost(g, useNew = false) {
+  const items = (g.choices || []).map(ref => ({ ref, info: bundleRefInfo(ref, useNew) }));
   const priced = items.filter(x => x.info.perServe !== null).map(x => x.info.perServe);
   /* the same averaging, over what the plates sell for on their own, so the
      set can be held up against ordering them one by one */
@@ -2105,9 +2133,9 @@ function bundleGroupIssue(gc) {
 /* the cost of one whole set: each line's per-serve cost times its serves,
    plus each choice group's average. With versions, that is the shared lines
    plus the chosen version's own. */
-function bundleCost(menu, opt) {
+function bundleCost(menu, opt, useNew = false) {
   const lineOf = where => ref => {
-    const info = bundleRefInfo(ref);
+    const info = bundleRefInfo(ref, useNew);
     const n = parseFloat(ref.serves);
     const serves = isFinite(n) && n > 0 ? n : null;
     return {
@@ -2119,7 +2147,7 @@ function bundleCost(menu, opt) {
   const shared = bundleItems(menu).map(lineOf("base"));
   const own = (opt ? setOptBundle(opt) : []).map(lineOf("opt"));
   const lines = [...shared, ...own];
-  const groups = bundleGroups(menu).map(groupCost);
+  const groups = bundleGroups(menu).map(g => groupCost(g, useNew));
 
   let total = 0, priced = 0, fixed = 0, lo = 0, hi = 0;
   lines.forEach(l => {
@@ -2255,10 +2283,12 @@ function repriceRows(m) {
   if (isBundle(m)) {
     return (setOptions(m) || [null]).map(o => {
       const c = bundleCost(m, o);
+      const cn = bundleCost(m, o, true);
       return {
         label: o ? o.nameTh : "",
         optId: o ? o.id : "", styleKey: "main",
         cost: c.priced ? c.total : null,
+        costNew: cn.priced ? cn.total : null,
         costNote: c.missing ? `ต้นทุนยังไม่ครบ ${c.missing} รายการ` : "",
         oldPrice: menuListPrice(bundleSellPrice(m, o)),
         newPrice: bundleNewPrice(m, o),
@@ -2270,13 +2300,16 @@ function repriceRows(m) {
   const styleKeys = hasRice(m) ? ["main", "rice"] : ["main"];
   const rows = [];
   (opts || [null]).forEach(o => styleKeys.forEach(k => {
-    const cost = costOf(effectiveItems(m, o, k));
+    const items = effectiveItems(m, o, k);
+    const cost = costOf(items);
+    const costNew = costOf(items, true);
     const prod = prodOf(m, o, k);
     const serves = servesOf(prod);
+    const per = c => c.priced && serves !== null && serves > 0 ? c.total / serves : null;
     rows.push({
       label: [o && o.nameTh, hasRice(m) && styleLabel(k).th].filter(Boolean).join(" · "),
       optId: o ? o.id : "", styleKey: k,
-      cost: cost.priced && serves !== null && serves > 0 ? cost.total / serves : null,
+      cost: per(cost), costNew: per(costNew),
       costNote: !cost.priced ? "ยังคิดต้นทุนส่วนผสมไม่ได้"
         : !(serves !== null && serves > 0) ? "ยังไม่มีจำนวน Serves"
         : cost.missing ? `ต้นทุนยังไม่ครบ ${cost.missing} รายการ` : "",
@@ -2293,13 +2326,25 @@ function repriceRows(m) {
 function repriceFigures(r) {
   const nw = menuListPrice(r.newPrice);
   const diff = nw !== null && r.oldPrice !== null ? nw - r.oldPrice : null;
-  const at = p => (p === null || r.cost === null)
+  /* what is charged today is weighed against what it costs today; what is
+     being considered is weighed against what it would cost at the amounts
+     being considered, so a smaller portion shows up in the new markup */
+  const at = (p, cost) => (p === null || cost === null)
     ? null
-    : { profit: p - r.cost, markup: markupOf(p - r.cost, r.cost), food: p > 0 ? r.cost / p * 100 : null };
+    : { profit: p - cost, markup: markupOf(p - cost, cost), food: p > 0 ? cost / p * 100 : null };
+  const costDiff = r.costNew !== null && r.cost !== null ? r.costNew - r.cost : null;
+  const costMoved = costDiff !== null && Math.abs(costDiff) > 0.005;
+  /* A smaller portion at the same price is a repricing too, so the new
+     figures are worked out against the price already charged when no new one
+     is proposed. With nothing proposed at all there is nothing to show, and
+     the line stays empty rather than repeating today's numbers twice. */
+  const thenPrice = nw !== null ? nw : (costMoved ? r.oldPrice : null);
   return {
     nw, diff,
     diffPct: diff !== null && r.oldPrice > 0 ? diff / r.oldPrice * 100 : null,
-    now: at(r.oldPrice), then: at(nw),
+    costDiff, costMoved,
+    atOldPrice: nw === null && costMoved,
+    now: at(r.oldPrice, r.cost), then: at(thenPrice, r.costNew),
   };
 }
 
@@ -2321,26 +2366,30 @@ function renderReprice() {
   /* how many lines carry a proposed price, and what those lines do to the
      markup on average — the average is over the same lines on both sides, so
      the before and after figures are comparable */
-  let n = 0, upN = 0, downN = 0, sumBefore = 0, sumAfter = 0, cmpN = 0, sumDiff = 0;
-  state.menus.forEach(m => repriceRows(m).forEach(r => {
-    const f = repriceFigures(r);
-    if (f.nw === null) return;
-    n++;
-    if (f.diff !== null) { sumDiff += f.diff; if (f.diff > 0) upN++; else if (f.diff < 0) downN++; }
-    if (f.now && f.then && f.now.markup !== null && f.then.markup !== null) {
-      cmpN++; sumBefore += f.now.markup; sumAfter += f.then.markup;
-    }
-  }));
-  document.getElementById("reprice-summary").innerHTML = n
+  let n = 0, upN = 0, downN = 0, sumBefore = 0, sumAfter = 0, cmpN = 0, sumDiff = 0, qtyN = 0;
+  state.menus.forEach(m => {
+    repriceIngredientBlocks(m).forEach(b => { qtyN += b.items.filter(hasNewQty).length; });
+    repriceRows(m).forEach(r => {
+      const f = repriceFigures(r);
+      if (f.nw === null) return;
+      n++;
+      if (f.diff !== null) { sumDiff += f.diff; if (f.diff > 0) upN++; else if (f.diff < 0) downN++; }
+      if (f.now && f.then && f.now.markup !== null && f.then.markup !== null) {
+        cmpN++; sumBefore += f.now.markup; sumAfter += f.then.markup;
+      }
+    });
+  });
+  document.getElementById("reprice-summary").innerHTML = (n || qtyN)
     ? `<div class="cost-box" style="margin-top:0">
          <span class="cost-label">📝 ใส่ราคาใหม่ไว้แล้ว • Priced so far:</span>
          <span class="cost-main">${n}</span>
          <span class="cost-label">รายการ${upN ? ` · ขึ้นราคา ${upN}` : ""}${downN ? ` · ลดราคา ${downN}` : ""}</span>
+         ${qtyN ? `<span class="cost-label">🧪 ปรับปริมาณส่วนผสมไว้ ${qtyN} รายการ</span>` : ""}
          ${cmpN ? `<span class="cost-label">📈 Markup เฉลี่ยของรายการเหล่านี้ ${esc(fmtPct(sumBefore / cmpN))} →</span>
            <span class="pct-pill ${markupTier(sumAfter / cmpN)}">${esc(fmtPct(sumAfter / cmpN))}</span>` : ""}
-         <span class="cost-note">ราคาใหม่เก็บไว้ในหน้านี้เท่านั้น ยังไม่ได้เปลี่ยนราคาขายจริง — รวมส่วนต่างทุกรายการ ${esc(fmtPrice(sumDiff))} ต่อหนึ่งที่/เซ็ต</span>
+         <span class="cost-note">ราคาใหม่และปริมาณใหม่เก็บไว้ในหน้านี้เท่านั้น ยังไม่ได้เปลี่ยนราคาขายหรือสูตรจริง${n ? ` — รวมส่วนต่างราคาทุกรายการ ${esc(fmtPrice(sumDiff))} ต่อหนึ่งที่/เซ็ต` : ""}</span>
        </div>`
-    : `<div class="hint">ยังไม่ได้ใส่ราคาใหม่ไว้เลย • No proposed prices yet</div>`;
+    : `<div class="hint">ยังไม่ได้ใส่ราคาใหม่หรือปริมาณใหม่ไว้เลย • Nothing proposed yet</div>`;
 
   const groups = new Map();
   menus.forEach(m => {
@@ -2381,9 +2430,17 @@ function repriceCardHtml(menu) {
       ? (r.cost === null ? `<span class="en" title="${esc(r.costNote)}">ยังไม่รู้ต้นทุน</span>` : dash)
       : `${f.now ? `<span class="en">${esc(fmtPct(f.now.markup))} →</span> ` : ""}<span class="pct-pill ${markupTier(f.then.markup)}${f.then.markup !== null && f.then.markup < 0 ? " loss" : ""}">${esc(fmtPct(f.then.markup))}</span>`;
 
+    /* the cost moves too when an amount is being changed, so the column
+       shows both rather than quietly switching to the new one */
+    const costHtml = r.cost === null
+      ? `<span class="en" title="${esc(r.costNote)}">–</span>`
+      : f.costMoved
+        ? `<span class="en">${esc(fmtPrice(r.cost))} →</span> <b class="${f.costDiff > 0 ? "loss-text" : ""}">${esc(fmtPrice(r.costNew))}</b>`
+        : esc(fmtPrice(r.cost));
+
     return `<tr>
       <td>${r.label ? esc(r.label) : `<span class="en">ราคาเดียว</span>`}</td>
-      <td class="num">${r.cost === null ? `<span class="en" title="${esc(r.costNote)}">–</span>` : esc(fmtPrice(r.cost))}</td>
+      <td class="num">${costHtml}</td>
       <td class="num">${r.oldPrice === null ? dash : esc(fmtPrice(r.oldPrice))}</td>
       <td class="num">
         <span class="serves-cell">
@@ -2394,7 +2451,9 @@ function repriceCardHtml(menu) {
         </span>
       </td>
       <td class="num">${diffHtml}</td>
-      <td class="num">${f.then ? `<b class="${f.then.profit < 0 ? "loss-text" : ""}">${esc(fmtPrice(f.then.profit))}</b>` : dash}</td>
+      <td class="num">${f.then
+        ? `<b class="${f.then.profit < 0 ? "loss-text" : ""}"${f.atOldPrice ? ` title="คิดจากราคาเดิม เพราะยังไม่ได้ใส่ราคาใหม่"` : ""}>${esc(fmtPrice(f.then.profit))}</b>${f.atOldPrice ? ` <span class="en">(ราคาเดิม)</span>` : ""}`
+        : dash}</td>
       <td class="num">${markupHtml}</td>
       <td class="num">${f.then && f.then.food !== null ? esc(fmtPct(f.then.food)) : dash}</td>
     </tr>`;
@@ -2424,7 +2483,96 @@ function repriceCardHtml(menu) {
         <tbody>${rows}</tbody>
       </table>
     </div>
+    ${repriceIngredientsHtml(menu)}
   </div>`;
+}
+
+/* the recipe lists as they are stored, so an amount shared by every option is
+   shown and changed once rather than repeated under each combination */
+function repriceIngredientBlocks(m) {
+  const blocks = [
+    { label: "ส่วนผสมหลัก", en: "Base — ใช้ทุกแบบ", where: "base", optId: "", items: m.items || [] },
+  ];
+  (menuOptions(m) || []).forEach(o =>
+    blocks.push({ label: `เฉพาะ ${o.nameTh}`, en: `${o.nameEn || o.nameTh} only`, where: "opt", optId: o.id, items: o.items || [] }));
+  if (hasRice(m)) {
+    blocks.push({ label: RICE_TH, en: RICE_EN, where: "style", optId: "", items: riceItems(m) });
+    (menuOptions(m) || []).forEach(o =>
+      blocks.push({ label: `เฉพาะ ${o.nameTh} — ${RICE_TH}`, en: "", where: "optstyle", optId: o.id, items: optRiceItems(o) }));
+  }
+  return blocks.filter(b => b.items.length);
+}
+
+function repriceIngredientsHtml(menu) {
+  /* a set holds no ingredients of its own; its cost follows the dishes in it,
+     including any amount being considered for them */
+  if (isBundle(menu)) {
+    return `<div class="hint" style="margin-top:10px">🧺 เซ็ตไม่มีส่วนผสมของตัวเอง — ต้นทุนมาจากเมนูที่อยู่ในเซ็ต ถ้าปรับปริมาณของเมนูเหล่านั้น ต้นทุนเซ็ตจะขยับตามเอง • a set has no ingredients of its own</div>`;
+  }
+  const blocks = repriceIngredientBlocks(menu);
+  if (!blocks.length) return "";
+
+  const changed = blocks.reduce((n, b) => n + b.items.filter(hasNewQty).length, 0);
+  const rowHtml = (b, it) => {
+    const ing = findIngredient(it.ingredientId);
+    const now = itemCost(it), then = itemCostNew(it);
+    const moved = hasNewQty(it) && now !== null && then !== null && Math.abs(then - now) > 0.000005;
+    return `<tr${hasNewQty(it) ? ' class="qty-changed"' : ""}>
+      <td>${esc(ing ? ing.nameTh : "(ถูกลบ)")}${ing && ing.nameEn ? `<br><span class="en">${esc(ing.nameEn)}</span>` : ""}</td>
+      <td class="num"><span class="qty-badge">${esc([it.qty, it.unit].filter(Boolean).join(" ") || "–")}</span></td>
+      <td class="num">
+        <span class="serves-cell">
+          <input class="new-qty-input" type="number" min="0" step="any" value="${esc(it.newQty ?? "")}"
+                 title="ปริมาณใหม่ที่คิดไว้ • The amount you are considering"
+                 onchange="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}',this.value)">
+          <span class="serves-unit">${esc(it.unit || "")}</span>
+          ${hasNewQty(it) ? `<button class="icon-btn" title="ล้างปริมาณใหม่ • Clear" onclick="setNewQty('${menu.id}','${b.where}','${b.optId}','${it.ingredientId}','')">✕</button>` : ""}
+        </span>
+      </td>
+      <td class="num">${now === null ? `<span class="en">–</span>` : esc(fmtCost(now))}</td>
+      <td class="num">${!moved ? `<span class="en">—</span>`
+        : `<b class="${then > now ? "loss-text" : ""}">${esc(fmtCost(then))}</b> <span class="diff-pill ${then > now ? "down" : "up"}">${then > now ? "▲" : "▼"} ${esc(fmtCost(Math.abs(then - now)))}</span>`}</td>
+    </tr>`;
+  };
+
+  const body = blocks.map(b => `
+    <tr class="block-head"><td colspan="5">${esc(b.label)}${b.en ? ` <span class="en">• ${esc(b.en)}</span>` : ""}</td></tr>
+    ${b.items.map(it => rowHtml(b, it)).join("")}`).join("");
+
+  return `<details class="reprice-ings"${foldAttrs("repriceing:" + menu.id)}>
+    <summary class="fold-head">🧪 ปรับปริมาณส่วนผสม <span class="en">• Adjust the amounts — ต้นทุนด้านบนจะคิดตามปริมาณใหม่ให้ทันที</span>
+      <span class="fold-count">${changed ? `แก้ไว้ ${changed} รายการ` : `${blocks.reduce((n, b) => n + b.items.length, 0)} รายการ`}</span>
+    </summary>
+    <div class="table-wrap">
+      <table class="reprice-table">
+        <thead><tr>
+          <th>ส่วนผสม<span class="en">Ingredient</span></th>
+          <th class="num">ปริมาณเดิม<span class="en">Now</span></th>
+          <th class="num">ปริมาณใหม่<span class="en">New</span></th>
+          <th class="num">ต้นทุนเดิม<span class="en">Cost now</span></th>
+          <th class="num">ต้นทุนใหม่<span class="en">Cost then</span></th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  </details>`;
+}
+
+/* the proposed amount is written on the recipe line itself, in whichever list
+   holds it, so it travels with that amount and nothing else */
+function setNewQty(menuId, where, optId, ingredientId, val) {
+  const m = state.menus.find(x => x.id === menuId);
+  if (!m) return;
+  const o = optId ? (menuOptions(m) || []).find(x => x.id === optId) : null;
+  const list = (where === "opt" && o) ? (o.items || [])
+    : (where === "optstyle" && o) ? optRiceItems(o)
+    : where === "style" ? riceItems(m)
+    : (m.items || []);
+  const it = list.find(x => x.ingredientId === ingredientId);
+  if (!it) return;
+  const v = String(val).trim();
+  if (v === "") delete it.newQty; else it.newQty = v;
+  save(); renderAll();
 }
 
 /* the proposed price is written where the selling price for that same
