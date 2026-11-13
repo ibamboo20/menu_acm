@@ -2473,6 +2473,10 @@ function renderReprice() {
          ${cmpN ? `<span class="cost-label">📈 Markup เฉลี่ยของรายการเหล่านี้ ${esc(fmtPct(sumBefore / cmpN))} →</span>
            <span class="pct-pill ${markupTier(sumAfter / cmpN)}">${esc(fmtPct(sumAfter / cmpN))}</span>` : ""}
          <span class="cost-note">ราคาใหม่และปริมาณใหม่เก็บไว้ในหน้านี้เท่านั้น ยังไม่ได้เปลี่ยนราคาขายหรือสูตรจริง${n ? ` — รวมส่วนต่างราคาทุกรายการ ${esc(fmtPrice(sumDiff))} ต่อหนึ่งที่/เซ็ต` : ""}</span>
+         <span class="cost-note" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+           ${n ? `<button type="button" class="btn small" onclick="applyNewPrices()">✅ ใช้ราคาใหม่กับเมนูจริง • Apply the prices (${n})</button>` : ""}
+           ${qtyN ? `<button type="button" class="btn small secondary" onclick="applyNewQtys()">🧪 ใช้ปริมาณใหม่กับสูตรจริง • Apply the amounts (${qtyN})</button>` : ""}
+         </span>
        </div>`
     : `<div class="hint">ยังไม่ได้ใส่ราคาใหม่หรือปริมาณใหม่ไว้เลย • Nothing proposed yet</div>`;
 
@@ -2643,6 +2647,66 @@ function repriceIngredientsHtml(menu) {
       </table>
     </div>
   </details>`;
+}
+
+/* ---------- making the proposals real ----------
+   The price list and the recipes are different things to change, so they are
+   applied by their own buttons: a price round should not quietly resize a
+   portion, and a portion fixed in the kitchen should not need a price change
+   to take effect. Each says what it is about to do and cannot be undone, so
+   each asks first. */
+function newPriceHolders() {
+  const out = [];
+  state.menus.forEach(m => {
+    const take = (h, label) => {
+      if (h && String(h.newPrice ?? "").trim() !== "") out.push({ h, name: m.nameTh, label });
+    };
+    take(m, "");
+    take(m.withRice, RICE_TH);
+    (m.options || []).forEach(o => { take(o, o.nameTh); take(o.rice, `${o.nameTh} · ${RICE_TH}`); });
+    (m.setOptions || []).forEach(o => take(o, `แบบ ${o.nameTh}`));
+  });
+  return out;
+}
+function newQtyRows() {
+  const out = [];
+  state.menus.forEach(m => repriceIngredientBlocks(m).forEach(b =>
+    b.items.filter(hasNewQty).forEach(it => out.push({ it, name: m.nameTh, label: b.label }))));
+  return out;
+}
+function applyNewPrices() {
+  const rows = newPriceHolders();
+  if (!rows.length) { toast("ยังไม่ได้ใส่ราคาใหม่ไว้เลย • No proposed prices"); return; }
+  /* a figure typed the same as the one already charged changes nothing; it
+     is counted apart so the question says how many prices really move */
+  const moves = rows.filter(r => {
+    const a = parseFloat(r.h.sellPrice), b = parseFloat(r.h.newPrice);
+    return !(isFinite(a) && isFinite(b) && Math.abs(a - b) < 0.0001);
+  });
+  const sample = moves.slice(0, 6)
+    .map(r => `  ${r.name}${r.label ? ` (${r.label})` : ""}  ${fmtPrice(r.h.sellPrice)} → ${fmtPrice(r.h.newPrice)}`)
+    .join("\n");
+  if (!confirm(
+    `เปลี่ยนราคาขายจริง ${moves.length} รายการ` +
+    `${rows.length - moves.length ? ` (อีก ${rows.length - moves.length} รายการราคาเท่าเดิม)` : ""} ?\n\n` +
+    sample + (moves.length > 6 ? `\n  … และอีก ${moves.length - 6} รายการ` : "") +
+    `\n\nราคาเดิมจะถูกทับ ย้อนกลับไม่ได้\nApply these as the real selling prices? This cannot be undone.`)) return;
+  rows.forEach(r => { r.h.sellPrice = String(r.h.newPrice).trim(); delete r.h.newPrice; });
+  save(); renderAll();
+  toast(`เปลี่ยนราคาขายจริงแล้ว ${moves.length} รายการ • ${moves.length} prices applied`);
+}
+function applyNewQtys() {
+  const rows = newQtyRows();
+  if (!rows.length) { toast("ยังไม่ได้ปรับปริมาณไว้เลย • No proposed amounts"); return; }
+  const sample = rows.slice(0, 6)
+    .map(r => `  ${r.name} · ${r.label}  ${r.it.qty} ${r.it.unit} → ${r.it.newQty} ${r.it.unit}`).join("\n");
+  if (!confirm(
+    `เปลี่ยนปริมาณในสูตรจริง ${rows.length} รายการ ?\n\n` +
+    sample + (rows.length > 6 ? `\n  … และอีก ${rows.length - 6} รายการ` : "") +
+    `\n\nปริมาณเดิมจะถูกทับ ย้อนกลับไม่ได้\nApply these as the real recipe amounts? This cannot be undone.`)) return;
+  rows.forEach(r => { r.it.qty = String(r.it.newQty).trim(); delete r.it.newQty; });
+  save(); renderAll();
+  toast(`เปลี่ยนปริมาณในสูตรแล้ว ${rows.length} รายการ • ${rows.length} amounts applied`);
 }
 
 /* the proposed amount is written on the recipe line itself, in whichever list
