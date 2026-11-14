@@ -1107,6 +1107,20 @@
     </div>
 
     <div class="card">
+      <h2>🧾 รายการเมนูและราคา <span class="en">• Menu Price List</span></h2>
+      <p class="hint">รายชื่อเมนูกับราคาขายที่ใช้อยู่ตอนนี้ แยกตามประเภท เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด และเมนูที่ยังไม่ได้ใส่ราคาจะขึ้นให้เห็นด้วย • The menu names and what they sell for today</p>
+      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('price', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('price', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-price-choices"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn" onclick="makePriceListReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
+        <button type="button" class="btn secondary" onclick="makePriceListReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>💲 รายงานปรับราคา <span class="en">• Repricing Report</span></h2>
       <p class="hint">สรุปราคาใหม่ที่ตั้งไว้ในหน้า "ปรับราคา" เทียบกับราคาเดิม ขึ้นหรือลงเท่าไหร่ กี่เปอร์เซ็นต์ กำไรและ Markup ที่ราคาใหม่ พร้อมรายการส่วนผสมที่ปรับปริมาณ • The prices and amounts you are proposing, against what is charged today</p>
       <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
@@ -5303,10 +5317,10 @@ document.getElementById("drink-modal").addEventListener("click", e => {
    "dcost" both choose drinks — same list, separate ticks, so a selection made
    for one report is not disturbed by the other. */
 const reportSel = {
-  ing: new Set(), menu: new Set(), cost: new Set(), reprice: new Set(),
+  ing: new Set(), menu: new Set(), cost: new Set(), reprice: new Set(), price: new Set(),
   bev: new Set(), drink: new Set(), dcost: new Set(),
 };
-const REPORT_KINDS = ["ing", "menu", "cost", "reprice", "bev", "drink", "dcost"];
+const REPORT_KINDS = ["ing", "menu", "cost", "reprice", "price", "bev", "drink", "dcost"];
 /* what each picker is choosing from */
 function reportSource(kind) {
   if (kind === "ing") return state.ingredients;
@@ -5834,6 +5848,55 @@ function buildCostReport(ids) {
     summary + body);
 }
 
+/* ---------- price list ----------
+   Just the names and what they sell for: the sheet you hand to the floor or
+   check the printed menu against. One line per combination that carries a
+   price of its own, and a menu with no price yet is listed as that rather
+   than left out, so the list doubles as a check for gaps. */
+function buildPriceListReport(ids) {
+  const chosen = new Set(ids);
+  let n = 0, missing = 0;
+
+  const head = `<thead><tr>
+    <th>เมนู • Menu</th><th>แบบ • Version</th><th class="num">ราคา • Price</th>
+  </tr></thead>`;
+
+  const body = groupedMenus()
+    .map(([cat, list]) => [cat, list.filter(m => chosen.has(m.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) => {
+      const rows = list.map(m => repriceRows(m).map((r, i) => {
+        n++;
+        if (r.oldPrice === null) missing++;
+        /* the name is written once per menu; its own lines carry the variant */
+        const name = i === 0
+          ? `<b>${esc(m.nameTh)}</b>${m.nameEn ? `<br><span class="en">${esc(m.nameEn)}</span>` : ""}`
+          : "";
+        return `<tr>
+          <td>${name}</td>
+          <td>${r.label ? esc(r.label) : `<span class="en">ราคาเดียว</span>`}</td>
+          <td class="num">${r.oldPrice === null
+            ? `<span class="en">ยังไม่ได้ใส่ราคา</span>`
+            : `<b>${esc(fmtPrice(r.oldPrice))}</b>`}</td>
+        </tr>`;
+      }).join("")).join("");
+      return `<div class="cat-block">
+        <h2 class="cat-title">${esc(menuCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
+        <table>${head}<tbody>${rows}</tbody></table>
+      </div>`;
+    }).join("");
+
+  const summary = `<div class="summary">
+    ${n} รายการ${missing ? ` · ยังไม่ได้ใส่ราคา ${missing} รายการ` : ""}
+    <div class="en">เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด เพราะคิดราคาแยกกัน</div>
+  </div>`;
+
+  return reportShell(
+    "รายการเมนูและราคา • Menu Price List",
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
+    summary + (body || `<div class="meta">ยังไม่ได้เลือกเมนู • Nothing selected</div>`));
+}
+
 /* ---------- repricing report ----------
    What is being proposed, not the whole price list: a menu with nothing
    typed against it is left out, so the sheet can be handed over as the list
@@ -6194,6 +6257,13 @@ function makeRepriceReport(mode, ids) {
   }
   const html = buildRepriceReport(list);
   if (mode === "download") { downloadHtml(`repricing-report-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
+  else openPrint(html);
+}
+function makePriceListReport(mode) {
+  const ids = state.menus.filter(m => reportSel.price.has(m.id)).map(m => m.id);
+  if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
+  const html = buildPriceListReport(ids);
+  if (mode === "download") { downloadHtml(`price-list-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
   else openPrint(html);
 }
 function makeRepriceReportPicked(mode) {
