@@ -1108,12 +1108,19 @@
 
     <div class="card">
       <h2>🧾 รายการเมนูและราคา <span class="en">• Menu Price List</span></h2>
-      <p class="hint">รายชื่อเมนูกับราคาขายที่ใช้อยู่ตอนนี้ แยกตามประเภท เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด และเมนูที่ยังไม่ได้ใส่ราคาจะขึ้นให้เห็นด้วย • The menu names and what they sell for today</p>
-      <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap">
+      <p class="hint">รายชื่ออาหารและเครื่องดื่มกับราคาขายที่ใช้อยู่ตอนนี้ แยกตามประเภท เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด และเมนูที่ยังไม่ได้ใส่ราคาจะขึ้นให้เห็นด้วย • Food and drinks with what they sell for today — in one list</p>
+      <div class="list-head" style="margin-top:0">🍽️ อาหาร <span class="en">• Food</span></div>
+      <div style="margin:8px 0; display:flex; gap:6px; flex-wrap:wrap">
         <button type="button" class="btn small ghost" onclick="setAllReportSel('price', true)">เลือกทั้งหมด • Select all</button>
         <button type="button" class="btn small ghost" onclick="setAllReportSel('price', false)">ล้าง • Clear</button>
       </div>
       <div id="report-price-choices"></div>
+      <div class="list-head">🥤 เครื่องดื่ม <span class="en">• Drinks</span></div>
+      <div style="margin:8px 0; display:flex; gap:6px; flex-wrap:wrap">
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('pricedrink', true)">เลือกทั้งหมด • Select all</button>
+        <button type="button" class="btn small ghost" onclick="setAllReportSel('pricedrink', false)">ล้าง • Clear</button>
+      </div>
+      <div id="report-pricedrink-choices"></div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
         <button type="button" class="btn" onclick="makePriceListReport('download')">⬇️ ดาวน์โหลดรายงาน • Download</button>
         <button type="button" class="btn secondary" onclick="makePriceListReport('print')">🖨️ เปิดเพื่อพิมพ์ / PDF • Print</button>
@@ -5317,15 +5324,16 @@ document.getElementById("drink-modal").addEventListener("click", e => {
    "dcost" both choose drinks — same list, separate ticks, so a selection made
    for one report is not disturbed by the other. */
 const reportSel = {
-  ing: new Set(), menu: new Set(), cost: new Set(), reprice: new Set(), price: new Set(),
+  ing: new Set(), menu: new Set(), cost: new Set(), reprice: new Set(),
+  price: new Set(), pricedrink: new Set(),
   bev: new Set(), drink: new Set(), dcost: new Set(),
 };
-const REPORT_KINDS = ["ing", "menu", "cost", "reprice", "price", "bev", "drink", "dcost"];
+const REPORT_KINDS = ["ing", "menu", "cost", "reprice", "price", "pricedrink", "bev", "drink", "dcost"];
 /* what each picker is choosing from */
 function reportSource(kind) {
   if (kind === "ing") return state.ingredients;
   if (kind === "bev") return state.beverages;
-  if (kind === "drink" || kind === "dcost") return state.drinks;
+  if (kind === "drink" || kind === "dcost" || kind === "pricedrink") return state.drinks;
   return state.menus;
 }
 const reportIngSel = reportSel.ing;
@@ -5389,12 +5397,12 @@ function groupedDrinks() {
 function pickerGroups(kind) {
   if (kind === "ing") return groupedIngredients();
   if (kind === "bev") return groupedBeverages();
-  if (kind === "drink" || kind === "dcost") return groupedDrinks();
+  if (kind === "drink" || kind === "dcost" || kind === "pricedrink") return groupedDrinks();
   return groupedMenus();
 }
 function groupTitle(kind, cat) {
   if (kind === "ing" || kind === "bev") return cat || "ไม่ระบุประเภท • Uncategorized";
-  if (kind === "drink" || kind === "dcost") return drinkCatLabel(cat);
+  if (kind === "drink" || kind === "dcost" || kind === "pricedrink") return drinkCatLabel(cat);
   return menuCatLabel(cat);
 }
 
@@ -5408,6 +5416,7 @@ function renderPicker(kind) {
     bev:   "ยังไม่มีวัตถุดิบเครื่องดื่ม • No beverage ingredients yet",
     drink: "ยังไม่มีเมนูเครื่องดื่ม • No drinks yet",
     dcost: "ยังไม่มีเมนูเครื่องดื่ม • No drinks yet",
+    pricedrink: "ยังไม่มีเมนูเครื่องดื่ม • No drinks yet",
   }[kind] || "ยังไม่มีเมนู • No menus yet";
   if (!groups.length) { box.innerHTML = `<span class="brand-txt">${empty}</span>`; return; }
   box.innerHTML = groups.map(([cat, list], gi) => {
@@ -5853,8 +5862,9 @@ function buildCostReport(ids) {
    check the printed menu against. One line per combination that carries a
    price of its own, and a menu with no price yet is listed as that rather
    than left out, so the list doubles as a check for gaps. */
-function buildPriceListReport(ids) {
+function buildPriceListReport(ids, drinkIds) {
   const chosen = new Set(ids);
+  const chosenDrinks = new Set(drinkIds || []);
   let n = 0, missing = 0;
 
   const head = `<thead><tr>
@@ -5886,15 +5896,39 @@ function buildPriceListReport(ids) {
       </div>`;
     }).join("");
 
+  /* drinks are sold one price to a glass, so they need no version column —
+     their own section, grouped by drink type the way the drink tab is */
+  const drinkHead = `<thead><tr><th>เครื่องดื่ม • Drink</th><th class="num">ราคา • Price</th></tr></thead>`;
+  const drinkBody = groupedDrinks()
+    .map(([cat, list]) => [cat, list.filter(d => chosenDrinks.has(d.id))])
+    .filter(([, list]) => list.length)
+    .map(([cat, list]) => {
+      const rows = list.map(d => {
+        n++;
+        const p = menuListPrice(d.sellPrice);
+        if (p === null) missing++;
+        return `<tr>
+          <td><b>${esc(d.nameTh)}</b>${d.nameEn && d.nameEn !== d.nameTh ? `<br><span class="en">${esc(d.nameEn)}</span>` : ""}</td>
+          <td class="num">${p === null ? `<span class="en">ยังไม่ได้ใส่ราคา</span>` : `<b>${esc(fmtPrice(p))}</b>`}</td>
+        </tr>`;
+      }).join("");
+      return `<div class="cat-block">
+        <h2 class="cat-title">🥤 ${esc(drinkCatLabel(cat))}<span class="cat-n">${list.length} เมนู</span></h2>
+        <table>${drinkHead}<tbody>${rows}</tbody></table>
+      </div>`;
+    }).join("");
+
+  const counted = [ids.length ? `${ids.length} เมนูอาหาร` : "", (drinkIds || []).length ? `${drinkIds.length} เครื่องดื่ม` : ""]
+    .filter(Boolean).join(" + ");
   const summary = `<div class="summary">
     ${n} รายการ${missing ? ` · ยังไม่ได้ใส่ราคา ${missing} รายการ` : ""}
-    <div class="en">เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด เพราะคิดราคาแยกกัน</div>
+    <div class="en">เมนูที่มีตัวเลือกเนื้อสัตว์หรือแบบเสิร์ฟจะแยกบรรทัด เพราะคิดราคาแยกกัน · เครื่องดื่มอยู่ท้ายรายการ</div>
   </div>`;
 
   return reportShell(
     "รายการเมนูและราคา • Menu Price List",
-    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${ids.length} เมนู`,
-    summary + (body || `<div class="meta">ยังไม่ได้เลือกเมนู • Nothing selected</div>`));
+    `สร้างเมื่อ • Generated: ${new Date().toLocaleString("th-TH")} | ${counted || "ไม่ได้เลือก"}`,
+    summary + (body + drinkBody || `<div class="meta">ยังไม่ได้เลือกเมนู • Nothing selected</div>`));
 }
 
 /* ---------- repricing report ----------
@@ -6261,8 +6295,12 @@ function makeRepriceReport(mode, ids) {
 }
 function makePriceListReport(mode) {
   const ids = state.menus.filter(m => reportSel.price.has(m.id)).map(m => m.id);
-  if (!ids.length) { toast("เลือกเมนูอย่างน้อย 1 เมนูก่อน • Select at least one menu"); return; }
-  const html = buildPriceListReport(ids);
+  const drinkIds = state.drinks.filter(d => reportSel.pricedrink.has(d.id)).map(d => d.id);
+  if (!ids.length && !drinkIds.length) {
+    toast("เลือกเมนูหรือเครื่องดื่มอย่างน้อย 1 รายการก่อน • Select at least one menu or drink");
+    return;
+  }
+  const html = buildPriceListReport(ids, drinkIds);
   if (mode === "download") { downloadHtml(`price-list-${dateStamp()}.html`, html); toast("ดาวน์โหลดรายงานแล้ว • Report downloaded"); }
   else openPrint(html);
 }
